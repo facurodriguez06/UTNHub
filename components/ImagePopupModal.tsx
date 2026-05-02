@@ -55,7 +55,7 @@ export function ImagePopupModal() {
       onWheel={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
     >
-      <div className="relative max-w-[calc(100vw-2rem)] sm:max-w-2xl w-full animate-fade-in-up">
+      <div className="relative max-w-[calc(100vw-2rem)] sm:max-w-2xl w-fit h-fit mx-auto animate-fade-in-up flex flex-col justify-center items-center">
         <button
           onClick={handleClose}
           className="absolute -top-4 -right-4 sm:-top-6 sm:-right-6 z-10 p-2 bg-white rounded-full text-black hover:bg-gray-200 shadow-xl transition-colors outline-none"
@@ -64,19 +64,19 @@ export function ImagePopupModal() {
         </button>
         
         {linkUrl ? (
-          <a href={linkUrl} target="_blank" rel="noopener noreferrer" onClick={handleClose} className="block overflow-hidden rounded-2xl shadow-2xl hover:scale-[1.02] transition-transform outline-none relative bg-white">
+          <a href={linkUrl} target="_blank" rel="noopener noreferrer" onClick={handleClose} className="flex overflow-hidden rounded-2xl shadow-2xl hover:scale-[1.02] transition-transform outline-none relative bg-white">
             <img 
               src={imageUrl.startsWith("http") ? imageUrl : `https://pub-be009cc7cdca400cb717da8a110bcaa8.r2.dev/${imageUrl}`} 
               alt="Promo" 
-              className="w-full h-auto max-h-[85vh] object-contain"
+              className="max-w-full max-h-[85vh] w-auto h-auto object-contain"
             />
           </a>
         ) : (
-          <div className="overflow-hidden rounded-2xl shadow-2xl relative bg-white">
+          <div className="flex overflow-hidden rounded-2xl shadow-2xl relative bg-white">
             <img 
               src={imageUrl.startsWith("http") ? imageUrl : `https://pub-be009cc7cdca400cb717da8a110bcaa8.r2.dev/${imageUrl}`} 
               alt="Promo" 
-              className="w-full h-auto max-h-[85vh] object-contain"
+              className="max-w-full max-h-[85vh] w-auto h-auto object-contain"
             />
           </div>
         )}

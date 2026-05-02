@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import type { FirebaseError } from "firebase/app";
 import {
   Check,
@@ -29,7 +29,14 @@ import { useAuth } from "@/context/AuthContext";
 import { EditNoteModal } from "@/components/EditNoteModal";
 import { Edit, Megaphone, ChevronDown } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
-import { signInWithEmailAndPassword, signOut, createUserWithEmailAndPassword, getAuth } from "firebase/auth";
+import {
+  signInWithEmailAndPassword,
+  signOut,
+  createUserWithEmailAndPassword,
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+} from "firebase/auth";
 import { auth, app as primaryApp, db } from "@/lib/firebase/config";
 import { initializeApp, getApps } from "firebase/app";
 import { collection, query, where, onSnapshot, updateDoc, deleteDoc, doc, setDoc, getDocs } from "firebase/firestore";
@@ -38,8 +45,30 @@ type AuthError = Partial<FirebaseError> & {
   message?: string;
 };
 
+type AdminRecord = {
+  id: string;
+  email: string;
+  createdAt?: string;
+};
+
 const toAuthError = (error: unknown): AuthError =>
   (typeof error === "object" && error !== null ? error : {}) as AuthError;
+
+const OWNER_ADMIN_EMAILS = new Set(["facundorodrigueezsp@gmail.com"]);
+
+const normalizeAdminEmail = (value?: string | null) => value?.trim().toLowerCase() ?? "";
+
+const buildAdminRecord = (email: string, extra: Record<string, unknown> = {}) => ({
+  email,
+  createdAt: new Date().toISOString(),
+  ...extra,
+});
+
+const formatAdminDate = (value?: string) => {
+  if (!value) return "Sin fecha";
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? "Sin fecha" : date.toLocaleDateString();
+};
 
 const normalizeFolderName = (value: string) =>
   value.replace(/<[^>]*>/g, "").replace(/[<>"']/g, "").replace(/\s+/g, " ").trim().slice(0, 60);
@@ -242,13 +271,74 @@ function SubjectGroup({
   );
 }
 
+const compressImage = async (file: File, maxSizeMB: number = 4): Promise<File> => {
+  if (file.size <= maxSizeMB * 1024 * 1024) return file;
+  
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        let { width, height } = img;
+        
+        const maxDim = 2048;
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return resolve(file);
+        
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        let quality = 0.8;
+        const targetSize = maxSizeMB * 1024 * 1024;
+        
+        const tryCompress = () => {
+          canvas.toBlob((blob) => {
+            if (!blob) return resolve(file);
+            
+            if (blob.size > targetSize && quality > 0.4) {
+              quality -= 0.1;
+              tryCompress();
+            } else {
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now(),
+              });
+              resolve(compressedFile);
+            }
+          }, "image/jpeg", quality);
+        };
+        tryCompress();
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+};
+
 export default function AdminPage() {
   const { user, loading } = useAuth();
+  const ownerRegistrationAttempted = useRef<string | null>(null);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loginError, setLoginError] = useState("");
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [hasAdminAccess, setHasAdminAccess] = useState(false);
+  const [adminAccessLoading, setAdminAccessLoading] = useState(true);
   const [metrics, setMetrics] = useState({ pageViews: 0, uniqueVisitors: 0, todayViews: 0 });
 
   const [pendingNotes, setPendingNotes] = useState<Note[]>([]);
@@ -267,7 +357,7 @@ export default function AdminPage() {
   const [createAdminMsg, setCreateAdminMsg] = useState({ text: "", type: "" });
   const [isCreatingAdmin, setIsCreatingAdmin] = useState(false);
   const { showToast } = useToast();
-  const [adminList, setAdminList] = useState<any[]>([]);
+  const [adminList, setAdminList] = useState<AdminRecord[]>([]);
   const [adminError, setAdminError] = useState("");
 
   const [editingNote, setEditingNote] = useState<Note | null>(null);
@@ -297,9 +387,68 @@ export default function AdminPage() {
   const [isResetting, setIsResetting] = useState(false);
 
   useEffect(() => {
+    const currentEmail = normalizeAdminEmail(user?.email);
+
     if (!user) {
+      setHasAdminAccess(false);
+      setAdminAccessLoading(false);
+      setAdminError("");
+      return;
+    }
+
+    if (!currentEmail) {
+      setHasAdminAccess(false);
+      setAdminAccessLoading(false);
+      setAdminError("Tu cuenta no tiene un correo asociado para validar permisos.");
+      return;
+    }
+
+    setAdminAccessLoading(true);
+
+    if (OWNER_ADMIN_EMAILS.has(currentEmail)) {
+      setHasAdminAccess(true);
+      setAdminAccessLoading(false);
+      setAdminError("");
+
+      if (ownerRegistrationAttempted.current !== currentEmail) {
+        ownerRegistrationAttempted.current = currentEmail;
+        setDoc(
+          doc(db, "admins", currentEmail),
+          buildAdminRecord(currentEmail, { source: "owner-email" }),
+          { merge: true }
+        ).catch((error) => {
+          console.error("No se pudo registrar el owner como admin:", error);
+          setAdminError("Ingresaste con el correo dueno, pero Firestore no permitio registrar el perfil admin automaticamente.");
+        });
+      }
+
+      return;
+    }
+
+    const unsubscribeAdminAccess = onSnapshot(
+      doc(db, "admins", currentEmail),
+      (docSnap) => {
+        const canAccess = docSnap.exists();
+        setHasAdminAccess(canAccess);
+        setAdminAccessLoading(false);
+        setAdminError(canAccess ? "" : "Esta cuenta no esta registrada como moderador.");
+      },
+      (error) => {
+        console.error("No se pudo validar el acceso admin:", error);
+        setHasAdminAccess(false);
+        setAdminAccessLoading(false);
+        setAdminError("No se pudo validar si esta cuenta es moderador. Revisa las reglas de Firebase.");
+      }
+    );
+
+    return () => unsubscribeAdminAccess();
+  }, [user]);
+
+  useEffect(() => {
+    if (!user || !hasAdminAccess) {
       setPendingNotes([]);
       setApprovedNotes([]);
+      setAdminList([]);
       return;
     }
 
@@ -348,7 +497,14 @@ export default function AdminPage() {
     const unsubscribeAdmins = onSnapshot(
       collection(db, "admins"),
       (snapshot) => {
-        setAdminList(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+        setAdminList(snapshot.docs.map((d) => {
+          const data = d.data();
+          return {
+            id: d.id,
+            email: typeof data.email === "string" ? data.email : d.id,
+            createdAt: typeof data.createdAt === "string" ? data.createdAt : undefined,
+          };
+        }));
       }
     );
 
@@ -380,7 +536,7 @@ export default function AdminPage() {
       unsubscribeAdmins();
       unsubscribeMetrics();
     };
-  }, [user]);
+  }, [user, hasAdminAccess, noteSortingOrder]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -388,7 +544,7 @@ export default function AdminPage() {
     setIsLoggingIn(true);
 
     try {
-      await signInWithEmailAndPassword(auth, email, password);
+      await signInWithEmailAndPassword(auth, normalizeAdminEmail(email), password);
     } catch (err: unknown) {
       const authError = toAuthError(err);
       console.error(err);
@@ -400,6 +556,29 @@ export default function AdminPage() {
         setLoginError("Correo o contraseña incorrectos.");
       } else {
         setLoginError("Ocurrió un error al iniciar sesión.");
+      }
+    } finally {
+      setIsLoggingIn(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    setLoginError("");
+    setIsLoggingIn(true);
+
+    try {
+      const provider = new GoogleAuthProvider();
+      provider.setCustomParameters({ prompt: "select_account" });
+      await signInWithPopup(auth, provider);
+    } catch (err: unknown) {
+      const authError = toAuthError(err);
+      console.error(err);
+      if (authError.code === "auth/popup-closed-by-user") {
+        setLoginError("Se cerro el ingreso con Google antes de terminar.");
+      } else if (authError.code === "auth/operation-not-allowed") {
+        setLoginError("El ingreso con Google no esta habilitado en Firebase.");
+      } else {
+        setLoginError("No se pudo ingresar con Google.");
       }
     } finally {
       setIsLoggingIn(false);
@@ -420,22 +599,46 @@ export default function AdminPage() {
     setIsCreatingAdmin(true);
 
     try {
-      const secondaryApp =
-        getApps().find((app) => app.name === "SecondaryApp") ||
-        initializeApp(primaryApp.options, "SecondaryApp");
-      const secondaryAuth = getAuth(secondaryApp);
+      const adminEmail = normalizeAdminEmail(newAdminEmail);
+      const adminPassword = newAdminPassword.trim();
 
-      await createUserWithEmailAndPassword(secondaryAuth, newAdminEmail, newAdminPassword);
-      await secondaryAuth.signOut();
+      if (!adminEmail) {
+        setCreateAdminMsg({ text: "Ingresa un correo valido.", type: "error" });
+        return;
+      }
 
-      // Guardar en Firestore para poder listarlo
-      const { setDoc } = await import("firebase/firestore");
-      await setDoc(doc(db, "admins", newAdminEmail.toLowerCase()), {
-        email: newAdminEmail.toLowerCase(),
-        createdAt: new Date().toISOString(),
-      });
+      if (adminPassword) {
+        const secondaryApp =
+          getApps().find((app) => app.name === "SecondaryApp") ||
+          initializeApp(primaryApp.options, "SecondaryApp");
+        const secondaryAuth = getAuth(secondaryApp);
 
-      setCreateAdminMsg({ text: "Administrador creado y registrado.", type: "success" });
+        try {
+          await createUserWithEmailAndPassword(secondaryAuth, adminEmail, adminPassword);
+          await secondaryAuth.signOut();
+          await setDoc(doc(db, "admins", adminEmail), buildAdminRecord(adminEmail, { source: "created-from-panel" }), { merge: true });
+          setCreateAdminMsg({ text: "Administrador creado y registrado.", type: "success" });
+        } catch (err: unknown) {
+          const authError = toAuthError(err);
+
+          if (authError.code !== "auth/email-already-in-use") {
+            throw err;
+          }
+
+          await setDoc(doc(db, "admins", adminEmail), buildAdminRecord(adminEmail, { source: "existing-auth-account" }), { merge: true });
+          setCreateAdminMsg({
+            text: "Ese correo ya existia: lo registre como moderador. Puede entrar con su cuenta actual.",
+            type: "success",
+          });
+        }
+      } else {
+        await setDoc(doc(db, "admins", adminEmail), buildAdminRecord(adminEmail, { source: "existing-auth-account" }), { merge: true });
+        setCreateAdminMsg({
+          text: "Correo registrado como moderador. Si ya tenia cuenta, puede entrar con ese mismo acceso.",
+          type: "success",
+        });
+      }
+
       setNewAdminEmail("");
       setNewAdminPassword("");
 
@@ -549,7 +752,7 @@ export default function AdminPage() {
       setSelectedPendingNotes([]);
       setBulkFolderInput("");
       showToast(`Se aprobaron ${toApprove.length} apuntes masivamente.`, "success");
-    } catch(err) {
+    } catch {
       setAdminError("Error al aprobar apuntes masivamente.");
     }
   };
@@ -587,10 +790,17 @@ export default function AdminPage() {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (file.size > 10 * 1024 * 1024) {
+      showToast("La imagen del anuncio no puede superar los 10 MB", "error");
+      return;
+    }
+
     setIsUploadingImage(true);
     try {
+      const processedFile = await compressImage(file, 4); // Comprimir a max 4MB para pasar Vercel
+
       const formData = new FormData();
-      formData.append("file", file);
+      formData.append("file", processedFile);
       formData.append("type", "image");
 
       const res = await fetch("/api/upload", {
@@ -598,14 +808,17 @@ export default function AdminPage() {
         body: formData,
       });
 
-      if (!res.ok) throw new Error("Error al subir imagen");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.error || `Fallo al subir: Error ${res.status} ${res.statusText}`);
+      }
 
       const data = await res.json();
       setImagePopupUrl(data.url);
       showToast("Imagen subida con éxito", "success");
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      showToast("Error al subir imagen", "error");
+      showToast(error.message || "Error al subir imagen", "error");
     } finally {
       setIsUploadingImage(false);
     }
@@ -787,7 +1000,7 @@ export default function AdminPage() {
     }
   };
 
-  if (loading) {
+  if (loading || adminAccessLoading) {
     return (
       <div className="min-h-[80vh] flex items-center justify-center">
         <Loader2 className="w-10 h-10 text-[#C4A87D] animate-spin" />
@@ -855,7 +1068,40 @@ export default function AdminPage() {
             >
               {isLoggingIn ? <Loader2 className="w-5 h-5 animate-spin" /> : "Ingresar"}
             </button>
+
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={isLoggingIn}
+              className="w-full bg-white hover:bg-[#F9F7F4] text-[#4A433C] border border-[#EDE6DD] font-medium py-3 rounded-xl transition-all duration-300 shadow-sm transform active:scale-[0.98] flex justify-center items-center gap-2 disabled:opacity-70 disabled:active:scale-100"
+            >
+              <Mail className="w-4 h-4" />
+              Ingresar con Google
+            </button>
           </form>
+        </div>
+      </div>
+    );
+  }
+
+  if (!hasAdminAccess) {
+    return (
+      <div className="min-h-[80vh] flex items-center justify-center p-4">
+        <div className="w-full max-w-md bg-white rounded-3xl shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#EDE6DD] p-8 md:p-10 text-center animate-fade-in-up">
+          <div className="w-16 h-16 bg-[#FFF0F0] text-[#D84545] rounded-full flex items-center justify-center mx-auto mb-6 border border-[#FFDCDC]">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+          <h1 className="text-2xl font-bold text-[#2C2825] mb-2 tracking-tight">Cuenta sin permisos</h1>
+          <p className="text-[#7A6E62] mb-3 text-sm">
+            Ingresaste como <strong className="text-[#3D3229]">{user.email}</strong>, pero ese correo no esta habilitado como moderador.
+          </p>
+          {adminError && <p className="text-red-500 text-sm mb-6">{adminError}</p>}
+          <button
+            onClick={handleLogout}
+            className="w-full bg-[#2C2825] hover:bg-[#1A1816] text-[#FDFCFB] font-medium py-3 rounded-xl transition-all duration-300 shadow-md"
+          >
+            Salir e ingresar con otra cuenta
+          </button>
         </div>
       </div>
     );
@@ -917,7 +1163,7 @@ export default function AdminPage() {
             </button>
           </div>
           <p className="text-[#7A6E62] text-sm mb-5">
-            Completá este formulario para crearle una cuenta nueva a un colega administrador.
+            Completa el correo para habilitarlo como moderador. La contrasena solo hace falta si queres crear una cuenta nueva.
           </p>
 
           <form onSubmit={handleCreateAdmin} className="flex flex-col sm:flex-row gap-4 items-start">
@@ -931,8 +1177,7 @@ export default function AdminPage() {
             />
             <input
               type="password"
-              placeholder="Contraseña (mín 6)"
-              required
+              placeholder="Contrasena nueva (opcional)"
               value={newAdminPassword}
               onChange={(e) => setNewAdminPassword(e.target.value)}
               className="flex-1 w-full px-4 py-2.5 bg-white border border-[#E5DCD3] focus:border-[#C4A87D] rounded-xl outline-none"
@@ -942,7 +1187,7 @@ export default function AdminPage() {
               disabled={isCreatingAdmin}
               className="w-full sm:w-auto bg-[#2C2825] hover:bg-[#1A1816] px-6 py-2.5 text-white font-medium rounded-xl transition-all disabled:opacity-70 flex justify-center h-[46px]"
             >
-              {isCreatingAdmin ? <Loader2 className="w-5 h-5 animate-spin" /> : "Añadir Moderador"}
+              {isCreatingAdmin ? <Loader2 className="w-5 h-5 animate-spin" /> : "Guardar Moderador"}
             </button>
           </form>
           {createAdminMsg.text && (
@@ -971,7 +1216,7 @@ export default function AdminPage() {
                     <div className="flex flex-col overflow-hidden">
                       <span className="text-sm font-bold text-[#3D3229] truncate">{adm.email}</span>
                       <span className="text-[10px] text-[#A89F95] flex items-center gap-1">
-                        <Calendar className="w-3 h-3" /> {new Date(adm.createdAt).toLocaleDateString()}
+                        <Calendar className="w-3 h-3" /> {formatAdminDate(adm.createdAt)}
                       </span>
                     </div>
                   </div>
@@ -1231,7 +1476,7 @@ export default function AdminPage() {
                 Personalizar Apuntes de Usuarios
               </h2>
               <p className="text-[#7A6E62] text-sm leading-relaxed">
-                Asigná un color especial y una etiqueta (ej: "Amigo", "VIP") a los apuntes subidos por alguien específico. Escribí el nombre exacto con el que subió el archivo.
+                Asigná un color especial y una etiqueta (ej: &quot;Amigo&quot;, &quot;VIP&quot;) a los apuntes subidos por alguien específico. Escribí el nombre exacto con el que subió el archivo.
               </p>
             </div>
           </div>

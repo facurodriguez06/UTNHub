@@ -19,7 +19,7 @@ export async function POST(request: Request) {
 
     // --- PROTECCIONES DE SEGURIDAD DEL SERVIDOR ---
     const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50 MB límite estricto
-    const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.zip', '.rar', '.jpg', '.jpeg', '.png'];
+    const ALLOWED_EXTENSIONS = ['.pdf', '.doc', '.docx', '.xls', '.xlsx', '.zip', '.rar', '.jpg', '.jpeg', '.png', '.webp', '.gif', '.svg'];
     
     // 1. Prevenir ataques de saturación de almacenamiento (archivos gigantes)
     if (file.size > MAX_FILE_SIZE) {

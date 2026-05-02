@@ -224,6 +224,24 @@ export function UploadModule() {
           subjectId: materia,
             year: availableSubjects.find((s) => s.id === materia)?.year || parseInt(anio, 10) || 1,          };
         await addDoc(collection(db, "notes"), newNote);
+        
+        // Notificar a Discord (no bloqueante para no romper la subida)
+        try {
+          const subjectName = availableSubjects.find((s) => s.id === materia)?.name || materia;
+          fetch('/api/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title: fileTitle,
+              author: cleanAuthor,
+              subject: subjectName,
+              type: newNote.type
+            })
+          }).catch(e => console.error("Error en fetch a /api/notify:", e));
+        } catch (notifyError) {
+          console.error("Error al intentar notificar:", notifyError);
+        }
+
         setUploadProgress(5 + progressStep * (i + 1));
       }
 

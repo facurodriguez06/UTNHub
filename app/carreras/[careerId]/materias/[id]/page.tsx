@@ -56,14 +56,18 @@ const buildDisplayList = (notes: Note[], order: string = "newest"): DisplayItem[
     if (!folderLabel) {
       items.push({ type: "note", note, date: note.uploadDate || "" });
     } else {
-      if (!folderGroups.has(folderLabel)) {
-        folderGroups.set(folderLabel, []);
+      const typeLabel = note.type || "Otros";
+      const groupKey = `${folderLabel}||${typeLabel}`;
+      if (!folderGroups.has(groupKey)) {
+        folderGroups.set(groupKey, []);
       }
-      folderGroups.get(folderLabel)!.push(note);
+      folderGroups.get(groupKey)!.push(note);
     }
   });
 
-  folderGroups.forEach((notes, label) => {
+  folderGroups.forEach((notes, key) => {
+    const label = key.split("||")[0];
+    const typeLabel = key.split("||")[1];
     let dateValue = "";
     if (order === "score") {
       // Para score, usamos un placeholder que no rompa localeCompare o usamos otro criterio?
@@ -80,11 +84,21 @@ const buildDisplayList = (notes: Note[], order: string = "newest"): DisplayItem[
       label, 
       notes, 
       date: dateValue || "", 
-      key: `folder-${label}` 
+      key: `folder-${label}-${typeLabel}` 
     });
   });
 
   return items.sort((a, b) => {
+    const typeA = a.type === "note" ? (a.note.type || "Otros") : (a.notes[0]?.type || "Otros");
+    const typeB = b.type === "note" ? (b.note.type || "Otros") : (b.notes[0]?.type || "Otros");
+    const weightA = getTypeWeight(typeA);
+    const weightB = getTypeWeight(typeB);
+    if (weightA !== weightB) return weightA - weightB;
+
+    const priorityA = a.type === "note" ? (a.note.priority || 0) : Math.max(...a.notes.map(n => n.priority || 0));
+    const priorityB = b.type === "note" ? (b.note.priority || 0) : Math.max(...b.notes.map(n => n.priority || 0));
+    if (priorityA !== priorityB) return priorityB - priorityA;
+
     if (order === "oldest") return a.date.localeCompare(b.date);
     if (order === "alphabetical") {
       const labelA = a.type === "folder" ? a.label : (a.note.title || "");
@@ -94,7 +108,8 @@ const buildDisplayList = (notes: Note[], order: string = "newest"): DisplayItem[
     if (order === "score") {
       const scoreA = a.type === "note" ? getNoteScore(a.note) : Math.max(...a.notes.map(getNoteScore));
       const scoreB = b.type === "note" ? getNoteScore(b.note) : Math.max(...b.notes.map(getNoteScore));
-      return scoreB - scoreA;
+      if (scoreA !== scoreB) return scoreB - scoreA;
+      return b.date.localeCompare(a.date);
     }
     // Default newest
     return b.date.localeCompare(a.date);
@@ -175,29 +190,13 @@ function FolderItem({
           <ChevronDown className={`w-4 h-4 transition-transform duration-300 group-open/folder:rotate-180 ${chevronClass}`} style={customStyleFolder && !isCreatorFolder ? { color: customStyleFolder.color } : {}} />
         </div>
       </summary>
-      <div className={`border-t px-3 pb-2 pt-0 ${innerBorderClass}`} style={customStyleFolder && !isCreatorFolder ? { borderColor: customStyleFolder.color + "33" } : {}}>
+      <div className={`border-t px-3 pb-2 pt-4 ${innerBorderClass}`} style={customStyleFolder && !isCreatorFolder ? { borderColor: customStyleFolder.color + "33" } : {}}>
         <div className="flex flex-col gap-2.5">
-          {group.notes.map((note, index) => {
-            const showSeparator = index === 0 || note.type !== group.notes[index - 1].type;
-            return (
-              <Fragment key={note.id}>
-                {showSeparator && (
-                  <div className={`flex items-center gap-3 w-full ${index === 0 ? "mt-4 mb-2" : "mt-6 mb-2"}`}>
-                    <span 
-                      className="text-[10px] font-black uppercase tracking-wider text-[#A89F95] px-2 py-1 bg-[#F5F0EA] rounded-md"
-                      style={customStyleFolder && !isCreatorFolder ? { backgroundColor: customStyleFolder.color + "1A", color: customStyleFolder.color } : {}}
-                    >
-                      {note.type || "Otros"}
-                    </span>
-                    <div className="h-[1px] flex-1 bg-gradient-to-r from-[#EDE6DD] to-transparent" style={customStyleFolder && !isCreatorFolder ? { backgroundImage: `linear-gradient(to right, ${customStyleFolder.color}40, transparent)` } : {}} />
-                  </div>
-                )}
-                <div className="animate-fade-in-up" style={{ animationDelay: `${(index % 10) * 40 + 200}ms` }}>
-                  <DocumentListItem note={note} index={index} customStyles={customStyles} />
-                </div>
-              </Fragment>
-            );
-          })}
+          {group.notes.map((note, index) => (
+            <div key={note.id} className="animate-fade-in-up" style={{ animationDelay: `${(index % 10) * 40 + 200}ms` }}>
+              <DocumentListItem note={note} index={index} customStyles={customStyles} />
+            </div>
+          ))}
         </div>
       </div>
     </details>
@@ -333,27 +332,30 @@ export default async function SubjectProfile({ params }: { params: Promise<{ car
         <div className="flex flex-col gap-4">
           {realNotes.length > 0 ? (
             displayList.map((item, itemIndex) => {
-              if (item.type === "note") {
-                const note = item.note;
-                const prevItem = itemIndex > 0 ? displayList[itemIndex - 1] : null;
-                const showSeparator = !prevItem || prevItem.type !== "note" || note.type !== prevItem.note.type;
-                return (
-                  <Fragment key={note.id}>
-                    {showSeparator && (
-                      <div className={`flex items-center gap-3 w-full mb-1 ${itemIndex === 0 ? "mt-0" : "mt-4"}`}>
-                        <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-[#A89F95] px-3 py-1.5 bg-[#F5F0EA]/80 shadow-[0_0_10px_rgba(0,0,0,0.02)] rounded-lg border border-[#EDE6DD]">
-                          {note.type || "Otros"}
-                        </span>
-                        <div className="h-[1px] flex-1 bg-gradient-to-r from-[#EDE6DD] to-transparent" />
-                      </div>
-                    )}
-                    <div className="animate-fade-in-up" style={{ animationDelay: `${(itemIndex % 10) * 40 + 100}ms` }}>
-                      <DocumentListItem note={note} index={itemIndex} customStyles={customStyles} />
+              const currentType = item.type === "note" ? (item.note.type || "Otros") : (item.notes[0]?.type || "Otros");
+              const prevItem = itemIndex > 0 ? displayList[itemIndex - 1] : null;
+              const prevType = prevItem ? (prevItem.type === "note" ? (prevItem.note.type || "Otros") : (prevItem.notes[0]?.type || "Otros")) : null;
+              const showSeparator = currentType !== prevType;
+
+              return (
+                <Fragment key={item.type === "note" ? item.note.id : item.key}>
+                  {showSeparator && (
+                    <div className={`flex items-center gap-3 w-full mb-1 ${itemIndex === 0 ? "mt-0" : "mt-4"}`}>
+                      <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-[#A89F95] px-3 py-1.5 bg-[#F5F0EA]/80 shadow-[0_0_10px_rgba(0,0,0,0.02)] rounded-lg border border-[#EDE6DD]">
+                        {currentType}
+                      </span>
+                      <div className="h-[1px] flex-1 bg-gradient-to-r from-[#EDE6DD] to-transparent" />
                     </div>
-                  </Fragment>
-                );
-              }
-              return <FolderItem key={item.key} group={item} itemIndex={itemIndex} openFoldersByDefault={openFoldersByDefault} yc={yc} customStyles={customStyles} />;
+                  )}
+                  <div className="animate-fade-in-up" style={{ animationDelay: `${(itemIndex % 10) * 40 + 100}ms` }}>
+                    {item.type === "note" ? (
+                      <DocumentListItem note={item.note} index={itemIndex} customStyles={customStyles} />
+                    ) : (
+                      <FolderItem group={item} itemIndex={itemIndex} openFoldersByDefault={openFoldersByDefault} yc={yc} customStyles={customStyles} />
+                    )}
+                  </div>
+                </Fragment>
+              );
             })
           ) : (
             <EmptyState careerId={career.id} subjectId={subject.id} year={subject.year} />
