@@ -24,6 +24,7 @@ export interface Note {
   year?: number;
   folderName?: string | null;
   priority?: number;
+  downloadCount?: number;
 }
 
 export interface Subject {
