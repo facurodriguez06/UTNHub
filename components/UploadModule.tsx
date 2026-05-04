@@ -9,7 +9,6 @@ import {
   Upload,
   FileText,
   Pencil,
-  Send,
   Building2,
 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
@@ -19,11 +18,6 @@ import { careersData, yearConfig, getSubjectsByCareerAndYear, getSubjectsByCaree
 import { db } from "@/lib/firebase/config";
 import { CustomSelect } from "./CustomSelect";
 import { useAuth } from "@/context/AuthContext";
-
-type UploadApiResponse = {
-  url?: string;
-  error?: string;
-};
 
 export function UploadModule() {
   const searchParams = useSearchParams();
@@ -60,7 +54,7 @@ export function UploadModule() {
         setAuthor(defaultName);
       }
     }
-  }, [user]);
+  }, [user, author]);
 
   const sanitize = (input: string, maxLen = 120): string =>
     input.replace(/<[^>]*>/g, "").replace(/[<>'"]/g, "").trim().slice(0, maxLen);
@@ -181,9 +175,9 @@ export function UploadModule() {
               headers: { 'Content-Type': file.type || 'application/octet-stream' },
               body: file
             });
-          } catch (fetchError: any) {
+          } catch (fetchError: unknown) {
             console.error("Fetch error completo:", fetchError);
-            if (fetchError.message === 'Failed to fetch') {
+            if (fetchError instanceof Error && fetchError.message === 'Failed to fetch') {
               throw new Error("El navegador bloqueó la subida (Error de CORS). Por favor, asegurate de haber configurado las políticas CORS en tu bucket de Cloudflare R2 como te indicó el asistente.");
             }
             throw fetchError;

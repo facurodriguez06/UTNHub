@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
-import { X, Megaphone, Info } from "lucide-react";
+import { X, Megaphone } from "lucide-react";
 import { useScrollLock } from "@/hooks/useScrollLock";
 
 export function AnnouncementModal() {

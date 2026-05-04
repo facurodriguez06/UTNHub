@@ -2,18 +2,19 @@ import 'client-only';
 
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import type { CellDef, CellHookData, RowInput, UserOptions } from 'jspdf-autotable';
 import QRCode from 'qrcode';
 
 interface Subject {
-  id: number;
+  id: string | number;
   year: number;
   semester?: string;
   name: string;
   weekly_hours?: number;
   total_hours?: number;
   note?: string;
-  regulares: number[];
-  aprobadas: number[];
+  regulares: (string | number)[];
+  aprobadas: (string | number)[];
 }
 
 interface Career {
@@ -28,6 +29,15 @@ interface Career {
 
 type Rgb = [number, number, number];
 type PeriodKey = 'anual' | 'first' | 'second' | 'elective';
+type StudyPlanCell = CellDef & {
+  weeklyHoursText?: string;
+  annualHoursText?: string;
+  regularText?: string;
+  approvedText?: string;
+  isYearTotal?: boolean;
+  totalLabel?: string;
+  totalValue?: string;
+};
 
 const PAGE_WIDTH = 210;
 const PAGE_HEIGHT = 297;
@@ -124,9 +134,9 @@ const countHours = (subjects: Subject[]) =>
     return sum + (subject.total_hours || 0);
   }, 0);
 
-const formatCode = (subjectId: number) => subjectId.toString().padStart(3, '0');
+const formatCode = (subjectId: string | number) => subjectId.toString().padStart(3, '0');
 
-const getRequirementNames = (ids: number[], curriculum: Subject[]) =>
+const getRequirementNames = (ids: (string | number)[], curriculum: Subject[]) =>
   ids
     .map((id) => curriculum.find((subject) => subject.id === id)?.name)
     .filter((name): name is string => Boolean(name));
@@ -144,7 +154,7 @@ const sortSubjects = (subjects: Subject[]) =>
     const periodDiff =
       PERIOD_ORDER.indexOf(getSemesterKey(left)) - PERIOD_ORDER.indexOf(getSemesterKey(right));
     if (periodDiff !== 0) return periodDiff;
-    return left.id - right.id;
+    return String(left.id).localeCompare(String(right.id));
   });
 
 const buildPeriodPalette = (primaryColor: Rgb) => ({
@@ -444,7 +454,7 @@ const buildYearTableBody = (
   compact = false,
 ) => {
   const palette = buildPeriodPalette(primaryColor);
-  const body: any[][] = [];
+  const body: RowInput[] = [];
   const rowMinH = compact ? 12 : 18;
   const periodPad = compact
     ? { top: 2, right: 2, bottom: 2, left: 2 }
@@ -495,7 +505,7 @@ const buildYearTableBody = (
             textColor: [255, 255, 255],
             minCellHeight: rowMinH,
           },
-        },
+        } as StudyPlanCell,
         {
           content: buildCorrelationText(subject, curriculum),
           regularText: correlationDetails.regular,
@@ -504,7 +514,7 @@ const buildYearTableBody = (
             textColor: [255, 255, 255],
             minCellHeight: rowMinH,
           },
-        },
+        } as StudyPlanCell,
       ]);
     });
   });
@@ -519,7 +529,7 @@ const buildYearTableConfig = (
   primaryColor: Rgb,
   totalHours: number,
   compact = false,
-) => {
+): UserOptions => {
   const fs = compact ? 6.2 : 7.2;
   const headFs = compact ? 6.6 : 7.6;
   const pad = compact
@@ -534,7 +544,7 @@ const buildYearTableConfig = (
   pageBreak: 'avoid' as const,
   showHead: 'everyPage' as const,
   head: [['Per\u00edodo', 'Materia', 'Carga', 'Correlativas']],
-  body: buildYearTableBody(yearSubjects, curriculum, primaryColor, compact) as any,
+  body: buildYearTableBody(yearSubjects, curriculum, primaryColor, compact),
   foot: [[
     { content: '', colSpan: 1, styles: { fillColor: [255, 255, 255], lineWidth: 0 } },
     {
@@ -548,7 +558,7 @@ const buildYearTableConfig = (
         lineWidth: 0,
         minCellHeight: footMinH,
       },
-    },
+    } as StudyPlanCell,
     { content: '', styles: { fillColor: [255, 255, 255], lineWidth: 0 } },
   ]],
   styles: {
@@ -588,10 +598,10 @@ const buildYearTableConfig = (
     2: { cellWidth: compact ? 26 : 28 },
     3: { cellWidth: compact ? 64 : 54 },
   },
-  didParseCell: (data: any) => {
+  didParseCell: (data: CellHookData) => {
     if (data.section === 'body' && data.column.index === 3) {
       const doc = data.doc as jsPDF;
-      const raw = data.cell.raw as { regularText?: string; approvedText?: string } | undefined;
+      const raw = data.cell.raw as StudyPlanCell | undefined;
       const regularText = raw?.regularText ?? '-';
       const approvedText = raw?.approvedText ?? '-';
 
@@ -624,7 +634,7 @@ const buildYearTableConfig = (
       );
     }
   },
-  didDrawCell: (data: any) => {
+  didDrawCell: (data: CellHookData) => {
     const doc = data.doc as jsPDF;
     const fillColor: Rgb =
       Array.isArray(data.cell.styles.fillColor) && data.cell.styles.fillColor.length >= 3
@@ -641,7 +651,7 @@ const buildYearTableConfig = (
 
     /* ── Hours column (column 2) ── */
     if (data.section === 'body' && data.column.index === 2) {
-      const raw = data.cell.raw as { weeklyHoursText?: string; annualHoursText?: string } | undefined;
+      const raw = data.cell.raw as StudyPlanCell | undefined;
       if (!raw?.weeklyHoursText && !raw?.annualHoursText) return;
 
       const weeklyText = raw?.weeklyHoursText ?? '-';
@@ -688,7 +698,7 @@ const buildYearTableConfig = (
 
     /* ── Correlatives column (column 3) ── */
     if (data.section === 'body' && data.column.index === 3) {
-      const raw = data.cell.raw as { regularText?: string; approvedText?: string } | undefined;
+      const raw = data.cell.raw as StudyPlanCell | undefined;
       const regularText = raw?.regularText ?? '-';
       const approvedText = raw?.approvedText ?? '-';
       const innerX = data.cell.x + 2.2;
@@ -750,7 +760,7 @@ const buildYearTableConfig = (
 
     /* ── Year total footer (foot section, column 1 spanning into 2) ── */
     if (data.section === 'foot' && data.column.index === 1) {
-      const raw = data.cell.raw as { isYearTotal?: boolean; totalLabel?: string; totalValue?: string } | undefined;
+      const raw = data.cell.raw as StudyPlanCell | undefined;
       if (!raw?.isYearTotal) return;
 
       const cellX = data.cell.x;
@@ -810,7 +820,7 @@ const estimateYearSectionHeight = (
 
   autoTable(
     probe,
-    buildYearTableConfig(tableStartY, yearSubjects, curriculum, primaryColor, totalHours, compact) as any,
+    buildYearTableConfig(tableStartY, yearSubjects, curriculum, primaryColor, totalHours, compact),
   );
 
   const finalY =
@@ -894,7 +904,7 @@ const drawYearSection = (
 
   autoTable(
     doc,
-    buildYearTableConfig(tableStartY, yearSubjects, curriculum, primaryColor, totalHours, compact) as any,
+    buildYearTableConfig(tableStartY, yearSubjects, curriculum, primaryColor, totalHours, compact),
   );
 
   return startY + sectionHeight;
@@ -954,5 +964,5 @@ export const generateStudyPlanPDF = async (career: Career, curriculum: Subject[]
     drawFooter(doc, primaryColor, page, pageCount);
   }
 
-  doc.save(`Plan_de_Estudio_${career.shortName.replace(/\s+/g, '_')}.pdf`);
+  return URL.createObjectURL(doc.output('blob'));
 };

@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import { subjectsData, careersData, yearConfig, type Note } from "@/lib/data";
-import { DocumentListItem } from "@/components/DocumentListItem";
+import { DocumentListItem, type CustomStyle } from "@/components/DocumentListItem";
 import { BulkDownloadButton } from "@/components/BulkDownloadButton";
 import { EmptyState } from "@/components/EmptyState";
 import {
@@ -38,6 +38,8 @@ const normalizeAuthorName = (value?: string | null) =>
 type DisplayItem = 
   | { type: "note"; note: Note; date: string }
   | { type: "folder"; label: string; notes: Note[]; date: string; key: string };
+
+type YearStyle = (typeof yearConfig)[keyof typeof yearConfig];
 
 const typeOrder: Record<string, number> = {
   "Resumen": 1,
@@ -127,8 +129,8 @@ function FolderItem({
   group: { label: string; notes: Note[]; key: string };
   itemIndex: number;
   openFoldersByDefault: boolean;
-  yc: any;
-  customStyles: any;
+  yc: YearStyle;
+  customStyles: Record<string, CustomStyle>;
 }) {
   const normLabel = normalizeAuthorName(group.label);
   const allSameAuthor = group.notes.length > 0 && group.notes.every((note) => normalizeAuthorName(note.author) === normalizeAuthorName(group.notes[0].author)) ? normalizeAuthorName(group.notes[0].author) : null;

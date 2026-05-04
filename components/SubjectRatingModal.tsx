@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Star, ShieldAlert, Sparkles } from 'lucide-react';
 import { doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
@@ -37,6 +37,34 @@ export default function SubjectRatingModal({ isOpen, onClose, subject, careerId,
 
   useScrollLock(isOpen);
 
+  const loadUserRating = useCallback(async () => {
+    if (!user || !subject) return;
+
+    setIsLoading(true);
+    setDifficulty(0);
+    setUtility(0);
+    setPreviousRating(null);
+
+    try {
+      const userRef = doc(db, 'users', user.uid);
+      const userDoc = await getDoc(userRef);
+      if (userDoc.exists()) {
+        const ratings = userDoc.data().subjectRatings || {};
+        const ratingId = `${careerId}_${subject.id}`;
+        const rating = ratings[ratingId] as { difficulty: number; utility: number } | undefined;
+        if (rating) {
+          setDifficulty(rating.difficulty);
+          setUtility(rating.utility);
+          setPreviousRating(rating);
+        }
+      }
+    } catch (error) {
+      console.error("Error loading user rating:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [careerId, subject, user]);
+
   useEffect(() => {
     if (isOpen && subject && user) {
       loadUserRating();
@@ -45,28 +73,7 @@ export default function SubjectRatingModal({ isOpen, onClose, subject, careerId,
       setUtility(0);
       setPreviousRating(null);
     }
-  }, [isOpen, subject, user]);
-
-  const loadUserRating = async () => {
-    setIsLoading(true);
-    try {
-      const userRef = doc(db, 'users', user!.uid);
-      const userDoc = await getDoc(userRef);
-      if (userDoc.exists()) {
-        const ratings = userDoc.data().subjectRatings || {};
-        const ratingId = `${careerId}_${subject?.id}`;
-        if (ratings[ratingId]) {
-          setDifficulty(ratings[ratingId].difficulty);
-          setUtility(ratings[ratingId].utility);
-          setPreviousRating(ratings[ratingId]);
-        }
-      }
-    } catch (error) {
-      console.error("Error loading user rating:", error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [isOpen, subject, user, loadUserRating]);
 
   const handleSave = async () => {
     if (!user || !subject || difficulty === 0 || utility === 0) {
@@ -118,9 +125,9 @@ export default function SubjectRatingModal({ isOpen, onClose, subject, careerId,
       showToast("¡Gracias por calificar la materia!", "success");
       onRatingUpdated();
       onClose();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error saving rating:", error);
-      showToast(`Error: ${error.message || 'al guardar la calificación'}`, "error");
+      showToast(`Error: ${error instanceof Error ? error.message : 'al guardar la calificación'}`, "error");
     } finally {
       setIsSubmitting(false);
     }

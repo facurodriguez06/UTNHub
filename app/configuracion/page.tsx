@@ -2,13 +2,30 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ArrowLeft, Trash2, AlertTriangle, User, Shield, BookOpen, CheckCircle2, Mail, Lock, Save, Eye, EyeOff, Pencil } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import { doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
+import { ArrowLeft, Trash2, AlertTriangle, User, Shield, BookOpen, CheckCircle2, Mail, Lock, Save, Eye, EyeOff, Pencil, BadgeCheck, Clock3, Sparkles, Bell, GraduationCap, Building2, ExternalLink, Star } from "lucide-react";
 import Link from "next/link";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { useToast } from "@/context/ToastContext";
 import { updateEmail, updatePassword, updateProfile, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+import { careersData } from "@/lib/data";
+
+type FirebaseErrorLike = {
+  code?: string;
+};
+
+type UserProfileData = {
+  role?: string;
+  providerId?: string;
+  lastLoginAt?: string;
+  preferredCareerId?: string;
+  preferredSemester?: string;
+  notificationsEnabled?: boolean;
+};
+
+const getFirebaseErrorCode = (error: unknown) =>
+  typeof error === "object" && error !== null ? (error as FirebaseErrorLike).code : undefined;
 
 export default function ConfiguracionPage() {
   const { user, loading } = useAuth();
@@ -16,8 +33,11 @@ export default function ConfiguracionPage() {
   const { showToast } = useToast();
 
   const [progressStats, setProgressStats] = useState<{ aprobadas: number; regulares: number }>({ aprobadas: 0, regulares: 0 });
+  const [profileData, setProfileData] = useState<UserProfileData>({});
   const [showConfirmDialog, setShowConfirmDialog] = useState<string | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [isUpdatingPreferences, setIsUpdatingPreferences] = useState(false);
+  const [ratingsCount, setRatingsCount] = useState(0);
 
   // Estado para cambio de email
   const [newEmail, setNewEmail] = useState("");
@@ -33,6 +53,10 @@ export default function ConfiguracionPage() {
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
+
+  const preferredCareer = careersData.find((career) => career.id === profileData.preferredCareerId);
+  const providerLabel = profileData.providerId === "google.com" ? "Google" : profileData.providerId === "password" ? "Email/Contraseña" : "No detectado";
+  const roleLabel = profileData.role === "admin" ? "Administrador" : profileData.role === "moderator" ? "Moderador" : "Usuario";
 
   // Estado para cambio de nombre
   const [newName, setNewName] = useState("");
@@ -53,24 +77,54 @@ export default function ConfiguracionPage() {
   useEffect(() => {
     if (!user) return;
 
-    const loadProgress = async () => {
+    const loadProfile = async () => {
       try {
         const userRef = doc(db, "users", user.uid);
         const userDoc = await getDoc(userRef);
         if (userDoc.exists()) {
-          const progress = userDoc.data().progress || { aprobadas: [], regulares: [] };
+          const data = userDoc.data() as UserProfileData & { 
+            progress?: { aprobadas?: unknown[]; regulares?: unknown[] };
+            subjectRatings?: Record<string, unknown>;
+          };
+          const progress = data.progress || { aprobadas: [], regulares: [] };
           setProgressStats({
             aprobadas: progress.aprobadas?.length || 0,
             regulares: progress.regulares?.length || 0,
           });
+          setProfileData({
+            role: data.role || (user.email?.toLowerCase() === "facundorodrigueezsp@gmail.com" ? "admin" : "user"),
+            providerId: data.providerId || user.providerData[0]?.providerId || "unknown",
+            lastLoginAt: data.lastLoginAt || user.metadata.lastSignInTime || undefined,
+            preferredCareerId: data.preferredCareerId || "",
+            preferredSemester: data.preferredSemester || "",
+            notificationsEnabled: typeof data.notificationsEnabled === "boolean" ? data.notificationsEnabled : true,
+          });
+          setRatingsCount(Object.keys(data.subjectRatings || {}).length);
         }
       } catch (error) {
-        console.error("Error al cargar el progreso:", error);
+        console.error("Error al cargar la configuración del usuario:", error);
       }
     };
 
-    loadProgress();
+    loadProfile();
   }, [user]);
+
+  const updatePreferences = async (patch: Partial<UserProfileData>) => {
+    if (!user) return;
+
+    setIsUpdatingPreferences(true);
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, patch);
+      setProfileData((current) => ({ ...current, ...patch }));
+      showToast("Preferencias actualizadas.", "success");
+    } catch (error) {
+      console.error("Error al actualizar preferencias:", error);
+      showToast("No se pudieron guardar las preferencias.", "error");
+    } finally {
+      setIsUpdatingPreferences(false);
+    }
+  };
 
   // Cambiar nombre
   const handleChangeName = async (e: React.FormEvent) => {
@@ -118,15 +172,16 @@ export default function ConfiguracionPage() {
       setNewEmail("");
       setEmailCurrentPassword("");
       setShowEmailForm(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error al cambiar email:", error);
-      if (error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+      const errorCode = getFirebaseErrorCode(error);
+      if (errorCode === "auth/wrong-password" || errorCode === "auth/invalid-credential") {
         showToast("Contraseña actual incorrecta.", "error");
-      } else if (error.code === "auth/email-already-in-use") {
+      } else if (errorCode === "auth/email-already-in-use") {
         showToast("Ese correo ya está en uso por otra cuenta.", "error");
-      } else if (error.code === "auth/invalid-email") {
+      } else if (errorCode === "auth/invalid-email") {
         showToast("El formato del correo no es válido.", "error");
-      } else if (error.code === "auth/requires-recent-login") {
+      } else if (errorCode === "auth/requires-recent-login") {
         showToast("Por seguridad, cerrá sesión y volvé a ingresar antes de cambiar el email.", "error");
       } else {
         showToast("Error al actualizar el correo electrónico.", "error");
@@ -165,13 +220,14 @@ export default function ConfiguracionPage() {
       setNewPassword("");
       setConfirmNewPassword("");
       setShowPasswordForm(false);
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error al cambiar contraseña:", error);
-      if (error.code === "auth/wrong-password" || error.code === "auth/invalid-credential") {
+      const errorCode = getFirebaseErrorCode(error);
+      if (errorCode === "auth/wrong-password" || errorCode === "auth/invalid-credential") {
         showToast("Contraseña actual incorrecta.", "error");
-      } else if (error.code === "auth/weak-password") {
+      } else if (errorCode === "auth/weak-password") {
         showToast("La contraseña es demasiado débil.", "error");
-      } else if (error.code === "auth/requires-recent-login") {
+      } else if (errorCode === "auth/requires-recent-login") {
         showToast("Por seguridad, cerrá sesión y volvé a ingresar antes de cambiar la contraseña.", "error");
       } else {
         showToast("Error al actualizar la contraseña.", "error");
@@ -249,6 +305,26 @@ export default function ConfiguracionPage() {
     }
   };
 
+  // Borrar todas las calificaciones de materias
+  const handleClearRatings = async () => {
+    if (!user) return;
+    setIsProcessing(true);
+    try {
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, {
+        subjectRatings: deleteField()
+      });
+      setRatingsCount(0);
+      showToast("Tus calificaciones han sido eliminadas.", "success");
+    } catch (error) {
+      console.error("Error al borrar calificaciones:", error);
+      showToast("Error al borrar las calificaciones.", "error");
+    } finally {
+      setIsProcessing(false);
+      setShowConfirmDialog(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -283,6 +359,90 @@ export default function ConfiguracionPage() {
           <div>
             <h1 className="text-2xl font-extrabold text-[#3D3229] tracking-tight">Configuración</h1>
             <p className="text-sm font-medium text-[#A89F95]">{user.email}</p>
+          </div>
+        </div>
+
+        {/* Sección: Perfil */}
+        <div className="bg-white border border-[#EDE6DD] rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-6 py-4 bg-[#FAFAF8] border-b border-[#EDE6DD]">
+            <div className="flex items-center gap-2">
+              <BadgeCheck className="w-4 h-4 text-[#8BAA91]" />
+              <h2 className="text-sm font-bold uppercase tracking-widest text-[#A0A0A0]">Perfil</h2>
+            </div>
+          </div>
+          <div className="p-6 space-y-5">
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div className="rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
+                <div className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
+                  <Shield className="w-3.5 h-3.5" /> Rol
+                </div>
+                <p className="text-sm font-bold text-[#3D3229]">{roleLabel}</p>
+                <p className="text-[12px] text-[#7A6E62] mt-1">Define qué acciones puede hacer esta cuenta dentro de la app.</p>
+              </div>
+              <div className="rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
+                <div className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
+                  <Sparkles className="w-3.5 h-3.5" /> Proveedor
+                </div>
+                <p className="text-sm font-bold text-[#3D3229]">{providerLabel}</p>
+                <p className="text-[12px] text-[#7A6E62] mt-1">{user.providerData[0]?.providerId === "google.com" ? "Gestionado por Google" : "Gestionado por Firebase Auth"}</p>
+              </div>
+              <div className="rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
+                <div className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
+                  <Clock3 className="w-3.5 h-3.5" /> Último acceso
+                </div>
+                <p className="text-sm font-bold text-[#3D3229]">
+                  {profileData.lastLoginAt ? new Date(profileData.lastLoginAt).toLocaleString() : "Sin datos"}
+                </p>
+                <p className="text-[12px] text-[#7A6E62] mt-1">Se actualiza cada vez que inicia sesión.</p>
+              </div>
+              <div className="rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
+                <div className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
+                  <GraduationCap className="w-3.5 h-3.5" /> Tu Carrera
+                </div>
+                <p className="text-sm font-bold text-[#3D3229]">{preferredCareer?.name || "Sin definir"}</p>
+                <p className="text-[12px] text-[#7A6E62] mt-1">Carrera a la que pertenecés.</p>
+              </div>
+            </div>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
+                <span className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
+                  <Building2 className="w-3.5 h-3.5" /> Tu carrera
+                </span>
+                <select
+                  className="w-full rounded-xl border border-[#EDE6DD] bg-white px-3 py-2.5 text-sm font-medium text-[#3D3229] outline-none focus:border-[#8BAA91] focus:ring-1 focus:ring-[#8BAA91]/30"
+                  value={profileData.preferredCareerId || ""}
+                  onChange={(e) => updatePreferences({ preferredCareerId: e.target.value })}
+                  disabled={isUpdatingPreferences}
+                >
+                  <option value="">Elegí una carrera</option>
+                  {careersData.filter(c => c.id !== "basicas").map((career) => (
+                    <option key={career.id} value={career.id}>{career.name}</option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="block rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
+                <span className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
+                  <Bell className="w-3.5 h-3.5" /> Notificaciones
+                </span>
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-bold text-[#3D3229]">{profileData.notificationsEnabled ? "Activadas" : "Desactivadas"}</p>
+                    <p className="text-[12px] text-[#7A6E62] mt-1">Recibí avisos de progreso y novedades.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => updatePreferences({ notificationsEnabled: !profileData.notificationsEnabled })}
+                    disabled={isUpdatingPreferences}
+                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${profileData.notificationsEnabled ? "bg-[#8BAA91]" : "bg-[#D1C7BB]"}`}
+                    aria-label="Cambiar notificaciones"
+                  >
+                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${profileData.notificationsEnabled ? "translate-x-6" : "translate-x-1"}`} />
+                  </button>
+                </div>
+              </label>
+            </div>
           </div>
         </div>
 
@@ -579,9 +739,12 @@ export default function ConfiguracionPage() {
             <div className="h-[1px] bg-[#EDE6DD]" />
 
             {/* Borrar todo el progreso */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-[#FFF5F5] p-4 -m-1 rounded-xl border border-[#F5E5E5]">
-              <div>
-                <p className="text-sm font-bold text-[#C55A5A]">Reiniciar todo el progreso</p>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[#FFF5F5] border border-[#F5E5E5] transition-all hover:border-[#F2D5D5] group">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Trash2 className="w-4 h-4 text-[#C55A5A]" />
+                  <h4 className="text-[14px] font-bold text-[#C55A5A]">Reiniciar todo el progreso</h4>
+                </div>
                 <p className="text-[12px] text-[#D4856A]">Borra tanto aprobadas como regularizadas. Esta acción no se puede deshacer.</p>
               </div>
               <button
@@ -590,7 +753,26 @@ export default function ConfiguracionPage() {
                 className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white bg-[#E57A7A] hover:bg-[#D46A6A] border border-[#C55A5A] transition-all active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
               >
                 <Trash2 className="w-3.5 h-3.5" />
-                Borrar todo
+                Borrar todo el progreso
+              </button>
+            </div>
+
+            {/* Borrar Calificaciones */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[#FFF8F5] border border-[#FFEBE5] transition-all hover:border-[#FFD5CC] group">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-[#D4856A]" />
+                  <h4 className="text-[14px] font-bold text-[#3D3229]">Borrar calificaciones</h4>
+                </div>
+                <p className="text-[12px] text-[#D4856A]">Elimina las {ratingsCount} materias que calificaste. Los promedios globales no se verán afectados.</p>
+              </div>
+              <button
+                onClick={() => setShowConfirmDialog("ratings")}
+                disabled={ratingsCount === 0}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white bg-[#E57A7A] hover:bg-[#D46A6A] border border-[#C55A5A] transition-all active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Borrar {ratingsCount} {ratingsCount === 1 ? 'calificación' : 'calificaciones'}
               </button>
             </div>
           </div>
@@ -622,6 +804,9 @@ export default function ConfiguracionPage() {
               {showConfirmDialog === "todo" && (
                 <>Vas a <strong className="text-[#C55A5A]">reiniciar todo tu progreso</strong> (aprobadas y regularizadas). Esta acción no se puede deshacer.</>
               )}
+              {showConfirmDialog === "ratings" && (
+                <>Vas a eliminar las <strong className="text-[#D4856A]">{ratingsCount} calificaciones</strong> que hiciste en las materias. Esta acción no se puede deshacer.</>
+              )}
             </p>
 
             <div className="flex gap-3">
@@ -637,6 +822,7 @@ export default function ConfiguracionPage() {
                   if (showConfirmDialog === "aprobadas") handleClearAprobadas();
                   else if (showConfirmDialog === "regulares") handleClearRegulares();
                   else if (showConfirmDialog === "todo") handleClearAllProgress();
+                  else if (showConfirmDialog === "ratings") handleClearRatings();
                 }}
                 disabled={isProcessing}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-[#E57A7A] hover:bg-[#D46A6A] transition-all disabled:opacity-70 shadow-sm"

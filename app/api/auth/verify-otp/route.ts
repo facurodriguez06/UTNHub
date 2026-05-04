@@ -25,7 +25,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ success: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error verifying OTP:", error);
     return NextResponse.json({ error: 'Error interno de validación' }, { status: 500 });
   }

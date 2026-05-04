@@ -2,12 +2,20 @@
 
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { ArrowLeft, LogIn, Mail, Lock, UserRound } from "lucide-react";
 import Link from "next/link";
 
+type AuthErrorLike = {
+  code?: string;
+  message?: string;
+};
+
+const getAuthError = (error: unknown): AuthErrorLike =>
+  typeof error === "object" && error !== null ? (error as AuthErrorLike) : {};
+
 export default function AuthPage() {
-  const { user, loginWithGoogle, loginWithEmail, registerWithEmail, loading } = useAuth();
+  const { user, loginWithGoogle, loginWithEmail, registerWithEmail, loading, resetPassword } = useAuth();
   const router = useRouter();
 
   const [isLogin, setIsLogin] = useState(true);
@@ -17,6 +25,8 @@ export default function AuthPage() {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [authError, setAuthError] = useState("");
   const [isFormLoading, setIsFormLoading] = useState(false);
+  const [isResettingPassword, setIsResettingPassword] = useState(false);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
 
   // OTP Verification State
   const [verificationStep, setVerificationStep] = useState(false);
@@ -34,8 +44,13 @@ export default function AuthPage() {
     try {
       setAuthError("");
       await loginWithGoogle();
-    } catch (error: any) {
-      setAuthError("Error al iniciar sesión con Google.");
+    } catch (error: unknown) {
+      const authError = getAuthError(error);
+      if (authError.code === "auth/admin-account-not-allowed") {
+        setAuthError("Ese correo está reservado para administración. Ingresá desde el panel de admin.");
+      } else {
+        setAuthError("Error al iniciar sesión con Google.");
+      }
       console.error(error);
     }
   };
@@ -89,16 +104,47 @@ export default function AuthPage() {
         setVerificationPayload(data.verificationPayload);
         setVerificationStep(true);
       }
-    } catch (error: any) {
-      if (error.code === "auth/invalid-credential" || error.code === "auth/user-not-found" || error.code === "auth/wrong-password") {
+    } catch (error: unknown) {
+      const authError = getAuthError(error);
+      if (authError.code === "auth/invalid-credential" || authError.code === "auth/user-not-found" || authError.code === "auth/wrong-password") {
         setAuthError("Correo o contraseña incorrectos.");
-      } else if (error.code === "auth/email-already-in-use") {
+      } else if (authError.code === "auth/admin-account-not-allowed") {
+        setAuthError("Ese correo está reservado para administración. Ingresá desde el panel de admin.");
+      } else if (authError.code === "auth/email-already-in-use") {
         setAuthError("Este correo ya está registrado.");
       } else {
-        setAuthError(error.message || "Ocurrió un error inesperado.");
+        setAuthError(authError.message || "Ocurrió un error inesperado.");
       }
     } finally {
       setIsFormLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setAuthError("Ingresá tu correo para que podamos enviarte el link de recuperación.");
+      return;
+    }
+    
+    setIsResettingPassword(true);
+    setAuthError("");
+    setResetEmailSent(false);
+
+    try {
+      await resetPassword(email);
+      setResetEmailSent(true);
+    } catch (error: unknown) {
+      const authError = getAuthError(error);
+      if (authError.code === "auth/user-not-found") {
+        setAuthError("No encontramos ninguna cuenta con ese correo.");
+      } else if (authError.code === "auth/invalid-email") {
+        setAuthError("El formato del correo no es válido.");
+      } else {
+        setAuthError("Error al enviar el correo de recuperación. Reintentá en unos minutos.");
+      }
+      console.error(error);
+    } finally {
+      setIsResettingPassword(false);
     }
   };
 
@@ -127,11 +173,12 @@ export default function AuthPage() {
       // El código es correcto. ¡Registrar finalmente el usuario!
       await registerWithEmail(email, password, fullName.trim());
       
-    } catch (error: any) {
-      if (error.code === "auth/email-already-in-use") {
+    } catch (error: unknown) {
+      const authError = getAuthError(error);
+      if (authError.code === "auth/email-already-in-use") {
         setAuthError("Este correo ya ha sido registrado.");
       } else {
-        setAuthError(error.message || "Código incorrecto o expirado.");
+        setAuthError(authError.message || "Código incorrecto o expirado.");
       }
     } finally {
       setIsFormLoading(false);
@@ -179,6 +226,12 @@ export default function AuthPage() {
           {authError && (
             <div className="w-full bg-[#FEF2F2] border border-[#FCA5A5] text-[#DC2626] text-xs font-bold p-3 rounded-xl mb-4 text-left">
               {authError}
+            </div>
+          )}
+
+          {resetEmailSent && (
+            <div className="w-full bg-[#F0FDF4] border border-[#BBF7D0] text-[#166534] text-[11px] font-bold p-3 rounded-xl mb-4 text-left animate-fade-in">
+              ¡Email enviado! Revisá tu bandeja de entrada (y spam) para restablecer tu contraseña.
             </div>
           )}
 
@@ -287,6 +340,19 @@ export default function AuthPage() {
                   autoComplete={isLogin ? "current-password" : "new-password"}
                 />
               </div>
+
+              {isLogin && (
+                <div className="flex justify-end pr-1">
+                  <button
+                    type="button"
+                    onClick={handleForgotPassword}
+                    disabled={isResettingPassword}
+                    className="text-[11px] font-bold text-[#8BAA91] hover:text-[#3D3229] transition-colors disabled:opacity-50"
+                  >
+                    {isResettingPassword ? "Enviando..." : "¿Olvidaste tu contraseña?"}
+                  </button>
+                </div>
+              )}
 
               {!isLogin && (
                 <div className="relative">

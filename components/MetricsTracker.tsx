@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { doc, increment, setDoc } from "firebase/firestore";
+import { doc, increment, setDoc, type FieldValue } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 
 export function MetricsTracker() {
@@ -22,7 +22,11 @@ export function MetricsTracker() {
         const today = baTime.getFullYear() + '-' + String(baTime.getMonth() + 1).padStart(2, '0') + '-' + String(baTime.getDate()).padStart(2, '0');
         const isNewSession = !sessionStorage.getItem("tracked_session");
         
-        const updateData: any = { 
+        const updateData: {
+          pageViews: FieldValue;
+          lastActive: string;
+          uniqueVisitors?: FieldValue;
+        } = { 
           pageViews: increment(1), 
           lastActive: new Date().toISOString() 
         };

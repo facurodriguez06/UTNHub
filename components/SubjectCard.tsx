@@ -31,7 +31,7 @@ const getSubjectIcon = (name: string, className: string) => {
   return <BookOpen className={className} />;
 };
 
-export function SubjectCard({ subject, careerId }: { subject: Subject; careerId?: string }) {
+export function SubjectCard({ subject }: { subject: Subject; careerId?: string }) {
   const hasNotes = subject.notesCount > 0;
   const yc = yearConfig[subject.year] || yearConfig[1];
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { Trophy, Medal, X, Star } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 
 type UploaderStat = {
@@ -16,12 +16,6 @@ interface RankingModalProps {
 }
 
 export function RankingModal({ isOpen, onClose, uploaders }: RankingModalProps) {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   // Prevenir scroll en el body cuando el modal está abierto
   useEffect(() => {
     if (isOpen) {
@@ -34,7 +28,7 @@ export function RankingModal({ isOpen, onClose, uploaders }: RankingModalProps) 
     };
   }, [isOpen]);
 
-  if (!isOpen || !mounted) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
   return createPortal(
     <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4 bg-[#3D3229]/60 backdrop-blur-sm animate-fade-in">

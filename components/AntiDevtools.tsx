@@ -8,9 +8,9 @@ export function AntiDevtools() {
     if (!isProd) return;
 
     // 1. Silenciar consola
-    const noop = function() {};
-    const methods = ['log', 'debug', 'info', 'warn', 'error', 'table', 'dir'];
-    methods.forEach(function(m) { (console as any)[m] = noop; });
+    const noop = () => undefined;
+    const methods: Array<"log" | "debug" | "info" | "warn" | "error" | "table" | "dir"> = ['log', 'debug', 'info', 'warn', 'error', 'table', 'dir'];
+    methods.forEach((method) => { console[method] = noop; });
 
     // 2. Bloqueo de teclado e inspección
     const preventContext = (e: MouseEvent) => e.preventDefault();

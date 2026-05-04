@@ -114,7 +114,7 @@ export function EditNoteModal({ isOpen, onClose, note, onSave }: EditNoteModalPr
           <div>
             <label className="block text-sm font-bold text-[#3D3229] mb-1.5">Carpeta / Agrupación (Opcional)</label>
             <input type="text" value={folderName} onChange={(e) => setFolderName(e.target.value)} placeholder="Ej. Primer Parcial" className="w-full rounded-xl border border-[#EDE6DD] px-3.5 py-2.5 text-sm text-[#3D3229] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]/20 focus:border-[#8BAA91]" />
-            <p className="text-xs text-[#A89F95] mt-1">Si dejas este campo vacío, se mostrará en "General".</p>
+            <p className="text-xs text-[#A89F95] mt-1">Si dejas este campo vacío, se mostrará en &quot;General&quot;.</p>
           </div>
           <div>
             <label className="block text-sm font-bold text-[#3D3229] mb-1.5">Puntos de Prioridad (Orden Manual)</label>

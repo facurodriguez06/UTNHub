@@ -1,9 +1,9 @@
 "use client";
 
 import { Search, X, ChevronRight, FileText } from "lucide-react";
-import { useEffect, useState, useMemo, useRef, ReactNode } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
-import { subjectsData, careersData, yearConfig } from "@/lib/data";
+import { subjectsData, careersData, yearConfig, type Note } from "@/lib/data";
 import { Sprout, BookOpen, Microscope, Rocket, GraduationCap, Award } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
@@ -23,7 +23,7 @@ export function GlobalSearchBar() {
   const [isOpen, setIsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const [notes, setNotes] = useState<any[]>([]);
+  const [notes, setNotes] = useState<Note[]>([]);
   const [noteSortingOrder, setNoteSortingOrder] = useState("newest");
 
   // Bloquea el scroll del fondo cuando el modal de búsqueda está abierto
@@ -55,13 +55,13 @@ export function GlobalSearchBar() {
           const notesRef = collection(db, "notes");
           const q = query(notesRef, where("status", "==", "approved"));
           const snapshot = await getDocs(q);
-          const notesList = snapshot.docs.map(doc => {
-            const data = doc.data();
+          const notesList: Note[] = snapshot.docs.map(noteDoc => {
+            const data = noteDoc.data();
             return {
-              id: doc.id,
+              id: noteDoc.id,
               ...data,
               type: data.type === "Examen Resuelto" ? "Examen" : data.type
-            };
+            } as Note;
           });
           setNotes(notesList);
         } catch (error) {
@@ -117,7 +117,7 @@ export function GlobalSearchBar() {
       });
       
     return { subjectMatches: subMatches, noteMatches: notMatches };
-  }, [searchQuery, notes]);
+  }, [searchQuery, notes, noteSortingOrder]);
 
   const hasResults = subjectMatches.length > 0 || noteMatches.length > 0;
 

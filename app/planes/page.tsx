@@ -4,10 +4,9 @@ import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Calculator, Atom, BookOpen, Binary, Cpu, Network, Database, 
-  Code2, LineChart, Briefcase, ShieldCheck, ShieldAlert,
-  CheckCircle2, AlertTriangle, Lock, Unlock, X, Info,
-  GraduationCap, ChevronRight, Layers, Sparkles, Filter,
-  Building2, FlaskConical, Zap, Wrench, Microscope, ArrowLeft, Radio, FileText, Calendar, Star, LogIn
+  Building2, FlaskConical, Zap, ArrowLeft, FileText, Calendar, Star, LogIn, ShieldAlert,
+  CheckCircle2, AlertTriangle, Unlock, Info, Layers, Sparkles, X,
+  Code2, LineChart, Briefcase, ShieldCheck, GraduationCap, Lock, Trophy, Rocket
 } from 'lucide-react';
 
 import { planesData } from './data';
@@ -18,6 +17,21 @@ import { doc, getDoc, updateDoc, collection, getDocs } from "firebase/firestore"
 import { db } from "@/lib/firebase/config";
 import SubjectRatingModal from '@/components/SubjectRatingModal';
 import { useRouter } from 'next/navigation';
+import type { User } from 'firebase/auth';
+import { useToast } from '@/context/ToastContext';
+
+type SubjectId = string | number;
+type UserProgress = { aprobadas: SubjectId[]; regulares: SubjectId[] };
+type UserProfileSummary = {
+  role?: string;
+  providerId?: string;
+  lastLoginAt?: string;
+  preferredCareerId?: string;
+  preferredSemester?: string;
+  notificationsEnabled?: boolean;
+};
+type RatingAggregate = { diffAvg: number; utilAvg: number; count: number };
+type RatingModalSubject = { id: string; name: string };
 
 export interface Subject {
   isElectiva?: boolean;
@@ -25,14 +39,14 @@ export interface Subject {
   horario?: string;
   weekly_hours?: number;
   total_hours?: number;
-  id: number;
+  id: string | number;
   year: number;
   semester?: string;
   note?: string;
   name: string;
-  regulares: number[];
-  aprobadas: number[];
-  rendir?: number[];
+  regulares: (string | number)[];
+  aprobadas: (string | number)[];
+  rendir?: (string | number)[];
 }
 
 export interface Career {
@@ -41,7 +55,8 @@ export interface Career {
   shortName: string;
   years: number;
   icon: React.ReactElement;
-  color: string; requiredElectiveHours?: number;
+  color: string;
+  requiredElectiveHours?: number;
   curriculum: Subject[];
 }
 
@@ -80,12 +95,26 @@ const SubjectStatusRibbon = ({
   );
 };
 
-const InteractiveProgressButtons = ({ subject, userProgress, onToggle, user, setShowLoginPrompt }: any) => {
+type InteractiveProgressButtonsProps = {
+  subject: Subject;
+  userProgress: UserProgress;
+  onToggle: (subjectId: SubjectId, state: 'aprobadas' | 'regulares') => void;
+  user: User | null;
+  setShowLoginPrompt: (show: boolean) => void;
+};
+
+const InteractiveProgressButtons = ({
+  subject,
+  userProgress,
+  onToggle,
+  user,
+  setShowLoginPrompt,
+}: InteractiveProgressButtonsProps) => {
   const isApproved = user ? userProgress.aprobadas.includes(subject.id) : false;
   const isRegular = user ? userProgress.regulares.includes(subject.id) : false;
 
-  const missingAprobadas = subject.aprobadas.some((id: number) => !userProgress.aprobadas.includes(id));
-  const missingRegulares = subject.regulares.some((id: number) => !userProgress.aprobadas.includes(id) && !userProgress.regulares.includes(id));
+  const missingAprobadas = subject.aprobadas.some((id: string | number) => !userProgress.aprobadas.includes(id));
+  const missingRegulares = subject.regulares.some((id: string | number) => !userProgress.aprobadas.includes(id) && !userProgress.regulares.includes(id));
   const canTake = !missingAprobadas && !missingRegulares;
 
   const handleAction = (type: 'aprobadas' | 'regulares') => {
@@ -139,55 +168,76 @@ const InteractiveProgressButtons = ({ subject, userProgress, onToggle, user, set
 };
 
 export default function PlanesPage() {
-  const typedPlanesData: Record<string, Career> = planesData as any;
-  const [activeCareer, setActiveCareer] = useState<Career>(typedPlanesData.sistemas);
+  const careerOptions = useMemo(() => Object.values(planesData), []);
+  const [activeCareer, setActiveCareer] = useState<Career>(careerOptions[0]);
   const containerRef = useRef<HTMLDivElement>(null);
   const bgRef = useRef<HTMLDivElement>(null);
-  
-  // Array of available careers
-  const careerOptions = Object.values(typedPlanesData);
 
   // States for Ratings
-  const [globalRatings, setGlobalRatings] = useState<Record<string, {diffAvg: number, utilAvg: number, count: number}>>({});
-  const [ratingModalSubject, setRatingModalSubject] = useState<{id: string, name: string} | null>(null);
+  const [globalRatings, setGlobalRatings] = useState<Record<string, RatingAggregate>>({});
+  const [ratingModalSubject, setRatingModalSubject] = useState<RatingModalSubject | null>(null);
   const [ratingModalCareer, setRatingModalCareer] = useState<string>('');
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const router = useRouter();
+  const { showToast } = useToast();
 
-  const fetchGlobalRatings = async () => {
-    try {
-      const querySnapshot = await getDocs(collection(db, 'subject_aggregates'));
-      const ratings: Record<string, any> = {};
-      querySnapshot.forEach((doc) => {
-        if (doc.id.startsWith(activeCareer.id + '_')) {
-          const subjectId = doc.id.replace(activeCareer.id + '_', '');
-          const data = doc.data();
-          ratings[subjectId] = {
-            diffAvg: data.totalDifficulty / data.count,
-            utilAvg: data.totalUtility / data.count,
-            count: data.count
-          };
-        }
+  const loadGlobalRatings = async (careerId: string): Promise<Record<string, RatingAggregate>> => {
+    const querySnapshot = await getDocs(collection(db, 'subject_aggregates'));
+    const ratings: Record<string, RatingAggregate> = {};
+
+    querySnapshot.forEach((snapshotDoc) => {
+      if (!snapshotDoc.id.startsWith(`${careerId}_`)) return;
+
+      const subjectId = snapshotDoc.id.replace(`${careerId}_`, '');
+      const data = snapshotDoc.data();
+      const totalDifficulty = typeof data.totalDifficulty === 'number' ? data.totalDifficulty : 0;
+      const totalUtility = typeof data.totalUtility === 'number' ? data.totalUtility : 0;
+      const count = typeof data.count === 'number' && data.count > 0 ? data.count : 0;
+
+      if (count > 0) {
+        ratings[subjectId] = {
+          diffAvg: totalDifficulty / count,
+          utilAvg: totalUtility / count,
+          count,
+        };
+      }
+    });
+
+    return ratings;
+  };
+
+  const refreshGlobalRatings = () => {
+    loadGlobalRatings(activeCareer.id)
+      .then(setGlobalRatings)
+      .catch((error) => {
+        console.error("Error fetching ratings", error);
       });
-      setGlobalRatings(ratings);
-    } catch (error) {
-      console.error("Error fetching ratings", error);
-    }
   };
 
   useEffect(() => {
-    fetchGlobalRatings();
+    let isCurrent = true;
+
+    loadGlobalRatings(activeCareer.id)
+      .then((ratings) => {
+        if (isCurrent) setGlobalRatings(ratings);
+      })
+      .catch((error) => {
+        console.error("Error fetching ratings", error);
+      });
+
+    return () => {
+      isCurrent = false;
+    };
   }, [activeCareer.id]);
 
-  useEffect(() => {
-    let ticking = false;
-    const handleMouseMove = () => {};
+  const openRatingModal = (subject: Pick<Subject, 'id' | 'name'>) => {
+    setRatingModalCareer(activeCareer.id);
+    setRatingModalSubject({ id: String(subject.id), name: subject.name });
+  };
 
-    
-    return () => {
-      
-    };
-  }, []);
+  const handleRatingUpdated = () => {
+    refreshGlobalRatings();
+  };
 
   return (
     <div className="flex flex-col min-h-screen relative overflow-hidden text-[#3D3229] w-full">
@@ -251,11 +301,16 @@ export default function PlanesPage() {
         <div className="flex-grow relative flex flex-col min-h-[600px] mb-8">
           <div className="absolute inset-0 bg-white border-b shadow-sm rounded-3xl border border-[#E8F0EA] shadow-xl pointer-events-none z-0" />
           <div className="relative z-10 flex-grow flex flex-col min-h-[600px] rounded-3xl overflow-hidden">
-            <CurriculumViewer career={activeCareer} globalRatings={globalRatings} setRatingModalSubject={setRatingModalSubject} setRatingModalCareer={setRatingModalCareer} setShowLoginPrompt={setShowLoginPrompt} />
+            <CurriculumViewer
+              career={activeCareer}
+              globalRatings={globalRatings}
+              openRatingModal={openRatingModal}
+              setShowLoginPrompt={setShowLoginPrompt}
+            />
           </div>
         </div>
 
-      </div>
+    </div>
 
       {/* Modals placed outside main flow */}
       <SubjectRatingModal 
@@ -263,9 +318,7 @@ export default function PlanesPage() {
         onClose={() => setRatingModalSubject(null)} 
         subject={ratingModalSubject} 
         careerId={ratingModalCareer}
-        onRatingUpdated={() => {
-          fetchGlobalRatings();
-        }}
+        onRatingUpdated={handleRatingUpdated}
       />
 
       {/* Login Prompt Modal */}
@@ -333,56 +386,121 @@ const getSubjectIcon = (name: string, className: string) => {
   return <BookOpen className={className} />;
 };
 
-const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRatingModalCareer, setShowLoginPrompt }: { career: Career, globalRatings: any, setRatingModalSubject: any, setRatingModalCareer: any, setShowLoginPrompt: any }) => {
+type CurriculumViewerProps = {
+  career: Career;
+  globalRatings: Record<string, RatingAggregate>;
+  openRatingModal: (subject: Pick<Subject, 'id' | 'name'>) => void;
+  setShowLoginPrompt: (show: boolean) => void;
+};
 
+const CurriculumViewer = ({
+  career,
+  globalRatings,
+  openRatingModal,
+  setShowLoginPrompt,
+}: CurriculumViewerProps) => {
   const { user } = useAuth();
-  const [userProgress, setUserProgress] = useState<{ aprobadas: number[], regulares: number[] }>({ aprobadas: [], regulares: [] });
+  const { showToast } = useToast();
+  const [userProgress, setUserProgress] = useState<UserProgress>({ aprobadas: [], regulares: [] });
+  const [profileSummary, setProfileSummary] = useState<UserProfileSummary>({});
+  const [celebrationModal, setCelebrationModal] = useState<{ isOpen: boolean; year: string | number }>({ isOpen: false, year: '' });
 
   useEffect(() => {
     if (user) {
       const userRef = doc(db, 'users', user.uid);
       getDoc(userRef).then((docSnap) => {
         if (docSnap.exists()) {
-          setUserProgress(docSnap.data().progress || { aprobadas: [], regulares: [] });
+          const data = docSnap.data() as UserProfileSummary & { progress?: UserProgress };
+          setUserProgress(data.progress || { aprobadas: [], regulares: [] });
+          setProfileSummary({
+            role: data.role || (user.email?.toLowerCase() === 'facundorodrigueezsp@gmail.com' ? 'admin' : 'user'),
+            providerId: data.providerId || user.providerData[0]?.providerId || 'unknown',
+            lastLoginAt: data.lastLoginAt || user.metadata.lastSignInTime || undefined,
+            preferredCareerId: data.preferredCareerId || '',
+            preferredSemester: data.preferredSemester || '',
+            notificationsEnabled: typeof data.notificationsEnabled === 'boolean' ? data.notificationsEnabled : true,
+          });
         }
       }).catch((error) => {
-        console.error("Error al leer el progreso (¿Firebase Quota Exceeded?):", error);
+        console.error("Error al leer el progreso:", error);
       });
     } else {
       setUserProgress({ aprobadas: [], regulares: [] });
+      setProfileSummary({});
     }
   }, [user]);
 
-  const handleToggleState = async (subjectId: number, state: 'aprobadas' | 'regulares') => {
-    if (!user) return;
+  const handleBulkToggle = async (yearSubjects: Subject[], state: 'aprobadas' | 'regulares') => {
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+
+    const subjectIds = yearSubjects.map(s => s.id);
+    const nextProgress = { ...userProgress };
     
-    setUserProgress(prev => {
-      const newState = { ...prev };
-      
-      if (state === 'aprobadas') {
-        if (newState.aprobadas.includes(subjectId)) {
-          newState.aprobadas = newState.aprobadas.filter(id => id !== subjectId);
-        } else {
-          newState.aprobadas = [...newState.aprobadas, subjectId];
-          newState.regulares = newState.regulares.filter(id => id !== subjectId);
-        }
-      } else if (state === 'regulares') {
-        if (newState.regulares.includes(subjectId)) {
-          newState.regulares = newState.regulares.filter(id => id !== subjectId);
-        } else {
-          newState.regulares = [...newState.regulares, subjectId];
-          newState.aprobadas = newState.aprobadas.filter(id => id !== subjectId);
-        }
-      }
-      
-      const userRef = doc(db, 'users', user.uid);
-      updateDoc(userRef, { progress: newState }).catch(e => console.error("Error updating progress", e));
-      
-      return newState;
-    });
+    if (state === 'aprobadas') {
+      const uniqueApproved = new Set([...nextProgress.aprobadas, ...subjectIds]);
+      nextProgress.aprobadas = Array.from(uniqueApproved);
+      nextProgress.regulares = nextProgress.regulares.filter(id => !subjectIds.includes(id));
+    } else {
+      const uniqueRegular = new Set([...nextProgress.regulares, ...subjectIds]);
+      nextProgress.regulares = Array.from(uniqueRegular);
+      nextProgress.aprobadas = nextProgress.aprobadas.filter(id => !subjectIds.includes(id));
+    }
+
+    setUserProgress(nextProgress);
+    
+    const userRef = doc(db, 'users', user.uid);
+    updateDoc(userRef, { progress: nextProgress }).catch(e => console.error("Error updating progress", e));
+    
+    if (state === 'aprobadas') {
+      setCelebrationModal({ isOpen: true, year: yearSubjects[0]?.year || '' });
+    } else {
+      showToast("Año marcado como regularizado correctamente.", "success");
+    }
   };
 
-  const [hoveredSubject, setHoveredSubject] = useState<number | null>(null);
+  const handleToggleState = async (subjectId: string | number, state: 'aprobadas' | 'regulares') => {
+    if (!user) return;
+    
+    const nextProgress = { ...userProgress };
+    
+    if (state === 'aprobadas') {
+      if (nextProgress.aprobadas.includes(subjectId)) {
+        nextProgress.aprobadas = nextProgress.aprobadas.filter(id => id !== subjectId);
+      } else {
+        nextProgress.aprobadas = [...nextProgress.aprobadas, subjectId];
+        nextProgress.regulares = nextProgress.regulares.filter(id => id !== subjectId);
+      }
+    } else if (state === 'regulares') {
+      if (nextProgress.regulares.includes(subjectId)) {
+        nextProgress.regulares = nextProgress.regulares.filter(id => id !== subjectId);
+      } else {
+        nextProgress.regulares = [...nextProgress.regulares, subjectId];
+        nextProgress.aprobadas = nextProgress.aprobadas.filter(id => id !== subjectId);
+      }
+    }
+    
+    setUserProgress(nextProgress);
+    
+    const userRef = doc(db, 'users', user.uid);
+    updateDoc(userRef, { progress: nextProgress }).catch(e => console.error("Error updating progress", e));
+
+    // Check if this action completed the entire year as approved
+    if (state === 'aprobadas' && nextProgress.aprobadas.includes(subjectId)) {
+      const subject = career.curriculum.find(s => s.id === subjectId);
+      if (subject && !subject.isElectiva) {
+        const yearSubjects = career.curriculum.filter(s => s.year === subject.year && !s.isElectiva);
+        const allApproved = yearSubjects.every(s => nextProgress.aprobadas.includes(s.id));
+        if (allApproved) {
+          setCelebrationModal({ isOpen: true, year: subject.year });
+        }
+      }
+    }
+  };
+
+  const [hoveredSubject, setHoveredSubject] = useState<string | number | null>(null);
   const [selectedSubject, setSelectedSubject] = useState<Subject | null>(null);
   const [selectedYear, setSelectedYear] = useState<number | 'electivas'>(1);
   const [mounted, setMounted] = useState(false);
@@ -411,13 +529,15 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
   useScrollLock(!!selectedSubject && isMobile);
 
   // Group by year
-  const subjectsByYear = useMemo(() => {
+    const subjectsByYear = useMemo(() => {
     const years: { [key: string]: Subject[] } = {};
     for (let i = 1; i <= career.years; i++) years[i] = [];
     years['electivas'] = [];
     career.curriculum.forEach(s => {
       if (s.isElectiva) {
         years['electivas'].push(s);
+      } else if (s.semester === 'Electiva' || s.name === 'Materias Electivas') {
+        // Skip placeholder cards
       } else if (years[s.year]) {
         years[s.year].push(s);
       }
@@ -425,17 +545,23 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
     return years;
   }, [career]);
 
-  const yearsOptions: (number | 'electivas')[] = [
+  const yearsOptions = [
     ...Array.from({ length: career.years }, (_, i) => i + 1),
-    ...(subjectsByYear['electivas'] && subjectsByYear['electivas'].length > 0 ? ['electivas' as const] : [])
+    ...(subjectsByYear['electivas'] && subjectsByYear['electivas'].length > 0 ? ['electivas'] : [])
   ];
 
   const displayedYears = Object.entries(subjectsByYear).filter(([yearStr]) =>
     yearStr === 'electivas' ? selectedYear === 'electivas' : Number(yearStr) === selectedYear
   );
+  const hoveredData = hoveredSubject ? career.curriculum.find(s => s.id === hoveredSubject) : null;
+  const hoveredRegulares = new Set(hoveredData?.regulares || []);
+  const hoveredAprobadas = new Set(hoveredData?.aprobadas || []);
+  const preferredCareer = profileSummary.preferredCareerId ? planesData[profileSummary.preferredCareerId as keyof typeof planesData] : null;
+  const providerLabel = profileSummary.providerId === 'google.com' ? 'Google' : profileSummary.providerId === 'password' ? 'Email/Contraseña' : 'No detectado';
+  const roleLabel = profileSummary.role === 'admin' ? 'Administrador' : profileSummary.role === 'moderator' ? 'Moderador' : 'Usuario';
 
     return (
-    <div className="flex flex-col lg:flex-row h-full w-full relative overflow-hidden rounded-3xl">
+      <div className="flex flex-col lg:flex-row h-full w-full relative">
       {/* Main Grid View */}
       <div className="flex-grow overflow-x-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
         
@@ -462,7 +588,7 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
                         const approvedCore = coreSubjects.filter(s => userProgress.aprobadas.includes(s.id)).length;
                         
                         if (career.requiredElectiveHours) {
-                          const approvedHs = electiveSubjects
+                           const approvedHs = electiveSubjects
                             .filter(s => userProgress.aprobadas.includes(s.id))
                             .reduce((acc, s) => acc + (s.weekly_hours || s.total_hours || 0), 0);
                             
@@ -484,7 +610,7 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
                           return (
                             <div className="flex flex-wrap items-center gap-2">
                                <span className="text-[11px] lg:text-xs font-bold text-[#388E3C] bg-[#E8F5E9] px-2 py-1 rounded-md flex items-center gap-1 shadow-sm border border-[#388E3C]/20"><CheckCircle2 className="w-3.5 h-3.5" /> {approvedInCareer} aprobadas</span>
-                               <span className="text-[11px] lg:text-xs font-bold text-[#D4856A] bg-[#FFF9F2] px-2 py-1 rounded-md flex items-center gap-1 shadow-sm border border-[#D4856A]/20"><AlertTriangle className="w-3.5 h-3.5" /> {remaining} restantes</span>
+                               {remaining > 0 && <span className="text-[11px] lg:text-xs font-bold text-[#D4856A] bg-[#FFF9F2] px-2 py-1 rounded-md flex items-center gap-1 shadow-sm border border-[#D4856A]/20"><AlertTriangle className="w-3.5 h-3.5" /> {remaining} restantes</span>}
                             </div>
                           );
                         }
@@ -499,27 +625,61 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
                 </div>
               </div>
             </div>
+            
+            {/* Download PDF Button */}
+            <button
+              onClick={() => {
+                const previewWindow = window.open('', '_blank');
+
+                if (!previewWindow) {
+                  return;
+                }
+
+                previewWindow.focus();
+
+                previewWindow.document.write(`
+                  <title>Generando PDF...</title>
+                  <body style="margin:0;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;background:#fcf9f4;color:#3d3229;">
+                    <p style="font-size:16px;font-weight:600;">Generando plan de estudio...</p>
+                  </body>
+                `);
+                previewWindow.document.close();
+
+                import('@/lib/pdfGenerator').then(async (mod) => {
+                  const pdfUrl = await mod.generateStudyPlanPDF(career, career.curriculum.filter(s => !s.isElectiva));
+                  previewWindow.location.href = pdfUrl;
+                }).catch((error) => {
+                  console.error('Error generando el PDF', error);
+                  previewWindow.close();
+                });
+              }}
+              className="flex items-center justify-center gap-2 bg-[#1A1A1A] hover:bg-[#3D3229] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-[#1A1A1A]/20 transition-all duration-150 hover:-translate-y-1 group w-full sm:w-auto"
+            >
+              <FileText className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <span>Descargar Plan</span>
+            </button>
+          </div>
+
+          {/* Year Selector */}
+          <div className="flex bg-[#F5F0EA]/50 p-1 rounded-xl overflow-x-auto custom-scrollbar w-full xl:w-auto mt-2 xl:mt-0">
+            {yearsOptions.map(year => (
+              <button
+                key={year}
+                onClick={() => setSelectedYear(year as number | 'electivas')}
+                className={`
+                  relative px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap active:scale-95 flex-1 xl:flex-none text-center
+                  ${selectedYear === year 
+                    ? 'bg-white text-[#3D3229] shadow-md shadow-[#8BAA91]/10 ring-1 ring-[#8BAA91]/30 z-10 scale-105 xl:scale-[1.05]' 
+                    : 'text-[#7A6E62] hover:text-[#3D3229] hover:bg-white'
+                  }
+                `}
+              >
+                {year === 'electivas' ? 'Electivas' : `Año ${year}`}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Year Selector */}
-        <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-6">
-          {yearsOptions.map(year => (
-            <button
-              key={year}
-              onClick={() => setSelectedYear(year)}
-              className={`
-                px-5 py-2.5 rounded-xl text-sm font-bold whitespace-nowrap transition-all duration-200
-                ${selectedYear === year
-                  ? 'bg-[#3D3229] text-white shadow-md shadow-[#3D3229]/20 scale-105'
-                  : 'bg-white text-[#7A6E62] border border-[#E8F0EA] hover:bg-[#F5F0EA] hover:text-[#3D3229] hover:border-[#8BAA91]/30'
-                }
-              `}
-            >
-              {year === 'electivas' ? 'Electivas' : `${year}º Año`}
-            </button>
-          ))}
-        </div>
 
         {/* Status References */}
         <div className="flex flex-wrap items-center gap-3 sm:gap-6 mb-8 px-5 py-3.5 bg-gradient-to-r from-[#F4FBFA]/90 to-[#FFF5F5]/90 rounded-2xl border border-[#E8F0EA] shadow-sm w-fit border-l-4 border-l-[#8BAA91]">
@@ -541,12 +701,7 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
 
         {/* Years Grid */}
         <div className={`flex flex-col gap-6 pb-8 ${selectedSubject ? 'mb-[50vh] lg:mb-0' : ''}`}>
-          {(() => {
-            const hoveredData = hoveredSubject ? career.curriculum.find(s => s.id === hoveredSubject) : null;
-            const hoveredRegulares = new Set(hoveredData?.regulares || []);
-            const hoveredAprobadas = new Set(hoveredData?.aprobadas || []);
-
-            return displayedYears.map(([yearStr, subjects]) => (
+          {displayedYears.map(([yearStr, subjects]) => (
             <div key={yearStr} className="flex flex-col gap-4 w-full">
               <div className={`grid gap-4 ${
                 selectedSubject 
@@ -554,21 +709,22 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
                   : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
               }`}>
                 {subjects.map((subject, index) => {
-                  const isHovered = hoveredSubject === subject.id;
                   const isSelected = selectedSubject?.id === subject.id;
 
                   // Highlight logic much faster O(1)
-                  const isReqOfHovered = hoveredSubject ? hoveredRegulares.has(subject.id) || hoveredAprobadas.has(subject.id) : false;                   const unlocksHovered = hoveredSubject ? subject.regulares.includes(hoveredSubject) || subject.aprobadas.includes(hoveredSubject) : false;
+                  const isReqOfHovered = hoveredSubject ? hoveredRegulares.has(subject.id) || hoveredAprobadas.has(subject.id) : false;
+                  const unlocksHovered = hoveredSubject ? subject.regulares.includes(hoveredSubject) || subject.aprobadas.includes(hoveredSubject) : false;
                   let cardStyle = "bg-white border-[#E8F0EA] hover:border-[#8BAA91]/40 hover:shadow-xl hover:shadow-[#8BAA91]/10 hover:-translate-y-1";
                   let iconColor = "text-[#A0A0A0]";
                   let spanClass = "";
+
                     const isApproved = userProgress.aprobadas.includes(subject.id);
                     const isRegular = userProgress.regulares.includes(subject.id);
 
                     let canTake = false;
                     if (user && !isApproved && !isRegular && subject.name !== "Materias Electivas") {
-                      const missingAprobadas = subject.aprobadas.some((id: number) => !userProgress.aprobadas.includes(id));
-                      const missingRegulares = subject.regulares.some((id: number) => !userProgress.aprobadas.includes(id) && !userProgress.regulares.includes(id));
+                      const missingAprobadas = subject.aprobadas.some((id: string | number) => !userProgress.aprobadas.includes(id));
+                      const missingRegulares = subject.regulares.some((id: string | number) => !userProgress.aprobadas.includes(id) && !userProgress.regulares.includes(id));
                       canTake = !missingAprobadas && !missingRegulares;
                     }
 
@@ -587,6 +743,7 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
                         iconColor = "text-[#D4856A]";
                       }
                     }
+
                   if (subject.name === "Materias Electivas") {
                     spanClass = "col-span-full bg-[#F5F0EA]/30 border-dashed border-2";
                   }
@@ -669,8 +826,7 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
                             if (!user) {
                               setShowLoginPrompt(true);
                             } else {
-                              setRatingModalCareer(career.id);
-                              setRatingModalSubject({ id: subject.id, name: subject.name });
+                              openRatingModal(subject);
                             }
                           }}
                           className={`
@@ -696,6 +852,10 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
                                 <Sparkles className="w-3.5 h-3.5" />
                                 {globalRatings[subject.id].utilAvg.toFixed(1)}
                               </span>
+                              <span className="w-1 h-1 rounded-full bg-[#E8F0EA]" />
+                              <span className="text-[9px] font-bold text-[#A0A0A0] uppercase tracking-tighter">
+                                {globalRatings[subject.id].count} {globalRatings[subject.id].count === 1 ? 'voto' : 'votos'}
+                              </span>
                             </div>
                           )}
                         </button>
@@ -708,9 +868,29 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
                   );
                 })}
               </div>
+
+              {/* Bulk Actions for the year */}
+              {yearStr !== 'electivas' && user && (
+                <div className="flex flex-wrap items-center gap-4 mt-6 px-4 py-3 bg-[#FCFBFA] rounded-2xl border border-[#EDE6DD] border-dashed">
+                  <p className="text-[11px] font-bold text-[#A89F95] uppercase tracking-wider">Acciones rápidas para el año:</p>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => handleBulkToggle(subjects, 'regulares')}
+                      className="text-[11px] font-bold text-[#D4856A] hover:text-[#A9634C] transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-[#FFF9F2] border border-transparent hover:border-[#D4856A]/20 active:scale-95"
+                    >
+                      <AlertTriangle className="w-3 h-3" /> Marcar todo el año regular
+                    </button>
+                    <button
+                      onClick={() => handleBulkToggle(subjects, 'aprobadas')}
+                      className="text-[11px] font-bold text-[#8BAA91] hover:text-[#6B8A72] transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-[#F4FBFA] border border-transparent hover:border-[#8BAA91]/20 active:scale-95"
+                    >
+                      <CheckCircle2 className="w-3 h-3" /> Marcar todo el año aprobado
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
-            ));
-          })()}
+          ))}
         </div>
       </div>
 
@@ -741,7 +921,7 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
               </button>
             </div>
 
-            <div className="space-y-6" key={selectedSubject.id}>
+            <div className="space-y-6">
               <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
                 <h2 className="text-xl font-bold leading-tight mb-2 pr-4">{selectedSubject.name}</h2>
                 <div className="flex flex-wrap gap-2 mb-4">
@@ -754,7 +934,6 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
                   ) : null}
                 </div>
                 
-                {/* Information Grid Container */}
                 <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#F5F0EA]">
                   {selectedSubject.weekly_hours ? (
                     <div>
@@ -769,21 +948,27 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
                     </div>
                   ) : null}
                 </div>
-                
-                {(selectedSubject.docente || selectedSubject.horario) && (
-                  <div className="grid grid-cols-1 gap-3 pt-3 mt-3 border-t border-[#F5F0EA]">
-                    {selectedSubject.docente && (
-                      <div>
-                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Cátedra / Docente</h4>
-                        <p className="text-sm font-semibold">{selectedSubject.docente}</p>
+
+                {globalRatings[selectedSubject.id] && (
+                  <div className="mt-4 pt-4 border-t border-[#F5F0EA]">
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-3">Estadísticas de alumnos</h4>
+                    <div className="flex items-center gap-4">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-[#D4856A] uppercase tracking-tighter mb-1">Dificultad</span>
+                        <div className="flex items-center gap-1.5 text-[#D4856A]">
+                          <ShieldAlert className="w-3.5 h-3.5" />
+                          <span className="text-sm font-bold">{globalRatings[selectedSubject.id].diffAvg.toFixed(1)}/5</span>
+                        </div>
                       </div>
-                    )}
-                    {selectedSubject.horario && (
-                      <div>
-                        <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Régimen y Horarios</h4>
-                        <p className="text-sm font-semibold leading-relaxed">{selectedSubject.horario}</p>
+                      <div className="w-px h-8 bg-[#F5F0EA]" />
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-[#8BAA91] uppercase tracking-tighter mb-1">Utilidad</span>
+                        <div className="flex items-center gap-1.5 text-[#8BAA91]">
+                          <Sparkles className="w-3.5 h-3.5" />
+                          <span className="text-sm font-bold">{globalRatings[selectedSubject.id].utilAvg.toFixed(1)}/5</span>
+                        </div>
                       </div>
-                    )}
+                    </div>
                   </div>
                 )}
               </div>
@@ -796,384 +981,424 @@ const CurriculumViewer = ({ career, globalRatings, setRatingModalSubject, setRat
                 setShowLoginPrompt={setShowLoginPrompt}
               />
 
-              {selectedSubject?.note && (
-                <div className="bg-[#FFF9F2] p-4 rounded-xl border border-[#D4856A]/20">
-                  <div className="flex items-start gap-3">
-                    <Info className="w-5 h-5 text-[#D4856A] shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#D4856A] mb-1">Requisito Especial</h4>
-                      <p className="text-sm text-[#3D3229]/80 leading-relaxed font-medium">
-                        {selectedSubject.note}
-                      </p>
-                    </div>
+              <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
+                <h4 className="text-xs font-bold uppercase text-[#A0A0A0] mb-4">Para cursarla necesitás:</h4>
+                {selectedSubject.regulares.length === 0 && selectedSubject.aprobadas.length === 0 ? (
+                  <div className="text-sm text-[#5C5C5C] flex items-center gap-2 bg-[#F9F9F9] p-3 rounded-lg border border-dashed border-[#E0E0E0]">
+                    <Unlock className="w-4 h-4 text-[#8BAA91]" /> Sin correlativas previas
                   </div>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                {selectedSubject.regulares && selectedSubject.regulares.length > 0 && (
-                  <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#8BAA91] mb-2 flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5" /> Para Cursar (Regularizar)
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedSubject.regulares.map(reqId => {
-                        const reqSub = career.curriculum.find(s => s.id === reqId);
-                        return reqSub && (
-                          <button key={reqId} onClick={() => setSelectedSubject(reqSub)} className="text-xs px-2.5 py-1.5 bg-white border border-[#E8F0EA] rounded-lg text-[#5C5C5C] shadow-sm flex items-center gap-1.5 font-medium hover:border-[#8BAA91]/40 hover:bg-[#F5F9F6] transition-colors text-left">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#E65100]"></span>
-                            {reqSub.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-
-                {selectedSubject.aprobadas && selectedSubject.aprobadas.length > 0 && (
-                  <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#8BAA91] mb-2 flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5" /> Para Cursar (Aprobar)
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedSubject.aprobadas.map(reqId => {
-                        const reqSub = career.curriculum.find(s => s.id === reqId);
-                        return reqSub && (
-                          <button key={reqId} onClick={() => setSelectedSubject(reqSub)} className="text-xs px-2.5 py-1.5 bg-white border border-[#E8F0EA] rounded-lg text-[#5C5C5C] shadow-sm flex items-center gap-1.5 font-medium hover:border-[#8BAA91]/40 hover:bg-[#F5F9F6] transition-colors text-left">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#388E3C]"></span>
-                            {reqSub.name}
-                          </button>
-                        );
-                      })}
-                    </div>
+                ) : (
+                  <div className="space-y-4">
+                    {selectedSubject.aprobadas.length > 0 && (
+                      <div>
+                        <span className="text-xs font-semibold text-[#8BAA91] mb-2 block">Tener APROBADAS:</span>
+                        <ul className="space-y-1">
+                          {selectedSubject.aprobadas.map((reqId) => {
+                            const reqSub = career.curriculum.find(s => s.id === reqId);
+                            return (
+                              <li key={reqId} className="flex items-start gap-2 text-sm text-[#3D3229] hover:text-[#8BAA91] p-1.5 -ml-1.5 rounded-lg transition-colors group cursor-pointer"
+                                  onClick={() => reqSub && setSelectedSubject(reqSub)}>
+                                <CheckCircle2 className="w-4 h-4 text-[#8BAA91] mt-0.5 shrink-0" />
+                                <span className="group-hover:underline">{reqSub?.name}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
+                    {selectedSubject.regulares.length > 0 && (
+                      <div>
+                        <span className="text-xs font-semibold text-[#D4856A] mb-2 block">Tener REGULARES:</span>
+                        <ul className="space-y-1">
+                          {selectedSubject.regulares.map((reqId) => {
+                            const reqSub = career.curriculum.find(s => s.id === reqId);
+                            return (
+                              <li key={reqId} className="flex items-start gap-2 text-sm text-[#3D3229] hover:text-[#D4856A] p-1.5 -ml-1.5 rounded-lg transition-colors group cursor-pointer"
+                                  onClick={() => reqSub && setSelectedSubject(reqSub)}>
+                                <AlertTriangle className="w-4 h-4 text-[#D4856A] mt-0.5 shrink-0" />
+                                <span className="group-hover:underline">{reqSub?.name}</span>
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      </div>
+                    )}
                   </div>
                 )}
-                
-                {selectedSubject.rendir && selectedSubject.rendir.length > 0 && (
-                  <div>
-                    <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#8BAA91] mb-2 flex items-center gap-1.5">
-                      <Lock className="w-3.5 h-3.5" /> Para Rendir Final (Aprobar)
-                    </h4>
-                    <div className="flex flex-wrap gap-2">
-                      {selectedSubject.rendir.map(reqId => {
-                        const reqSub = career.curriculum.find(s => s.id === reqId);
-                        return reqSub && (
-                          <button key={reqId} onClick={() => setSelectedSubject(reqSub)} className="text-xs px-2.5 py-1.5 bg-white border border-[#E8F0EA] rounded-lg text-[#5C5C5C] shadow-sm flex items-center gap-1.5 font-medium hover:border-[#8BAA91]/40 hover:bg-[#F5F9F6] transition-colors text-left">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[#388E3C]"></span>
-                            {reqSub.name}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+              </div>
 
-                {/* What does this unlock? */}
+              <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
+                <h4 className="text-xs font-bold uppercase text-[#A0A0A0] mb-4">Esta materia te permite:</h4>
                 {(() => {
-                  const unlocksRegular = career.curriculum.filter(s => s.regulares?.includes(selectedSubject.id));
-                  const unlocksAprobada = career.curriculum.filter(s => s.aprobadas?.includes(selectedSubject.id));
-                  const unlocksRendir = career.curriculum.filter(s => s.rendir?.includes(selectedSubject.id));
-                  
-                  const hasUnlocks = unlocksRegular.length > 0 || unlocksAprobada.length > 0 || unlocksRendir.length > 0;
-                  
-                  if (!hasUnlocks) return null;
-                  
+                  const unlocksAsRegular = career.curriculum.filter(s => s.regulares.includes(selectedSubject.id));
+                  const unlocksAsApproved = career.curriculum.filter(s => s.aprobadas.includes(selectedSubject.id));
+                  if (unlocksAsRegular.length === 0 && unlocksAsApproved.length === 0) return <span className="text-sm text-[#A0A0A0] italic">No es correlativa de materias futuras.</span>;
                   return (
-                    <div className="pt-4 border-t border-[#F5F0EA] mt-4">
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-3 flex items-center gap-1.5">
-                        <Unlock className="w-3.5 h-3.5" /> Habilita para
-                      </h4>
-                      
-                      <div className="space-y-3">
-                        {unlocksRegular.length > 0 && (
-                          <div>
-                            <span className="text-[10px] text-[#A0A0A0] font-bold uppercase mb-1.5 block">Cursar (si la regularizás)</span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {unlocksRegular.map(u => (
-                                <button key={u.id} onClick={() => { const sub = career.curriculum.find(s => s.id === u.id); if (sub) setSelectedSubject(sub); }} className="text-[11px] px-2 py-1 bg-[#F5F0EA]/50 rounded text-[#7A6E62] hover:bg-[#E8F0EA] hover:text-[#3D3229] transition-colors text-left">
-                                  {u.name}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
+                    <div className="space-y-4">
+                      <div className="flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide">
+                        {unlocksAsRegular.length > 0 && (
+                          <span className="px-2.5 py-1 rounded-full bg-[#FFF9F2] text-[#D4856A] border border-[#D4856A]/20">
+                            Regularizar habilita {unlocksAsRegular.length}
+                          </span>
                         )}
-                        
-                        {unlocksAprobada.length > 0 && (
-                          <div>
-                            <span className="text-[10px] text-[#A0A0A0] font-bold uppercase mb-1.5 block">Cursar (si la aprobás)</span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {unlocksAprobada.map(u => (
-                                <button key={u.id} onClick={() => { const sub = career.curriculum.find(s => s.id === u.id); if (sub) setSelectedSubject(sub); }} className="text-[11px] px-2 py-1 bg-[#F5F0EA]/50 rounded text-[#7A6E62] hover:bg-[#E8F0EA] hover:text-[#3D3229] transition-colors text-left">
-                                  {u.name}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                        
-                        {unlocksRendir.length > 0 && (
-                          <div>
-                            <span className="text-[10px] text-[#A0A0A0] font-bold uppercase mb-1.5 block">Rendir Final de</span>
-                            <div className="flex flex-wrap gap-1.5">
-                              {unlocksRendir.map(u => (
-                                <button key={u.id} onClick={() => { const sub = career.curriculum.find(s => s.id === u.id); if (sub) setSelectedSubject(sub); }} className="text-[11px] px-2 py-1 bg-[#F5F0EA]/50 rounded text-[#7A6E62] hover:bg-[#E8F0EA] hover:text-[#3D3229] transition-colors text-left">
-                                  {u.name}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
+                        {unlocksAsApproved.length > 0 && (
+                          <span className="px-2.5 py-1 rounded-full bg-[#F4FBFA] text-[#8BAA91] border border-[#8BAA91]/20">
+                            Aprobar habilita {unlocksAsApproved.length}
+                          </span>
                         )}
                       </div>
+                      {unlocksAsRegular.length > 0 && (
+                        <div>
+                          <span className="text-xs font-semibold text-[#D4856A] mb-2 block">Si la REGULARIZÁS:</span>
+                          <div className="flex flex-wrap gap-2">
+                            {unlocksAsRegular.map(unlockedSub => (
+                              <span key={unlockedSub.id} onClick={() => setSelectedSubject(unlockedSub)}
+                                    className="text-xs font-medium bg-[#FFF9F2] border border-[#E8F0EA] text-[#3D3229] px-2.5 py-1.5 rounded-lg hover:border-[#D4856A] cursor-pointer">
+                                {unlockedSub.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      {unlocksAsApproved.length > 0 && (
+                        <div>
+                          <span className="text-xs font-semibold text-[#8BAA91] mb-2 block">Si la APROBÁS:</span>
+                          <div className="flex flex-wrap gap-2">
+                            {unlocksAsApproved.map(unlockedSub => (
+                              <span key={unlockedSub.id} onClick={() => setSelectedSubject(unlockedSub)}
+                                    className="text-xs font-medium bg-[#F4FBFA] border border-[#E8F0EA] text-[#3D3229] px-2.5 py-1.5 rounded-lg hover:border-[#8BAA91] cursor-pointer">
+                                {unlockedSub.name}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
-
-                {!selectedSubject.regulares?.length && !selectedSubject.aprobadas?.length && !selectedSubject.rendir?.length ? (
-                  <p className="text-sm text-[#A0A0A0] italic">No requiere materias previas.</p>
-                ) : null}
               </div>
             </div>
           </div>
-        </div>
-      , document.body)}
+        </div>,
+        document.body
+      )}
 
-      {/* Sidebar Inspector Desktop */}
-      <div className={`
-        hidden lg:flex flex-col border-l border-[#E8F0EA] bg-[#FAFAFA] transition-all duration-300 ease-in-out relative z-20 overflow-hidden
-        ${selectedSubject ? 'w-[380px] opacity-100' : 'w-0 opacity-0 border-none'}
-      `}>
-        <div className="w-[380px] h-full flex flex-col">
-        {selectedSubject && (
-          <>
-            <div className="p-6 border-b border-[#E8F0EA] bg-white flex items-start justify-between">
-              <div className="pr-4">
-                <div className="flex flex-wrap gap-2 mb-3">
-                  <span className="text-[10px] font-mono font-medium text-[#A0A0A0] bg-[#F5F5F5] px-2 py-1 rounded-md">Cod. {selectedSubject.id.toString().padStart(3, '0')}</span>
-                  {selectedSubject.semester && selectedSubject.semester !== 'Electiva' ? (
-                    <span className="text-[10px] font-bold text-[#8BAA91] bg-[#F5F9F6] px-2 py-1 rounded-md">{selectedSubject.semester}</span>
-                  ) : null}
-                  {selectedSubject.isElectiva ? (
-                    <span className="text-[10px] font-bold text-[#A0A0A0] bg-[#F5F5F5] px-2 py-1 rounded-md">Electiva</span>
-                  ) : null}
-                </div>
-                <h2 className="text-xl font-bold leading-tight text-[#1A1A1A]">{selectedSubject.name}</h2>
-                {globalRatings[selectedSubject.id] && (
-                  <div className="mt-2 flex items-center gap-2 text-[11px] font-medium text-[#7A6E62]">
-                    <div className="flex items-center gap-1 text-[#D4856A]">
-                      <ShieldAlert className="w-3.5 h-3.5" />
-                      {globalRatings[selectedSubject.id].diffAvg.toFixed(1)}
-                    </div>
-                    <span className="w-1 h-1 rounded-full bg-[#E8F0EA]" />
-                    <div className="flex items-center gap-1 text-[#8BAA91]">
-                      <Sparkles className="w-3.5 h-3.5" />
-                      {globalRatings[selectedSubject.id].utilAvg.toFixed(1)}
-                    </div>
-                    <span className="w-1 h-1 rounded-full bg-[#E8F0EA]" />
-                    <span className="bg-[#F5F9F6] px-2 py-0.5 rounded-full border border-[#8BAA91]/20">
-                      {globalRatings[selectedSubject.id].count === 1 
-                        ? 'Calificada por 1 alumno' 
-                        : `Calificada por ${globalRatings[selectedSubject.id].count} alumnos`}
-                    </span>
-                  </div>
-                )}
+      {/* Sidebar Inspector Desktop (Inline) */}
+      {selectedSubject && (
+        <div className="
+          hidden lg:block w-[400px] border-l border-[#E8F0EA] bg-[#FAFAFA] p-6 
+          transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[-10px_0_30px_rgba(0,0,0,0.02)]
+          flex-shrink-0 h-auto overflow-y-auto custom-scrollbar
+        ">
+          <div className="flex items-center justify-between mb-8">
+            <h3 className="text-sm font-bold uppercase tracking-widest text-[#A0A0A0]">Detalle de Correlativas</h3>
+            <button 
+              onClick={() => setSelectedSubject(null)}
+              className="p-2 hover:bg-[#E8F0EA] rounded-full text-[#5C5C5C] transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          <div className="space-y-6" key={selectedSubject.id}>
+            <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
+              <h2 className="text-xl font-bold leading-tight mb-2 pr-4">{selectedSubject.name}</h2>
+              <div className="flex flex-wrap gap-2 mb-4">
+                <span className="text-xs font-mono font-medium text-[#A0A0A0] bg-[#F5F5F5] px-2 py-1 rounded-md">Cod. {selectedSubject.id.toString().padStart(3, '0')}</span>
+                {selectedSubject.semester && selectedSubject.semester !== 'Electiva' ? (
+                  <span className="text-xs font-bold text-[#8BAA91] bg-[#F5F9F6] px-2 py-1 rounded-md">{selectedSubject.semester}</span>
+                ) : null}
+                {selectedSubject.isElectiva ? (
+                  <span className="text-xs font-bold text-[#A0A0A0] bg-[#F5F5F5] px-2 py-1 rounded-md">Electiva</span>
+                ) : null}
               </div>
-              <button 
-                onClick={() => setSelectedSubject(null)}
-                className="p-2 hover:bg-[#F5F0EA] rounded-full text-[#A0A0A0] transition-colors shrink-0 -mr-2"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="flex-grow overflow-y-auto custom-scrollbar p-6 space-y-8" key={selectedSubject.id}>
               
-              <div className="grid grid-cols-2 gap-4">
+              {/* Information Grid Container */}
+              <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#F5F0EA]">
                 {selectedSubject.weekly_hours ? (
-                  <div className="bg-white p-3 rounded-xl border border-[#E8F0EA] shadow-sm">
-                    <h4 className="text-[9px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Horas Semanales</h4>
-                    <p className="text-lg font-bold text-[#3D3229]">{selectedSubject.weekly_hours} <span className="text-sm font-medium text-[#7A6E62]">hs</span></p>
+                  <div>
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Horas Semanales</h4>
+                    <p className="text-sm font-semibold">{selectedSubject.weekly_hours} hs</p>
                   </div>
                 ) : null}
                 {selectedSubject.total_hours ? (
-                  <div className="bg-white p-3 rounded-xl border border-[#E8F0EA] shadow-sm">
-                    <h4 className="text-[9px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Horas Totales</h4>
-                    <p className="text-lg font-bold text-[#3D3229]">{selectedSubject.total_hours} <span className="text-sm font-medium text-[#7A6E62]">hs</span></p>
+                  <div>
+                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Horas Totales</h4>
+                    <p className="text-sm font-semibold">{selectedSubject.total_hours} hs</p>
                   </div>
                 ) : null}
               </div>
               
               {(selectedSubject.docente || selectedSubject.horario) && (
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 gap-3 pt-3 mt-3 border-t border-[#F5F0EA]">
                   {selectedSubject.docente && (
-                    <div className="bg-white p-3.5 rounded-xl border border-[#E8F0EA] shadow-sm">
-                      <h4 className="text-[9px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Cátedra / Docente Titular</h4>
-                      <p className="text-sm font-bold text-[#3D3229]">{selectedSubject.docente}</p>
+                    <div>
+                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Cátedra / Docente</h4>
+                      <p className="text-sm font-semibold">{selectedSubject.docente}</p>
                     </div>
                   )}
                   {selectedSubject.horario && (
-                    <div className="bg-white p-3.5 rounded-xl border border-[#E8F0EA] shadow-sm">
-                      <h4 className="text-[9px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Régimen y Horarios Disponibles</h4>
-                      <p className="text-sm text-[#5C5C5C] leading-relaxed">{selectedSubject.horario}</p>
+                    <div>
+                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Régimen y Horarios</h4>
+                      <p className="text-sm font-semibold leading-relaxed">{selectedSubject.horario}</p>
                     </div>
                   )}
                 </div>
               )}
 
-              <InteractiveProgressButtons 
-                subject={selectedSubject} 
-                userProgress={userProgress} 
-                onToggle={handleToggleState} 
-                user={user}
-                setShowLoginPrompt={setShowLoginPrompt}
-              />
-
-              {selectedSubject.note && (
-                <div className="bg-[#FFF9F2] p-4 rounded-xl border border-[#D4856A]/20 shadow-sm">
-                  <div className="flex items-start gap-3">
-                    <Info className="w-5 h-5 text-[#D4856A] shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#D4856A] mb-1">Requisito Especial</h4>
-                      <p className="text-sm text-[#3D3229]/80 leading-relaxed font-medium">
-                        {selectedSubject.note}
-                      </p>
+              {/* Rating Section in Sidebar Desktop */}
+              {globalRatings[selectedSubject.id] && (
+                <div className="mt-4 pt-4 border-t border-[#F5F0EA]">
+                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-3">Calificaciones de Estudiantes</h4>
+                  <div className="flex items-center gap-4">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-[#D4856A] uppercase tracking-tighter mb-1">Dificultad</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="p-1 rounded-md bg-[#FFF9F2] text-[#D4856A]">
+                          <ShieldAlert className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-sm font-bold">{globalRatings[selectedSubject.id].diffAvg.toFixed(1)}/5</span>
+                      </div>
+                    </div>
+                    <div className="w-px h-8 bg-[#F5F0EA]" />
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-[#8BAA91] uppercase tracking-tighter mb-1">Utilidad</span>
+                      <div className="flex items-center gap-1.5">
+                        <div className="p-1 rounded-md bg-[#F4FBFA] text-[#8BAA91]">
+                          <Sparkles className="w-3.5 h-3.5" />
+                        </div>
+                        <span className="text-sm font-bold">{globalRatings[selectedSubject.id].utilAvg.toFixed(1)}/5</span>
+                      </div>
+                    </div>
+                    <div className="ml-auto flex flex-col items-end">
+                      <span className="text-[10px] font-bold text-[#A0A0A0] uppercase tracking-tighter mb-1">Muestra</span>
+                      <span className="text-xs font-bold text-[#7A6E62]">{globalRatings[selectedSubject.id].count} {globalRatings[selectedSubject.id].count === 1 ? 'estudiante' : 'estudiantes'}</span>
                     </div>
                   </div>
                 </div>
               )}
+            </div>
 
-              <div>
-                <h3 className="text-xs font-bold uppercase tracking-widest text-[#A0A0A0] pb-3 border-b border-[#E8F0EA] mb-4">Condiciones Habilitantes</h3>
-                <div className="space-y-5">
-                  {selectedSubject.regulares && selectedSubject.regulares.length > 0 && (
+            <InteractiveProgressButtons 
+              subject={selectedSubject} 
+              userProgress={userProgress} 
+              onToggle={handleToggleState} 
+              user={user}
+              setShowLoginPrompt={setShowLoginPrompt}
+            />
+
+            {/* Requirements Section */}
+            <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
+              <h4 className="text-xs font-bold uppercase text-[#A0A0A0] mb-4">Para cursarla necesitás:</h4>
+              
+              {selectedSubject.regulares.length === 0 && selectedSubject.aprobadas.length === 0 ? (
+                <div className="text-sm text-[#5C5C5C] flex items-center gap-2 bg-[#F9F9F9] p-3 rounded-lg border border-dashed border-[#E0E0E0]">
+                  <Unlock className="w-4 h-4 text-[#8BAA91]" /> Sin correlativas previas
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {selectedSubject.aprobadas.length > 0 && (
                     <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#8BAA91] mb-2 flex items-center gap-1.5">
-                        <Lock className="w-3.5 h-3.5" /> Para Cursar (Regularizar)
-                      </h4>
-                      <div className="flex flex-col gap-2">
-                        {selectedSubject.regulares.map(reqId => {
+                      <span className="text-xs font-semibold text-[#8BAA91] mb-2 block">Tener APROBADAS:</span>
+                      <ul className="space-y-1">
+                        {selectedSubject.aprobadas.map((reqId, index) => {
                           const reqSub = career.curriculum.find(s => s.id === reqId);
-                          return reqSub && (
-                            <button key={reqId} onClick={() => setSelectedSubject(reqSub)} className="text-xs px-3 py-2 bg-white border border-[#E8F0EA] rounded-xl text-[#5C5C5C] shadow-sm flex items-center gap-2 font-medium hover:border-[#8BAA91]/40 hover:bg-[#F5F9F6] transition-colors text-left">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#E65100]"></span>
-                              {reqSub.name}
-                            </button>
+                          return (
+                            <li 
+                              key={reqId} 
+                              style={{ animationDelay: `${index * 50 + 100}ms` }}
+                              className="flex items-start gap-2 text-sm text-[#3D3229] hover:text-[#8BAA91] hover:bg-[#F4FBFA] p-1.5 -ml-1.5 rounded-lg transition-colors group"
+                              onClick={() => {
+                                if (reqSub) {
+                                  setSelectedSubject(reqSub);
+                                  setSelectedYear(reqSub.isElectiva ? 'electivas' : reqSub.year);
+                                }
+                              }}
+                            >
+                              <CheckCircle2 className="w-4 h-4 text-[#8BAA91] mt-0.5 shrink-0" />
+                              <span className="group-hover:underline underline-offset-2">{reqSub?.name}</span>
+                            </li>
                           );
                         })}
-                      </div>
+                      </ul>
                     </div>
                   )}
 
-                  {selectedSubject.aprobadas && selectedSubject.aprobadas.length > 0 && (
+                  {selectedSubject.regulares.length > 0 && (
                     <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#8BAA91] mb-2 flex items-center gap-1.5">
-                        <Lock className="w-3.5 h-3.5" /> Para Cursar (Aprobar)
-                      </h4>
-                      <div className="flex flex-col gap-2">
-                        {selectedSubject.aprobadas.map(reqId => {
+                      <span className="text-xs font-semibold text-[#D4856A] mb-2 block">Tener REGULARES:</span>
+                      <ul className="space-y-1">
+                        {selectedSubject.regulares.map((reqId, index) => {
                           const reqSub = career.curriculum.find(s => s.id === reqId);
-                          return reqSub && (
-                            <button key={reqId} onClick={() => setSelectedSubject(reqSub)} className="text-xs px-3 py-2 bg-white border border-[#E8F0EA] rounded-xl text-[#5C5C5C] shadow-sm flex items-center gap-2 font-medium hover:border-[#8BAA91]/40 hover:bg-[#F5F9F6] transition-colors text-left">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#388E3C]"></span>
-                              {reqSub.name}
-                            </button>
+                          return (
+                            <li 
+                              key={reqId} 
+                              style={{ animationDelay: `${index * 50 + 200}ms` }}
+                              className="flex items-start gap-2 text-sm text-[#3D3229] hover:text-[#D4856A] hover:bg-[#FFF9F2] p-1.5 -ml-1.5 rounded-lg transition-colors group"
+                              onClick={() => {
+                                if (reqSub) {
+                                  setSelectedSubject(reqSub);
+                                  setSelectedYear(reqSub.isElectiva ? 'electivas' : reqSub.year);
+                                }
+                              }}
+                            >
+                              <AlertTriangle className="w-4 h-4 text-[#D4856A] mt-0.5 shrink-0" />
+                              <span className="group-hover:underline underline-offset-2">{reqSub?.name}</span>
+                            </li>
                           );
                         })}
-                      </div>
+                      </ul>
                     </div>
                   )}
 
                   {selectedSubject.rendir && selectedSubject.rendir.length > 0 && (
                     <div>
-                      <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#8BAA91] mb-2 flex items-center gap-1.5">
-                        <Lock className="w-3.5 h-3.5" /> Para Rendir Final (Aprobar)
-                      </h4>
-                      <div className="flex flex-col gap-2">
-                        {selectedSubject.rendir.map(reqId => {
+                      <span className="text-xs font-semibold text-[#8B5CF6] mb-2 block mt-4">Para RENDIR (Aprobadas):</span>
+                      <ul className="space-y-1">
+                        {selectedSubject.rendir.map((reqId, index) => {
                           const reqSub = career.curriculum.find(s => s.id === reqId);
-                          return reqSub && (
-                            <button key={reqId} onClick={() => setSelectedSubject(reqSub)} className="text-xs px-3 py-2 bg-white border border-[#E8F0EA] rounded-xl text-[#5C5C5C] shadow-sm flex items-center gap-2 font-medium hover:border-[#8BAA91]/40 hover:bg-[#F5F9F6] transition-colors text-left">
-                              <span className="w-1.5 h-1.5 rounded-full bg-[#388E3C]"></span>
-                              {reqSub.name}
-                            </button>
+                          return (
+                            <li 
+                              key={reqId} 
+                              style={{ animationDelay: `${index * 50 + 300}ms` }}
+                              className="flex items-start gap-2 text-sm text-[#3D3229] hover:text-[#8B5CF6] hover:bg-[#F3E8FF] p-1.5 -ml-1.5 rounded-lg cursor-pointer transition-colors group"
+                              onClick={() => {
+                                if (reqSub) {
+                                  setSelectedSubject(reqSub);
+                                  setSelectedYear(reqSub.isElectiva ? 'electivas' : reqSub.year);
+                                }
+                              }}
+                            >
+                              <CheckCircle2 className="w-4 h-4 text-[#8B5CF6] mt-0.5 shrink-0" />
+                              <span className="group-hover:underline underline-offset-2">{reqSub?.name}</span>
+                            </li>
                           );
                         })}
-                      </div>
+                      </ul>
                     </div>
                   )}
-                  
-                  {/* What does this unlock? */}
-                  {(() => {
-                    const unlocksRegular = career.curriculum.filter(s => s.regulares?.includes(selectedSubject.id));
-                    const unlocksAprobada = career.curriculum.filter(s => s.aprobadas?.includes(selectedSubject.id));
-                    const unlocksRendir = career.curriculum.filter(s => s.rendir?.includes(selectedSubject.id));
-                    
-                    const hasUnlocks = unlocksRegular.length > 0 || unlocksAprobada.length > 0 || unlocksRendir.length > 0;
-                    
-                    if (!hasUnlocks) return null;
-                    
-                    return (
-                      <div className="pt-5 border-t border-[#E8F0EA] mt-6">
-                        <h4 className="text-[11px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-3 flex items-center gap-1.5">
-                          <Unlock className="w-3.5 h-3.5" /> Habilita para
-                        </h4>
-                        <div className="space-y-4">
-                          {unlocksRegular.length > 0 ? (
-                            <div>
-                              <span className="text-[10px] text-[#A0A0A0] font-bold uppercase mb-2 block">Cursar (si la regularizás)</span>
-                              <div className="flex flex-col gap-1.5">
-                                {unlocksRegular.map(u => (
-                                  <button key={u.id} onClick={() => { const sub = career.curriculum.find(s => s.id === u.id); if (sub) setSelectedSubject(sub); }} className="text-xs px-2.5 py-1.5 bg-[#F5F0EA]/50 rounded-lg text-[#7A6E62] flex items-center gap-2 hover:bg-[#E8F0EA] hover:text-[#3D3229] transition-colors text-left w-full">
-                                    <span className="w-1 h-1 rounded-full bg-[#8BAA91]"></span>
-                                    {u.name}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null}
-                          
-                          {unlocksAprobada.length > 0 ? (
-                            <div>
-                              <span className="text-[10px] text-[#A0A0A0] font-bold uppercase mb-2 block">Cursar (si la aprobás)</span>
-                              <div className="flex flex-col gap-1.5">
-                                {unlocksAprobada.map(u => (
-                                  <button key={u.id} onClick={() => { const sub = career.curriculum.find(s => s.id === u.id); if (sub) setSelectedSubject(sub); }} className="text-xs px-2.5 py-1.5 bg-[#F5F0EA]/50 rounded-lg text-[#7A6E62] flex items-center gap-2 hover:bg-[#E8F0EA] hover:text-[#3D3229] transition-colors text-left w-full">
-                                    <span className="w-1 h-1 rounded-full bg-[#8BAA91]"></span>
-                                    {u.name}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null}
-                          
-                          {unlocksRendir.length > 0 ? (
-                            <div>
-                              <span className="text-[10px] text-[#A0A0A0] font-bold uppercase mb-2 block">Rendir Final de</span>
-                              <div className="flex flex-col gap-1.5">
-                                {unlocksRendir.map(u => (
-                                  <button key={u.id} onClick={() => { const sub = career.curriculum.find(s => s.id === u.id); if (sub) setSelectedSubject(sub); }} className="text-xs px-2.5 py-1.5 bg-[#F5F0EA]/50 rounded-lg text-[#7A6E62] flex items-center gap-2 hover:bg-[#E8F0EA] hover:text-[#3D3229] transition-colors text-left w-full">
-                                    <span className="w-1 h-1 rounded-full bg-[#8BAA91]"></span>
-                                    {u.name}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                          ) : null}
+                </div>
+              )}
+            </div>
+            
+            <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
+              <h4 className="text-xs font-bold uppercase text-[#A0A0A0] mb-4">Esta materia te permite:</h4>
+              {(() => {
+                const unlocksAsRegular = career.curriculum.filter(s => s.regulares.includes(selectedSubject.id));
+                const unlocksAsApproved = career.curriculum.filter(s => s.aprobadas.includes(selectedSubject.id));
+                if (unlocksAsRegular.length === 0 && unlocksAsApproved.length === 0) return <span className="text-sm text-[#A0A0A0] italic">No es correlativa de materias futuras.</span>;
+                return (
+                  <div className="space-y-4">
+                    <div className="flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide">
+                      {unlocksAsRegular.length > 0 && (
+                        <span className="px-2.5 py-1 rounded-full bg-[#FFF9F2] text-[#D4856A] border border-[#D4856A]/20">
+                          Regularizar habilita {unlocksAsRegular.length}
+                        </span>
+                      )}
+                      {unlocksAsApproved.length > 0 && (
+                        <span className="px-2.5 py-1 rounded-full bg-[#F4FBFA] text-[#8BAA91] border border-[#8BAA91]/20">
+                          Aprobar habilita {unlocksAsApproved.length}
+                        </span>
+                      )}
+                    </div>
+                    {unlocksAsRegular.length > 0 && (
+                      <div>
+                        <span className="text-xs font-semibold text-[#D4856A] mb-2 block">Si la REGULARIZÁS:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {unlocksAsRegular.map(unlockedSub => (
+                            <span key={unlockedSub.id} onClick={() => setSelectedSubject(unlockedSub)}
+                                  className="text-xs font-medium bg-[#FFF9F2] border border-[#E8F0EA] text-[#3D3229] px-2.5 py-1.5 rounded-lg hover:border-[#D4856A] cursor-pointer">
+                              {unlockedSub.name}
+                            </span>
+                          ))}
                         </div>
                       </div>
-                    );
-                  })()}
-
-                  {!selectedSubject.regulares?.length && !selectedSubject.aprobadas?.length && !selectedSubject.rendir?.length ? (
-                    <p className="text-sm text-[#A0A0A0] italic bg-white p-3 rounded-xl border border-dashed border-[#E8F0EA]">Esta materia no requiere correlativas previas para ser cursada.</p>
-                  ) : null}
-                </div>
-              </div>
+                    )}
+                    {unlocksAsApproved.length > 0 && (
+                      <div>
+                        <span className="text-xs font-semibold text-[#8BAA91] mb-2 block">Si la APROBÁS:</span>
+                        <div className="flex flex-wrap gap-2">
+                          {unlocksAsApproved.map(unlockedSub => (
+                            <span key={unlockedSub.id} onClick={() => setSelectedSubject(unlockedSub)}
+                                  className="text-xs font-medium bg-[#F4FBFA] border border-[#E8F0EA] text-[#3D3229] px-2.5 py-1.5 rounded-lg hover:border-[#8BAA91] cursor-pointer">
+                                {unlockedSub.name}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
-          </>
-        )}
-      </div>
-    </div>
+          </div>
 
+          </div>
+      )}
+
+      {/* Celebration Modal */}
+      <YearCelebrationModal
+        isOpen={celebrationModal.isOpen}
+        onClose={() => setCelebrationModal({ ...celebrationModal, isOpen: false })}
+        userName={user?.displayName?.split(' ')[0] || 'estudiante'}
+        year={celebrationModal.year}
+      />
     </div>
   );
-}
+};
+
+// ----------------------------------------------------------------------
+// YearCelebrationModal Component
+// ----------------------------------------------------------------------
+const YearCelebrationModal = ({ 
+  isOpen, 
+  onClose, 
+  userName, 
+  year 
+}: { 
+  isOpen: boolean; 
+  onClose: () => void; 
+  userName: string; 
+  year: number | string 
+}) => {
+  if (!isOpen) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 overflow-hidden">
+      <div 
+        className="fixed inset-0 bg-black/60 backdrop-blur-md animate-fade-in" 
+        onClick={onClose}
+      />
+      <div className="relative bg-white rounded-[2.5rem] shadow-2xl max-w-md w-full p-8 text-center animate-celebrate overflow-hidden border border-[#EDE6DD]">
+        {/* Animated Background Decor */}
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
+           <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#8BAA91]/10 rounded-full blur-3xl animate-pulse" />
+           <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-[#D4856A]/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
+        </div>
+
+        <div className="relative z-10">
+          <div className="w-28 h-28 flex items-center justify-center mb-8 mx-auto rotate-3 animate-bounce-subtle">
+            <img src="/icon.png" alt="Logo" className="w-full h-full object-contain mix-blend-multiply" />
+          </div>
+
+          <h2 className="text-3xl font-black text-[#3D3229] mb-4 tracking-tight leading-tight">
+            ¡Año {year} Completado!
+          </h2>
+          
+          <p className="text-lg font-medium text-[#7A6E62] mb-8 leading-relaxed flex items-center justify-center gap-2 flex-wrap">
+            Felicitaciones <span className="text-[#3D3229] font-bold">{userName}</span>Cada vez estás más cerca de tu objetivo académico. Seguí así, ¡el esfuerzo vale la pena! 
+            <Rocket className="w-6 h-6 text-[#D4856A] animate-pulse inline-block" />
+          </p>
+
+          <button
+            onClick={onClose}
+            className="w-full bg-[#1A1A1A] hover:bg-[#3D3229] text-white font-bold text-lg px-8 py-4 rounded-2xl transition-all shadow-xl shadow-black/10 active:scale-[0.98] hover:shadow-2xl"
+          >
+            ¡Vamos por más!
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+};

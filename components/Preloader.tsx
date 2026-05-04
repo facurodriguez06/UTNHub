@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { BookOpen } from "lucide-react";
+import Image from "next/image";
 
 export function Preloader() {
   const [loading, setLoading] = useState(true);
@@ -22,11 +22,13 @@ export function Preloader() {
       <div className="relative flex flex-col items-center justify-center animate-fade-in-up">
         
         <div className="relative flex items-center justify-center mb-6">
-           <img 
+           <Image 
                src="/icon-optimized.webp" 
                alt="UTNHub Logo" 
+               width={80}
+               height={80}
                className="w-20 h-20 object-contain drop-shadow-md" 
-           />
+            />
         </div>
         
         <div className="flex flex-col items-center gap-4">

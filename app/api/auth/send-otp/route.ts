@@ -54,7 +54,7 @@ export async function POST(request: Request) {
       verificationPayload 
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error sending OTP:", error);
     return NextResponse.json({ error: 'Ocurrió un error al enviar el código. Inténtalo de nuevo.' }, { status: 500 });
   }

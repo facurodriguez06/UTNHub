@@ -1,13 +1,13 @@
 "use client";
 
-import { Note } from "@/lib/data";
+import type { Note, NoteRating } from "@/lib/data";
 import { FileText, File, FileArchive, Download, Check, User, Eye, Crown, Star } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
 import { resolveStorageUrl } from "@/lib/storage";
 import { RatingModal } from "./RatingModal";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, increment } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { cn } from "@/lib/utils";
 
@@ -55,7 +55,7 @@ export function DocumentListItem({ note, customStyles = {}, index = 0 }: { note:
   const { user } = useAuth();
   const [downloaded, setDownloaded] = useState(false);
   const [isRatingModalOpen, setIsRatingModalOpen] = useState(false);
-  const [localRatings, setLocalRatings] = useState(note.ratings || []);
+  const [localRatings, setLocalRatings] = useState<NoteRating[]>(note.ratings || []);
   const isCreatorNote = normalizeAuthorName(note.author ?? "") === CREATOR_AUTHOR;
   const customAuthorStyle = customStyles?.[normalizeAuthorName(note.author ?? "")];
 
@@ -65,10 +65,10 @@ export function DocumentListItem({ note, customStyles = {}, index = 0 }: { note:
       const noteRef = doc(db, "notes", note.id);
       const noteDoc = await getDoc(noteRef);
       if (noteDoc.exists()) {
-        const currentRatings = noteDoc.data().ratings || [];
-        const otherRatings = currentRatings.filter((r: any) => r.uid !== user.uid);
+        const currentRatings = (noteDoc.data().ratings || []) as NoteRating[];
+        const otherRatings = currentRatings.filter((r) => r.uid !== user.uid);
         
-        const newRating = {
+        const newRating: NoteRating = {
           uid: user.uid,
           userName: user.displayName || user.email?.split("@")[0] || "Usuario",
           value
@@ -98,15 +98,23 @@ export function DocumentListItem({ note, customStyles = {}, index = 0 }: { note:
     }
   };
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (note.fileUrl) {
       setDownloaded(true);
+
+      // Incrementar contador de descargas en Firebase
+      try {
+        const noteRef = doc(db, "notes", note.id);
+        await updateDoc(noteRef, {
+          downloadCount: increment(1)
+        });
+      } catch (error) {
+        console.error("Error al incrementar descargas:", error);
+      }
 
       const url = resolveStorageUrl(note.fileUrl);
       const filename = note.title || "documento";
       
-      // Intentar fetch para forzar la descarga a través de blob
-      // Si falla por CORS (archivos externos sin cabeceras), hace fallback a tab nueva
       fetch(url)
         .then(response => {
           if (!response.ok) throw new Error('Error de red');
@@ -116,7 +124,6 @@ export function DocumentListItem({ note, customStyles = {}, index = 0 }: { note:
           const blobUrl = window.URL.createObjectURL(blob);
           const link = document.createElement("a");
           link.href = blobUrl;
-          // Construir un nombre de archivo con extensión correcta si no la tiene
           let downloadName = filename;
           if (note.fileType && !downloadName.toLowerCase().endsWith(note.fileType.toLowerCase())) {
             downloadName += `.${note.fileType.toLowerCase()}`;
@@ -124,15 +131,12 @@ export function DocumentListItem({ note, customStyles = {}, index = 0 }: { note:
           link.download = downloadName;
           document.body.appendChild(link);
           link.click();
-          // Cleanup
           link.remove();
           window.URL.revokeObjectURL(blobUrl);
         })
         .catch(() => {
-          // Fallback para navegadores rebeldes o errores de CORS: tratar de forzar download programáticamente con rel="noopener"
           const link = document.createElement("a");
           link.href = url;
-          // Agregamos download, la mayoría de navegadores lo respeta si el origin es el mismo
           link.setAttribute("download", filename);
           link.target = "_blank";
           document.body.appendChild(link);
@@ -158,8 +162,7 @@ export function DocumentListItem({ note, customStyles = {}, index = 0 }: { note:
 
   return (
     <div
-      className={`group relative flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 border rounded-xl hover:-translate-y-[2px] transition-all duration-400 ${!customAuthorStyle ? getBgClass(note.type, isCreatorNote) : ''}`} style={{ ...(customAuthorStyle ? { backgroundColor: customAuthorStyle.color + '0a', borderColor: customAuthorStyle.color + '40' } : {}) }}
-
+      className={`group relative flex flex-col sm:flex-row items-stretch sm:items-center justify-between p-4 border rounded-xl hover:-translate-y-[2px] transition-all duration-400 ${!customAuthorStyle ? getBgClass(note.type, isCreatorNote) : ''}`} style={{ animationDelay: `${index * 40}ms`, ...(customAuthorStyle ? { backgroundColor: customAuthorStyle.color + '0a', borderColor: customAuthorStyle.color + '40' } : {}) }}
     >
       <div className="flex items-start gap-3 w-full sm:w-auto sm:flex-1 mb-3 sm:mb-0 min-w-0">
         <div

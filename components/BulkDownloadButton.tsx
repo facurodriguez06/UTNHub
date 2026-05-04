@@ -1,10 +1,12 @@
-﻿"use client";
+"use client";
 
 import { Download } from "lucide-react";
 import { useState } from "react";
 import { Note } from "@/lib/data";
 import { resolveStorageUrl } from "@/lib/storage";
 import { useToast } from "@/context/ToastContext";
+import { db } from "@/lib/firebase/config";
+import { doc, writeBatch, increment } from "firebase/firestore";
 
 export function BulkDownloadButton({ notes, label = "Descargar todo", compact = false, customHex }: { notes: Note[]; label?: string; compact?: boolean; customHex?: string }) {
   const [downloading, setDownloaded] = useState(false);
@@ -27,6 +29,22 @@ export function BulkDownloadButton({ notes, label = "Descargar todo", compact = 
       const JSZip = (await import("jszip")).default;
       const zip = new JSZip();
       let hasFiles = false;
+
+      // Incrementar contador de descargas masivas en Firebase
+      try {
+        const batch = writeBatch(db);
+        notes.forEach(note => {
+          if (note.id) {
+            const noteRef = doc(db, "notes", note.id);
+            batch.update(noteRef, {
+              downloadCount: increment(1)
+            });
+          }
+        });
+        await batch.commit();
+      } catch (error) {
+        console.error("Error al incrementar descargas masivas:", error);
+      }
 
       // Fetch all files in parallel
       const downloadPromises = notes.map(async (note, i) => {
@@ -82,7 +100,7 @@ export function BulkDownloadButton({ notes, label = "Descargar todo", compact = 
       URL.revokeObjectURL(a.href);
 
       showToast("¡Descarga completada!", "success");
-    } catch (err) {
+    } catch {
       showToast("Error crítico al generar el archivo ZIP.", "error");
     } finally {
       setTimeout(() => setDownloaded(false), 2000);

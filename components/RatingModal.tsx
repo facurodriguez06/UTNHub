@@ -2,7 +2,7 @@
 
 import { NoteRating } from "@/lib/data";
 import { X, Star, User } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
@@ -23,13 +23,8 @@ export function RatingModal({
   const { user } = useAuth();
   const [hoveredStar, setHoveredStar] = useState(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [mounted, setMounted] = useState(false);
 
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  if (!isOpen || !mounted) return null;
+  if (!isOpen || typeof document === "undefined") return null;
 
   const handleRate = async (val: number) => {
     setIsSubmitting(true);

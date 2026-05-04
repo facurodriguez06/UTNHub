@@ -5,17 +5,13 @@ import { useEffect, useState } from "react";
 import { onSnapshot, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/config";
 import { X } from "lucide-react";
-import { resolveStorageUrl } from "@/lib/storage";
 
 export function ImagePopupModal() {
   const [isOpen, setIsOpen] = useState(false);
   const [imageUrl, setImageUrl] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
-  const [isMounted, setIsMounted] = useState(false);
-  const [imgErrorMsg, setImgErrorMsg] = useState("");
 
   useEffect(() => {
-    setIsMounted(true);
     const unsub = onSnapshot(doc(db, "settings", "global"), (docSnap) => {
       if (docSnap.exists()) {
         const data = docSnap.data();
@@ -65,6 +61,7 @@ export function ImagePopupModal() {
         
         {linkUrl ? (
           <a href={linkUrl} target="_blank" rel="noopener noreferrer" onClick={handleClose} className="flex overflow-hidden rounded-2xl shadow-2xl hover:scale-[1.02] transition-transform outline-none relative bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
               src={imageUrl.startsWith("http") ? imageUrl : `https://pub-be009cc7cdca400cb717da8a110bcaa8.r2.dev/${imageUrl}`} 
               alt="Promo" 
@@ -73,6 +70,7 @@ export function ImagePopupModal() {
           </a>
         ) : (
           <div className="flex overflow-hidden rounded-2xl shadow-2xl relative bg-white">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
             <img 
               src={imageUrl.startsWith("http") ? imageUrl : `https://pub-be009cc7cdca400cb717da8a110bcaa8.r2.dev/${imageUrl}`} 
               alt="Promo" 

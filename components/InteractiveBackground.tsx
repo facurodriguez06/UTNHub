@@ -4,10 +4,10 @@ import { useEffect, useRef, useCallback } from "react";
 
 export function InteractiveBackground() {
   const spotlightRef = useRef<HTMLDivElement>(null);
+  const tickingRef = useRef(false);
 
-  let ticking = false;
   const handleMove = useCallback((e: MouseEvent | TouchEvent) => {
-    if (!ticking) {
+    if (!tickingRef.current) {
       window.requestAnimationFrame(() => {
         if (spotlightRef.current) {
           const clientX = 'touches' in e ? e.touches[0].clientX : (e as MouseEvent).clientX;
@@ -16,9 +16,9 @@ export function InteractiveBackground() {
           spotlightRef.current.style.setProperty("--mx", `${clientX}px`);
           spotlightRef.current.style.setProperty("--my", `${clientY}px`);
         }
-        ticking = false;
+        tickingRef.current = false;
       });
-      ticking = true;
+      tickingRef.current = true;
     }
   }, []);
 

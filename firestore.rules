@@ -1,0 +1,99 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ============================================================
+    // HELPER FUNCTIONS
+    // ============================================================
+
+    // Check if the authenticated user's email exists in the 'admins' collection
+    function isAdmin() {
+      return isOwner() || (
+        request.auth != null
+        && request.auth.token.email != null
+        && exists(/databases/$(database)/documents/admins/$(request.auth.token.email))
+      );
+    }
+
+    // Check if the authenticated user is the owner (único que puede gestionar admins)
+    function isOwner() {
+      return request.auth != null
+        && request.auth.token.email == 'facundorodrigueezsp@gmail.com';
+    }
+
+    // 🛡️ MÉTRICAS
+    match /metrics/{document=**} {
+      allow read: if isAdmin();
+      allow write: if true;
+    }
+
+    // 🛡️ CONFIGURACIÓN GLOBAL (Donaciones, Toggles, Anuncios)
+    match /settings/global {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 🛡️ APUNTES (Colección 'notes')
+    match /notes/{noteId} {
+      // Cualquiera puede leer las aprobadas; admins pueden leer todas (incluyendo pendientes)
+      allow read: if resource.data.status == 'approved' || isAdmin();
+
+      // Cualquier usuario (incluso anónimo) puede crear un apunte, pero DEBE ser 'pending'
+      // Esto evita que alguien cree un apunte directamente como 'approved'
+      allow create: if request.resource.data.status == 'pending';
+
+      // Solo admins pueden aprobar, editar metadatos o borrar apuntes
+      allow update, delete: if isAdmin();
+    }
+
+    // 🛡️ LISTA DE ADMINISTRADORES (Colección 'admins')
+    match /admins/{adminId} {
+      // Admins pueden leer la lista; un usuario puede verificar si él mismo es admin
+      allow read: if isAdmin()
+        || (request.auth != null && request.auth.token.email == adminId);
+
+      // SOLO el dueño puede agregar, modificar o quitar administradores
+      allow create, update, delete: if isOwner();
+    }
+
+    // 🛡️ USUARIOS Y PROGRESO (Colección 'users')
+    // Solo el usuario dueño de la cuenta puede leer y guardar sus materias aprobadas/regulares
+    // Los admins pueden leer perfiles para gestión
+    match /users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+
+      // Al crear el perfil por primera vez, el role DEBE ser 'user' si se especifica
+      allow create: if request.auth != null
+        && request.auth.uid == userId
+        && (!('role' in request.resource.data) || request.resource.data.role == 'user');
+
+      // El usuario NO puede cambiar su propio 'role'. El dueño puede cambiar cualquier perfil.
+      allow update: if request.auth != null && (
+        (request.auth.uid == userId && (!('role' in request.resource.data) || request.resource.data.role == resource.data.get('role', 'user')))
+        || isOwner()
+      );
+
+      allow delete: if isOwner();
+    }
+
+    // 🛡️ CALIFICACIONES DE MATERIAS GLOBALES (Colección 'subject_aggregates')
+    // Cualquier usuario visitante puede ver los promedios calculados, pero solo los registrados pueden sumar votos
+    match /subject_aggregates/{subjectId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // 🛡️ CALIFICACIONES POR MATERIA (Colección 'subjectRatings')
+    match /subjectRatings/{subjectId} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
+    // 🛡️ REGLA POR DEFECTO
+    // Bloquear todo lo demás por seguridad.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

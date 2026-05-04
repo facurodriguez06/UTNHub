@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Upload, Menu, X, ChevronRight, Heart, User, Settings, LogOut } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
@@ -96,9 +97,11 @@ export function Header() {
           {/* Logo Section */}
           <Link href="/" className="flex items-center gap-3.5 group" onClick={() => setMenuOpen(false)}>
             <div className="relative flex items-center justify-center w-11 h-11 transition-all duration-300 group-hover:scale-105 group-active:scale-95">
-              <img 
+              <Image 
                 src="/icon-optimized.webp" 
                 alt="Logo UTNHub" 
+                width={44}
+                height={44}
                 className="w-full h-full object-contain drop-shadow-sm"
               />
             </div>
@@ -157,7 +160,7 @@ export function Header() {
                   <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#8BAA91] to-[#6A8F70] flex items-center justify-center text-white text-[10px] font-black uppercase shadow-sm">
                     {displayName.charAt(0)}
                   </div>
-                  <span className="hidden sm:block text-[11px] truncate max-w-[90px]">{displayName}</span>
+                  <span className="hidden sm:block text-[11px] truncate max-w-[160px]">{displayName}</span>
                   <svg className={`w-3 h-3 text-[#A89F95] transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </button>
 

@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import type { FirebaseError } from "firebase/app";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 import {
   Check,
   X,
@@ -20,6 +23,11 @@ import {
   Crown,
   Calendar,
   ArrowUpDown,
+  BarChart3,
+  TrendingUp,
+  Download,
+  BookOpen,
+  Building2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveStorageUrl } from "@/lib/storage";
@@ -383,8 +391,9 @@ export default function AdminPage() {
   });
 
   const [confirmReset, setConfirmReset] = useState(false);
-
   const [isResetting, setIsResetting] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
+  const [monthlyReport, setMonthlyReport] = useState<any>(null);
 
   useEffect(() => {
     const currentEmail = normalizeAdminEmail(user?.email);
@@ -445,6 +454,17 @@ export default function AdminPage() {
   }, [user]);
 
   useEffect(() => {
+    if (showReportModal) {
+      document.body.style.overflow = "hidden";
+    } else {
+      document.body.style.overflow = "unset";
+    }
+    return () => {
+      document.body.style.overflow = "unset";
+    };
+  }, [showReportModal]);
+
+  useEffect(() => {
     if (!user || !hasAdminAccess) {
       setPendingNotes([]);
       setApprovedNotes([]);
@@ -482,9 +502,10 @@ export default function AdminPage() {
         if (docSnap.exists()) {
           setIsDonationActive(docSnap.data().isDonationActive ?? true);
           setIsDonationPopupActive(docSnap.data().isDonationPopupActive ?? true);
-            setIsAnnouncementActive(docSnap.data().isAnnouncementActive ?? false);
-            setAnnouncementTitle(docSnap.data().announcementTitle ?? "");
-            setAnnouncementMessage(docSnap.data().announcementMessage ?? "");          setIsImagePopupActive(docSnap.data().isImagePopupActive ?? false);
+          setIsAnnouncementActive(docSnap.data().isAnnouncementActive ?? false);
+          setAnnouncementTitle(docSnap.data().announcementTitle ?? "");
+          setAnnouncementMessage(docSnap.data().announcementMessage ?? "");
+          setIsImagePopupActive(docSnap.data().isImagePopupActive ?? false);
           setImagePopupUrl(docSnap.data().imagePopupUrl ?? "");
           setImagePopupLink(docSnap.data().imagePopupLink ?? "");
           setAuthorStyles(docSnap.data().authorStyles || {});
@@ -548,7 +569,7 @@ export default function AdminPage() {
     } catch (err: unknown) {
       const authError = toAuthError(err);
       console.error(err);
-      if (
+      if(
         authError.code === "auth/invalid-credential" ||
         authError.code === "auth/user-not-found" ||
         authError.code === "auth/wrong-password"
@@ -708,7 +729,6 @@ export default function AdminPage() {
     }
   };
 
-  
   const toggleNoteSelection = (id: string) => {
     setSelectedPendingNotes(prev => prev.includes(id) ? prev.filter(n => n !== id) : [...prev, id]);
   };
@@ -760,7 +780,6 @@ export default function AdminPage() {
   const handleEditNoteSave = async (updatedFields: Partial<Note>) => {
     if (!editingNote) return;
     try {
-      const { updateDoc, doc } = await import("firebase/firestore");
       await updateDoc(doc(db, "notes", editingNote.id), updatedFields);
       showToast("Apunte editado correctamente.", "success");
     } catch (error) {
@@ -797,7 +816,7 @@ export default function AdminPage() {
 
     setIsUploadingImage(true);
     try {
-      const processedFile = await compressImage(file, 4); // Comprimir a max 4MB para pasar Vercel
+      const processedFile = await compressImage(file, 4);
 
       const formData = new FormData();
       formData.append("file", processedFile);
@@ -816,9 +835,9 @@ export default function AdminPage() {
       const data = await res.json();
       setImagePopupUrl(data.url);
       showToast("Imagen subida con éxito", "success");
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      showToast(error.message || "Error al subir imagen", "error");
+      showToast(error instanceof Error ? error.message : "Error al subir imagen", "error");
     } finally {
       setIsUploadingImage(false);
     }
@@ -856,7 +875,6 @@ export default function AdminPage() {
       setIsUpdatingSettings(false);
     }
   };
-
 
   const handleSaveAuthorStyle = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -944,7 +962,7 @@ export default function AdminPage() {
       );
     } catch (err) {
       console.error("Error updating settings:", err);
-      setIsImagePopupActive(!newValue); // revert on error
+      setIsImagePopupActive(!newValue);
       showToast("Error al cambiar estado", "error");
     } finally {
       setIsUpdatingSettings(false);
@@ -965,7 +983,7 @@ export default function AdminPage() {
       );
     } catch (err) {
       console.error("Error updating settings:", err);
-      setIsAnnouncementActive(!newValue); // revert on error
+      setIsAnnouncementActive(!newValue);
       showToast("Error al cambiar estado", "error");
     } finally {
       setIsUpdatingSettings(false);
@@ -997,6 +1015,150 @@ export default function AdminPage() {
     } catch (err) {
       console.error("Error resetting password:", err);
       showToast("Error al enviar el correo de restablecimiento.", "error");
+    }
+  };
+
+  const generateReport = () => {
+    const allNotes = [...pendingNotes, ...approvedNotes];
+    const now = new Date();
+    const baTime = new Date(now.toLocaleString("en-US", {timeZone: "America/Argentina/Buenos_Aires"}));
+    const currentMonth = String(baTime.getMonth() + 1).padStart(2, '0');
+    const currentYear = String(baTime.getFullYear());
+    const monthPrefix = `${currentYear}-${currentMonth}`;
+
+    const monthNotes = allNotes.filter(n => n.uploadDate?.startsWith(monthPrefix));
+    
+    if (monthNotes.length === 0) {
+      showToast("No hay apuntes registrados este mes aún.", "info");
+      return;
+    }
+
+    // Carrera con más apuntes
+    const careerCounts = monthNotes.reduce((acc, n) => {
+      acc[n.careerId || 'unknown'] = (acc[n.careerId || 'unknown'] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const topCareerId = Object.entries(careerCounts).sort((a,b) => b[1] - a[1])[0]?.[0];
+    const topCareer = careersData.find(c => c.id === topCareerId)?.name || topCareerId;
+
+    // Materia con más apuntes
+    const subjectCounts = monthNotes.reduce((acc, n) => {
+      acc[n.subjectId || 'unknown'] = (acc[n.subjectId || 'unknown'] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const topSubjectId = Object.entries(subjectCounts).sort((a,b) => b[1] - a[1])[0]?.[0];
+    const topSubject = subjectsData.find(s => s.id === topSubjectId)?.name || topSubjectId;
+
+    // Usuario que más subió
+    const authorCounts = monthNotes.reduce((acc, n) => {
+      acc[n.author || 'Anónimo'] = (acc[n.author || 'Anónimo'] || 0) + 1;
+      return acc;
+    }, {} as Record<string, number>);
+    const topAuthor = Object.entries(authorCounts).sort((a,b) => b[1] - a[1])[0];
+
+    // Más descargadas del mes (si tienen downloadCount)
+    const topDownloaded = [...monthNotes].sort((a,b) => (b.downloadCount || 0) - (a.downloadCount || 0)).slice(0, 5);
+
+    setMonthlyReport({
+      monthName: baTime.toLocaleString('es-AR', { month: 'long', year: 'numeric' }),
+      totalNotes: monthNotes.length,
+      topCareer,
+      topSubject,
+      topAuthor: topAuthor ? { name: topAuthor[0], count: topAuthor[1] } : null,
+      topDownloaded
+    });
+    setShowReportModal(true);
+  };
+
+  const downloadReportPDF = () => {
+    if (!monthlyReport) return;
+
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.width;
+
+      // Header
+      doc.setFillColor(44, 40, 37); // #2C2825
+      doc.rect(0, 0, pageWidth, 40, 'F');
+      
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(22);
+      doc.setFont("helvetica", "bold");
+      doc.text("UTN Hub - Reporte Mensual", 15, 20);
+      
+      doc.setFontSize(14);
+      doc.setTextColor(196, 168, 125); // #C4A87D
+      doc.text(monthlyReport.monthName.toUpperCase(), 15, 30);
+
+      // General Stats
+      doc.setTextColor(44, 40, 37);
+      doc.setFontSize(16);
+      doc.text("Resumen General", 15, 55);
+      doc.setLineWidth(0.5);
+      doc.setDrawColor(237, 230, 221);
+      doc.line(15, 58, pageWidth - 15, 58);
+
+      doc.setFontSize(11);
+      doc.setFont("helvetica", "normal");
+      doc.setTextColor(122, 110, 98);
+
+      const stats = [
+        ["Apuntes subidos este mes:", monthlyReport.totalNotes.toString()],
+        ["Carrera más activa:", monthlyReport.topCareer],
+        ["Materia con más aportes:", monthlyReport.topSubject],
+        ["Colaborador destacado:", `${monthlyReport.topAuthor?.name || 'N/A'} (${monthlyReport.topAuthor?.count || 0} aportes)`],
+      ];
+
+      autoTable(doc, {
+        startY: 65,
+        head: [],
+        body: stats,
+        theme: 'plain',
+        styles: { fontSize: 11, cellPadding: 4 },
+        columnStyles: { 0: { fontStyle: 'bold', minCellWidth: 60 } }
+      });
+
+      // Top Downloaded Table
+      const finalY = (doc as any).lastAutoTable.finalY || 100;
+      
+      doc.setFontSize(16);
+      doc.setFont("helvetica", "bold");
+      doc.setTextColor(44, 40, 37);
+      doc.text("Top 5 Descargas del Mes", 15, finalY + 15);
+      doc.line(15, finalY + 18, pageWidth - 15, finalY + 18);
+
+      const tableData = monthlyReport.topDownloaded.map((note: any, index: number) => [
+        index + 1,
+        note.title,
+        subjectsData.find(s => s.id === note.subjectId)?.name || note.subjectId,
+        note.downloadCount || 0
+      ]);
+
+      autoTable(doc, {
+        startY: finalY + 25,
+        head: [['#', 'Título del Apunte', 'Materia', 'Descargas']],
+        body: tableData,
+        headStyles: { fillColor: [74, 122, 82], textColor: [255, 255, 255], fontStyle: 'bold' },
+        alternateRowStyles: { fillColor: [249, 247, 244] },
+        styles: { fontSize: 10, cellPadding: 5 },
+        columnStyles: { 
+          0: { cellWidth: 10 },
+          3: { halign: 'center', fontStyle: 'bold' }
+        }
+      });
+
+      // Footer
+      const footerY = doc.internal.pageSize.height - 20;
+      doc.setFontSize(9);
+      doc.setTextColor(168, 159, 149);
+      doc.text(`Generado el: ${new Date().toLocaleString('es-AR')}`, 15, footerY);
+      doc.text("UTN Hub - Panel de Administración", pageWidth - 15, footerY, { align: 'right' });
+
+      doc.save(`Reporte_Mensual_${monthlyReport.monthName.replace(' ', '_')}.pdf`);
+      showToast("PDF generado correctamente", "success");
+    } catch (error) {
+      console.error("Error generating PDF:", error);
+      showToast("Error al generar el PDF. Reintentá en unos segundos.", "error");
     }
   };
 
@@ -1108,6 +1270,7 @@ export default function AdminPage() {
   }
 
   return (
+    <>
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
@@ -1121,7 +1284,6 @@ export default function AdminPage() {
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          {/* Métricas */}
           <div className="flex gap-4 sm:mr-4 bg-white border border-[#EDE6DD] rounded-xl p-3 shadow-sm min-w-max hidden lg:flex">
             <div className="pr-4 border-r border-[#EDE6DD]">
               <p className="text-[10px] font-extrabold text-[#A89F95] uppercase tracking-wider mb-0.5">Visitas Hoy</p>
@@ -1201,7 +1363,6 @@ export default function AdminPage() {
             </p>
           )}
 
-          {/* List of admins */}
           <div className="mt-8 border-t border-[#EDE6DD] pt-6">
             <h3 className="text-sm font-black text-[#3D3229] uppercase tracking-widest mb-4 flex items-center gap-2">
               <UserCheck className="w-4 h-4" /> Moderadores Registrados
@@ -1251,52 +1412,589 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* TABS NAVIGATION */}
       <div className="flex flex-wrap gap-2 mb-8 bg-white p-2 rounded-2xl border border-[#EDE6DD] shadow-sm">
-        <button 
-          onClick={() => setActiveTab('apuntes')} 
-          className={cn("flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all whitespace-nowrap", activeTab === 'apuntes' ? 'bg-[#4A7A52] text-white shadow-md' : 'text-[#7A6E62] hover:bg-[#F5F0EA]')}
-        >
-          Apuntes
-        </button>
-        <button 
-          onClick={() => setActiveTab('autores')} 
-          className={cn("flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all whitespace-nowrap", activeTab === 'autores' ? 'bg-[#4A7A52] text-white shadow-md' : 'text-[#7A6E62] hover:bg-[#F5F0EA]')}
-        >
-          Autores
-        </button>
-        <button 
-          onClick={() => setActiveTab('avisos')} 
-          className={cn("flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all whitespace-nowrap", activeTab === 'avisos' ? 'bg-[#4A7A52] text-white shadow-md' : 'text-[#7A6E62] hover:bg-[#F5F0EA]')}
-        >
-          Avisos
-        </button>
-        <button 
-          onClick={() => setActiveTab('sistema')} 
-          className={cn("flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all whitespace-nowrap", activeTab === 'sistema' ? 'bg-[#4A7A52] text-white shadow-md' : 'text-[#7A6E62] hover:bg-[#F5F0EA]')}
-        >
-          Sistema
-        </button>
+        {[
+          { id: 'apuntes', label: 'Apuntes' },
+          { id: 'estadisticas', label: 'Estadísticas' },
+          { id: 'autores', label: 'Autores' },
+          { id: 'avisos', label: 'Avisos' },
+          { id: 'sistema', label: 'Sistema' },
+        ].map((tab) => (
+          <button
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            className={cn(
+              "flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all whitespace-nowrap",
+              activeTab === tab.id ? "bg-[#4A7A52] text-white shadow-md" : "text-[#7A6E62] hover:bg-[#F5F0EA]"
+            )}
+          >
+            {tab.label}
+          </button>
+        ))}
       </div>
 
-      {activeTab === 'sistema' && (
+      {activeTab === 'apuntes' && (
+        <div className="animate-fade-in space-y-10">
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Mail className="w-5 h-5 text-[#A89F95] group-focus-within:text-[#C4A87D] transition-colors" />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar por autor..."
+              value={searchAuthor}
+              onChange={(e) => setSearchAuthor(e.target.value)}
+              className="w-full pl-12 pr-4 py-4 bg-white border border-[#EDE6DD] focus:border-[#C4A87D] focus:ring-4 focus:ring-[#C4A87D]/5 text-[#3D3229] rounded-[2rem] outline-none transition-all shadow-sm font-medium"
+            />
+          </div>
+
+          <section>
+            <h2 className="text-xl font-bold text-[#4A433C] mb-4 ml-1 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#C4A87D]"></span>
+              Bandeja de Pendientes ({filteredPendingNotes.length})
+            </h2>
+
+            <div className="bg-white rounded-[2.5rem] p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#EDE6DD] min-h-[300px]">
+              {filteredPendingNotes.length === 0 ? (
+                <EmptySection
+                  title="¡Todo al día!"
+                  description={searchAuthor ? "No hay apuntes pendientes que coincidan con la búsqueda." : "No hay apuntes pendientes de moderación en este momento."}
+                  icon={<Check className="w-10 h-10 text-[#A8B8A0]" />}
+                />
+              ) : (
+                <div className="flex flex-col">
+                  <div className="mb-6 p-4 bg-[#F9F7F4] border border-[#ede6dd] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                    <div className="flex items-center gap-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedPendingNotes.length > 0 && selectedPendingNotes.length === filteredPendingNotes.length}
+                        onChange={handleSelectAllPending}
+                        className="w-5 h-5 cursor-pointer accent-[#4A7A52] rounded"
+                      />
+                      <span className="text-sm font-bold text-[#4A433C]">
+                        {selectedPendingNotes.length} seleccionados
+                      </span>
+                    </div>
+                    
+                    {selectedPendingNotes.length > 0 && (
+                      <div className="flex flex-1 w-full sm:w-auto items-center gap-2">
+                        <input
+                          type="text"
+                          placeholder="Carpeta masiva..."
+                          value={bulkFolderInput}
+                          onChange={(e) => setBulkFolderInput(e.target.value)}
+                          className="flex-1 min-w-[120px] max-w-[200px] border border-[#E5DCD3] rounded-xl px-3 py-2 text-sm focus:border-[#4A7A52] outline-none"
+                        />
+                        <button
+                          onClick={handleApplyBulkFolder}
+                          className="text-xs bg-white border border-[#EDE6DD] px-4 py-2.5 rounded-xl font-bold hover:bg-[#F5EFE5] transition-colors"
+                        >
+                          Aplicar a todos
+                        </button>
+                        <button
+                          onClick={handleBulkApprove}
+                          className="ml-auto text-xs bg-[#4A7A52] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-[#3A6040] shadow-sm transition-colors flex items-center gap-1"
+                        >
+                          <Check className="w-3.5 h-3.5" /> Aprobar {selectedPendingNotes.length}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-4">
+                    {filteredPendingNotes.map((note) => {
+                      const folderSuggestions = getFolderSuggestions(note);
+                      const datalistId = `folders-${note.id}`;
+                      const authorFolder = normalizeFolderName(note.author ?? "");
+                      const canUseAuthorFolder =
+                        authorFolder.length > 0 &&
+                        authorFolder.toLowerCase() !== "anónimo" &&
+                        authorFolder.toLowerCase() !== "anonimo";
+
+                      return (
+                        <div key={note.id} className="flex gap-3">
+                          <div className="pt-6 pl-2 hidden sm:block">
+                            <input 
+                              type="checkbox" 
+                              checked={selectedPendingNotes.includes(note.id)}
+                              onChange={() => toggleNoteSelection(note.id)}
+                              className="w-5 h-5 cursor-pointer accent-[#4A7A52] rounded"
+                            />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <NoteCard
+                              note={note}
+                              extraContent={
+                                <div className="rounded-2xl border border-[#EDE6DD] bg-[#FFFBF7] p-4">
+                                  <div className="flex flex-col gap-2">
+                                    <label className="text-sm font-bold text-[#3D3229]">
+                                      Carpeta en esta materia
+                                    </label>
+                                    <div className="flex flex-col lg:flex-row gap-2">
+                                      <input
+                                        list={folderSuggestions.length > 0 ? datalistId : undefined}
+                                        value={folderInputs[note.id] ?? ""}
+                                        onChange={(event) => handleFolderInputChange(note.id, event.target.value)}
+                                        placeholder="Ej. Juan Pérez"
+                                        className="flex-1 rounded-xl border border-[#E5DCD3] bg-white px-3.5 py-2.5 text-sm text-[#3D3229] placeholder:text-[#A89F95] focus:border-[#8BAA91] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]/20"
+                                      />
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUseAuthorFolder(note)}
+                                        disabled={!canUseAuthorFolder}
+                                        className="inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold border border-[#D5E8DB] bg-[#F2F8F4] text-[#2E7D32] hover:bg-[#E6F0E9] disabled:opacity-50 disabled:cursor-not-allowed"
+                                      >
+                                        Usar autor
+                                      </button>
+                                    </div>
+                                    {folderSuggestions.length > 0 && (
+                                      <datalist id={datalistId}>
+                                        {folderSuggestions.map((folderName) => (
+                                          <option key={folderName} value={folderName} />
+                                        ))}
+                                      </datalist>
+                                    )}
+                                  </div>
+                                </div>
+                              }
+                              actions={
+                                <>
+                                  <button
+                                    onClick={() => handleOpenFile(note)}
+                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-[#EDE6DD] hover:bg-[#F9F7F4] text-[#7A6E62] rounded-xl font-medium transition-all"
+                                    disabled={!note.fileUrl}
+                                  >
+                                    <ExternalLink className="w-4 h-4" />
+                                    <span className="text-xs">Ver</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleDelete(note.id)}
+                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#FFF0F0] hover:bg-[#FFE5E5] text-[#D84545] border border-[#FFDCDC] rounded-xl font-semibold transition-all"
+                                  >
+                                    <X className="w-4 h-4" />
+                                    <span className="text-xs">Rechazar</span>
+                                  </button>
+                                  <button
+                                    onClick={() => handleApprove(note)}
+                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#F2F8F4] hover:bg-[#E6F0E9] text-[#2E7D32] border border-[#D5E8DB] rounded-xl font-semibold transition-all"
+                                  >
+                                    <Check className="w-4 h-4" />
+                                    <span className="text-xs">Aprobar</span>
+                                  </button>
+                                </>
+                              }
+                            />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-xl font-bold text-[#4A433C] mb-4 ml-1 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-[#8BAA91]"></span>
+              Apuntes Aprobados ({filteredApprovedNotes.length})
+            </h2>
+
+            <div className="bg-white rounded-[2.5rem] p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#EDE6DD] min-h-[300px]">
+              {filteredApprovedNotes.length === 0 ? (
+                <EmptySection
+                  title="Sin aprobados para revisar"
+                  description={searchAuthor ? "No hay apuntes aprobados que coincidan con la búsqueda." : "Cuando apruebes apuntes, también vas a poder eliminarlos y ver en qué carpeta quedaron."}
+                  icon={<FileText className="w-10 h-10 text-[#A8B8A0]" />}
+                />
+              ) : (
+                <div className="flex flex-col gap-8">
+                  {Object.entries(
+                    filteredApprovedNotes.reduce((acc, note) => {
+                      const subjectName = subjectsData.find(s => s.id === note.subjectId)?.name || note.subjectId || "General";
+                      if (!acc[subjectName]) acc[subjectName] = [];
+                      acc[subjectName].push(note);
+                      return acc;
+                    }, {} as Record<string, Note[]>)
+                  ).sort((a, b) => a[0].localeCompare(b[0])).map(([subject, notes]) => (
+                    <SubjectGroup key={subject} subject={subject} notes={notes} onOpenFile={handleOpenFile} onEditNote={setEditingNote} onDeleteNote={handleDelete} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {activeTab === 'estadisticas' && (
+        <div className="animate-fade-in space-y-8">
+          <section>
+            <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-2xl bg-[#F5EFE5] text-[#8B7355]">
+                    <TrendingUp className="w-6 h-6" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-black text-[#3D3229]">Panel de Estadísticas</h2>
+                    <p className="text-[#7A6E62] text-sm">Los contenidos más populares y reportes de rendimiento.</p>
+                  </div>
+                </div>
+                <button
+                  onClick={generateReport}
+                  className="flex items-center justify-center gap-2 px-6 py-3.5 bg-[#2C2825] hover:bg-black text-white font-bold rounded-2xl transition-all shadow-md active:scale-95 shrink-0"
+                >
+                  <BarChart3 className="w-5 h-5" />
+                  Generar Reporte Mensual
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                {/* Top Apuntes */}
+                <div className="flex flex-col gap-4">
+                  <h3 className="text-lg font-bold text-[#4A433C] flex items-center gap-2 px-2">
+                    <FileText className="w-5 h-5 text-[#D4856A]" />
+                    Top 10 Apuntes
+                  </h3>
+                  <div className="bg-[#F9F7F4] rounded-3xl border border-[#EDE6DD] overflow-hidden">
+                    {[...approvedNotes]
+                      .filter(n => (n.downloadCount || 0) > 0)
+                      .sort((a, b) => (b.downloadCount || 0) - (a.downloadCount || 0))
+                      .slice(0, 10)
+                      .map((note, idx) => (
+                        <div key={note.id} className="flex items-center justify-between p-4 border-b border-[#EDE6DD] last:border-0 hover:bg-white transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="text-xs font-black text-[#A89F95] w-4">{idx + 1}</span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-[#3D3229] truncate">{note.title}</p>
+                              <p className="text-[10px] text-[#7A6E62] truncate">
+                                {subjectsData.find(s => s.id === note.subjectId)?.name || note.subjectId}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg border border-[#EDE6DD] shadow-sm shrink-0">
+                            <Download className="w-3 h-3 text-[#D4856A]" />
+                            <span className="text-xs font-black text-[#3D3229]">{note.downloadCount || 0}</span>
+                          </div>
+                        </div>
+                      ))}
+                    {[...approvedNotes].filter(n => (n.downloadCount || 0) > 0).length === 0 && (
+                      <div className="p-10 text-center text-[#A89F95] text-sm">No hay datos aún</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Top Carpetas */}
+                <div className="flex flex-col gap-4">
+                  <h3 className="text-lg font-bold text-[#4A433C] flex items-center gap-2 px-2">
+                    <FolderOpen className="w-5 h-5 text-[#8BAA91]" />
+                    Top 10 Carpetas
+                  </h3>
+                  <div className="bg-[#F9F7F4] rounded-3xl border border-[#EDE6DD] overflow-hidden">
+                    {Object.entries(
+                      approvedNotes.reduce((acc, note) => {
+                        const folderName = normalizeFolderName(note.folderName || "");
+                        if (!folderName) return acc;
+                        acc[folderName] = (acc[folderName] || 0) + (note.downloadCount || 0);
+                        return acc;
+                      }, {} as Record<string, number>)
+                    )
+                      .filter(([, count]) => count > 0)
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 10)
+                      .map(([folder, count], idx) => (
+                        <div key={folder} className="flex items-center justify-between p-4 border-b border-[#EDE6DD] last:border-0 hover:bg-white transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="text-xs font-black text-[#A89F95] w-4">{idx + 1}</span>
+                            <p className="text-sm font-bold text-[#3D3229] truncate">{folder}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg border border-[#EDE6DD] shadow-sm shrink-0">
+                            <Download className="w-3 h-3 text-[#8BAA91]" />
+                            <span className="text-xs font-black text-[#3D3229]">{count}</span>
+                          </div>
+                        </div>
+                      ))}
+                    {Object.keys(approvedNotes.reduce((acc, note) => {
+                        const folderName = normalizeFolderName(note.folderName || "");
+                        if (!folderName) return acc;
+                        acc[folderName] = (acc[folderName] || 0) + (note.downloadCount || 0);
+                        return acc;
+                      }, {} as Record<string, number>)).filter(f => f).length === 0 && (
+                      <div className="p-10 text-center text-[#A89F95] text-sm">No hay datos aún</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Top Materias */}
+                <div className="flex flex-col gap-4">
+                  <h3 className="text-lg font-bold text-[#4A433C] flex items-center gap-2 px-2">
+                    <BookOpen className="w-5 h-5 text-[#7BA7C2]" />
+                    Top 10 Materias
+                  </h3>
+                  <div className="bg-[#F9F7F4] rounded-3xl border border-[#EDE6DD] overflow-hidden">
+                    {Object.entries(
+                      approvedNotes.reduce((acc, note) => {
+                        const subjectName = subjectsData.find(s => s.id === note.subjectId)?.name || note.subjectId || "General";
+                        acc[subjectName] = (acc[subjectName] || 0) + (note.downloadCount || 0);
+                        return acc;
+                      }, {} as Record<string, number>)
+                    )
+                      .filter(([, count]) => count > 0)
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 10)
+                      .map(([subject, count], idx) => (
+                        <div key={subject} className="flex items-center justify-between p-4 border-b border-[#EDE6DD] last:border-0 hover:bg-white transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="text-xs font-black text-[#A89F95] w-4">{idx + 1}</span>
+                            <p className="text-sm font-bold text-[#3D3229] truncate">{subject}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg border border-[#EDE6DD] shadow-sm shrink-0">
+                            <Download className="w-3 h-3 text-[#7BA7C2]" />
+                            <span className="text-xs font-black text-[#3D3229]">{count}</span>
+                          </div>
+                        </div>
+                      ))}
+                    {Object.keys(approvedNotes.reduce((acc, note) => {
+                        const subjectName = subjectsData.find(s => s.id === note.subjectId)?.name || note.subjectId || "General";
+                        acc[subjectName] = (acc[subjectName] || 0) + (note.downloadCount || 0);
+                        return acc;
+                      }, {} as Record<string, number>)).length === 0 && (
+                      <div className="p-10 text-center text-[#A89F95] text-sm">No hay datos aún</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {activeTab === 'autores' && (
         <div className="animate-fade-in">
-          {/* RESET BUTTON */}
           <section className="mb-10 animate-fade-in-up">
+            <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
+                <div className="max-w-xl">
+                  <h2 className="text-xl font-black text-[#3D3229] mb-2 flex items-center gap-2">
+                    <span className="p-2 rounded-lg bg-[#E8F0EA] text-[#4A7A52]">
+                      <Crown className="w-5 h-5" />
+                    </span>
+                    Personalizar Apuntes de Usuarios
+                  </h2>
+                  <p className="text-[#7A6E62] text-sm leading-relaxed">
+                    Asigná un color especial y una etiqueta (ej: &quot;Amigo&quot;, &quot;VIP&quot;) a los apuntes subidos por alguien específico. Escribí el nombre exacto con el que subió el archivo.
+                  </p>
+                </div>
+              </div>
+              
+              <form onSubmit={handleSaveAuthorStyle} className="flex flex-col sm:flex-row gap-4 mb-6">
+                <input 
+                  type="text" 
+                  placeholder="Nombre del Autor (ej: Juan Perez)" 
+                  value={newAuthorName} 
+                  onChange={(e) => setNewAuthorName(e.target.value)} 
+                  required
+                  className="flex-1 px-4 py-2.5 bg-white border border-[#E5DCD3] focus:border-[#4A7A52] rounded-xl outline-none"
+                />
+                <input 
+                  type="text" 
+                  placeholder="Etiqueta (ej: Amigo)" 
+                  value={newAuthorLabel} 
+                  onChange={(e) => setNewAuthorLabel(e.target.value)} 
+                  required
+                  className="w-full sm:w-1/4 px-4 py-2.5 bg-white border border-[#E5DCD3] focus:border-[#4A7A52] rounded-xl outline-none"
+                />
+                <div className="flex items-center gap-3">
+                  <input 
+                    type="color" 
+                    value={newAuthorColor} 
+                    onChange={(e) => setNewAuthorColor(e.target.value)} 
+                    className="w-12 h-12 rounded-xl cursor-pointer border-none bg-transparent p-0"
+                  />
+                  <button
+                    type="submit"
+                    className="bg-[#4A7A52] hover:bg-[#3d6644] px-6 py-2.5 text-white font-medium rounded-xl transition-all shadow-sm h-[46px]"
+                  >
+                    Agregar
+                  </button>
+                </div>
+              </form>
+
+              {Object.keys(authorStyles).length > 0 && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 border-t border-[#EDE6DD] pt-6">
+                  {Object.entries(authorStyles).map(([key, style]) => (
+                    <div key={key} className="flex items-center justify-between p-4 rounded-xl border border-[#EDE6DD] bg-[#F9F7F4]">
+                      <div className="flex flex-col">
+                        <span className="font-bold text-[#3D3229] capitalize">{key}</span>
+                        <span 
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-1 w-max text-white"
+                          style={{ backgroundColor: style.color }}
+                        >
+                          {style.label}
+                        </span>
+                      </div>
+                      <button 
+                        onClick={() => handleDeleteAuthorStyle(key)}
+                        className="p-2 text-[#D84545] hover:bg-[#FFE5E5] rounded-lg transition-colors"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {activeTab === 'avisos' && (
+        <div className="animate-fade-in space-y-10">
+          <section className="animate-fade-in-up">
+            <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
+                <div className="max-w-xl">
+                  <h2 className="text-xl font-black text-[#3D3229] mb-2 flex items-center gap-2">
+                    <span className="p-2 rounded-lg bg-[#F5EFE5] text-[#8B7355]">
+                      <Megaphone className="w-5 h-5" />
+                    </span>
+                    Popup de Imagen Promocional
+                  </h2>
+                  <p className="text-[#7A6E62] text-sm leading-relaxed">
+                    Mostrá una imagen emergente. El usuario solo lo verá 1 vez por imagen.
+                  </p>
+                </div>
+                
+                <button
+                  onClick={toggleImagePopupState}
+                  disabled={isUpdatingSettings}
+                  className={cn(
+                    "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 disabled:opacity-50",
+                    isImagePopupActive ? "bg-[#8BAA91]" : "bg-[#D5CAC0]"
+                  )}
+                >
+                  <span className={cn("pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-300", isImagePopupActive ? "translate-x-6" : "translate-x-1")} />
+                </button>
+              </div>
+
+              {isImagePopupActive && (
+                <div className="flex flex-col gap-6 bg-[#F9F7F4] p-6 rounded-[2rem] border border-[#EDE6DD]">
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-[#4A433C]">Cargar Imagen</label>
+                    <label className="flex flex-col items-center justify-center w-full h-40 border-2 border-[#D5CAC0] border-dashed rounded-[2rem] cursor-pointer bg-white hover:bg-[#F5EFE5] transition-all group">
+                      <div className="flex flex-col items-center justify-center pt-5 pb-6">
+                        {isUploadingImage ? <Loader2 className="w-8 h-8 text-[#C4A87D] animate-spin" /> : <Download className="w-8 h-8 text-[#A89F95] group-hover:text-[#C4A87D] transition-colors" />}
+                        <p className="mt-2 text-sm text-[#7A6E62]">Click para seleccionar archivo</p>
+                      </div>
+                      <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={isUploadingImage} />
+                    </label>
+                    {imagePopupUrl && (
+                      <div className="relative inline-block mt-4">
+                        <img src={imagePopupUrl} alt="Preview" className="max-h-48 rounded-2xl border border-[#EDE6DD] shadow-sm" />
+                        <button onClick={() => setImagePopupUrl("")} className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 shadow-md hover:bg-red-600 transition-colors">
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-[#4A433C]">Link del Popup (Opcional)</label>
+                    <input
+                      type="url"
+                      value={imagePopupLink}
+                      onChange={(e) => setImagePopupLink(e.target.value)}
+                      placeholder="https://ejemplo.com"
+                      className="w-full px-4 py-3 bg-white border border-[#E5DCD3] focus:border-[#C4A87D] rounded-xl outline-none transition-all"
+                    />
+                  </div>
+
+                  <button
+                    onClick={saveImagePopupSettings}
+                    disabled={isUpdatingSettings}
+                    className="w-full bg-[#2C2825] hover:bg-black text-white font-bold py-3.5 rounded-2xl transition-all shadow-md active:scale-[0.98] disabled:opacity-50"
+                  >
+                    Guardar Popup de Imagen
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="animate-fade-in-up">
+            <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
+                <div className="max-w-xl">
+                  <h2 className="text-xl font-black text-[#3D3229] mb-2 flex items-center gap-2">
+                    <span className="p-2 rounded-lg bg-[#E5EFF5] text-[#4A6E82]">
+                      <Megaphone className="w-5 h-5" />
+                    </span>
+                    Aviso de Texto (Banner)
+                  </h2>
+                  <p className="text-[#7A6E62] text-sm leading-relaxed">
+                    Mostrá un anuncio informativo en la parte superior del dashboard.
+                  </p>
+                </div>
+                
+                <button
+                  onClick={toggleAnnouncementState}
+                  disabled={isUpdatingSettings}
+                  className={cn(
+                    "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 disabled:opacity-50",
+                    isAnnouncementActive ? "bg-[#4A6E82]" : "bg-[#D5CAC0]"
+                  )}
+                >
+                  <span className={cn("pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition-transform duration-300", isAnnouncementActive ? "translate-x-6" : "translate-x-1")} />
+                </button>
+              </div>
+
+              {isAnnouncementActive && (
+                <div className="flex flex-col gap-6 bg-[#F5F8FA] p-6 rounded-[2rem] border border-[#D1E1EB]">
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-[#4A433C]">Título del Aviso</label>
+                    <input
+                      type="text"
+                      value={announcementTitle}
+                      onChange={(e) => setAnnouncementTitle(e.target.value)}
+                      placeholder="Ej: ¡Nuevos apuntes disponibles!"
+                      className="w-full px-4 py-3 bg-white border border-[#D1E1EB] focus:border-[#4A6E82] rounded-xl outline-none transition-all"
+                    />
+                  </div>
+                  <div className="space-y-3">
+                    <label className="text-sm font-bold text-[#4A433C]">Mensaje del Aviso</label>
+                    <textarea
+                      value={announcementMessage}
+                      onChange={(e) => setAnnouncementMessage(e.target.value)}
+                      placeholder="Escribí el detalle del aviso aquí..."
+                      rows={3}
+                      className="w-full px-4 py-3 bg-white border border-[#D1E1EB] focus:border-[#4A6E82] rounded-xl outline-none transition-all resize-none"
+                    />
+                  </div>
+                  <button
+                    onClick={saveAnnouncementSettings}
+                    disabled={isUpdatingSettings}
+                    className="w-full bg-[#4A6E82] hover:bg-[#3d5b6b] text-white font-bold py-3.5 rounded-2xl transition-all shadow-md active:scale-[0.98] disabled:opacity-50"
+                  >
+                    Guardar Banner de Aviso
+                  </button>
+                </div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {activeTab === 'sistema' && (
+        <div className="animate-fade-in space-y-10">
+          <section className="animate-fade-in-up">
             <div className="bg-white rounded-[2.5rem] border border-[#f5c6c6] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] relative overflow-hidden">
               {confirmReset && (
-                <div className="absolute inset-0 z-20 bg-white/95 shadow-[0_0_10px_rgba(0,0,0,0.02)] flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+                <div className="absolute inset-0 z-20 bg-white/95 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
                   <ShieldAlert className="w-10 h-10 text-[#8E5A5A] mb-3 animate-pulse" />
                   <p className="font-bold text-[#3D3229] mb-1">¿Estás seguro de borrar todas las visitas?</p>
                   <p className="text-xs text-[#8E5A5A] mb-4">Esta acción no se puede deshacer y los contadores volverán a 0.</p>
                   <div className="flex gap-3">
-                    <button 
-                      onClick={() => setConfirmReset(false)}
-                      disabled={isResetting}
-                      className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50"
-                    >
-                      Cancelar
-                    </button>
+                    <button onClick={() => setConfirmReset(false)} disabled={isResetting} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
                     <button 
                       onClick={async () => {
                         setIsResetting(true);
@@ -1304,7 +2002,7 @@ export default function AdminPage() {
                           const qSnap = await getDocs(collection(db, "metrics"));
                           await Promise.all(qSnap.docs.map(d => deleteDoc(doc(db, "metrics", d.id))));
                           showToast("Métricas reiniciadas exitosamente a 0.", "success");
-                        } catch (err: unknown) {
+                        } catch (err) {
                            showToast("Hubo un error vaciando las visitas.", "error");
                            console.error(err);
                         } finally {
@@ -1315,7 +2013,7 @@ export default function AdminPage() {
                       disabled={isResetting}
                       className="px-4 py-2 font-bold text-xs bg-[#8E5A5A] text-white rounded-xl shadow-md hover:bg-[#734a4a] transition-all flex items-center gap-2 disabled:opacity-50"
                     >
-                      {isResetting ? <><Loader2 className="w-3 h-3 animate-spin"/> Borrando...</> : "Sí, borrar todo"}
+                      {isResetting ? <Loader2 className="w-3 h-3 animate-spin"/> : "Sí, borrar todo"}
                     </button>
                   </div>
                 </div>
@@ -1323,663 +2021,195 @@ export default function AdminPage() {
               <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                 <div className="max-w-xl">
                   <h2 className="text-xl font-black text-[#8E5A5A] mb-2 flex items-center gap-2">
-                    <span className="p-2 rounded-lg bg-[#F5E8E8] text-[#8E5A5A]">
-                      <Trash2 className="w-5 h-5" />
-                    </span>
+                    <Trash2 className="w-5 h-5" />
                     Reiniciar Estadísticas (Visitas / Vistas)
                   </h2>
-                  <p className="text-[#8E5A5A]/80 text-sm leading-relaxed">
-                    Eliminá todos los registros de la base de datos para arrancar desde cero el lanzamiento de la web.
-                  </p>
+                  <p className="text-[#8E5A5A]/80 text-sm leading-relaxed">Eliminá todos los registros de la base de datos para arrancar desde cero el lanzamiento de la web.</p>
                 </div>
-                <div className="flex items-center gap-4 py-1">
-                  <button
-                    onClick={() => setConfirmReset(true)}
-                    className="px-6 py-2.5 font-bold text-sm bg-[#8E5A5A] text-white rounded-xl hover:-translate-y-0.5 transition-all shadow-[0_4px_12px_rgba(142,90,90,0.25)] hover:shadow-lg"
-                  >
-                    Borrar 100%
-                  </button>
+                <button onClick={() => setConfirmReset(true)} className="px-6 py-2.5 font-bold text-sm bg-[#8E5A5A] text-white rounded-xl hover:-translate-y-0.5 transition-all shadow-md">Borrar 100%</button>
+              </div>
+            </div>
+          </section>
+
+          <section className="animate-fade-in-up">
+            <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="max-w-xl">
+                  <h2 className="text-xl font-black text-[#3D3229] mb-2 flex items-center gap-2">
+                    <DollarSign className="w-5 h-5" />
+                    Configuración de Donaciones
+                  </h2>
+                  <p className="text-[#7A6E62] text-sm leading-relaxed">Controlá la visibilidad de la sección de donaciones y el popup emergente.</p>
+                </div>
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <button onClick={() => toggleDonation('section')} className={cn("px-4 py-2 rounded-xl text-xs font-bold transition-all", isDonationActive ? "bg-[#8BAA91] text-white" : "bg-[#EDE6DD] text-[#7A6E62]")}>Sección: {isDonationActive ? 'Visible' : 'Oculta'}</button>
+                  <button onClick={() => toggleDonation('popup')} className={cn("px-4 py-2 rounded-xl text-xs font-bold transition-all", isDonationPopupActive ? "bg-[#4A6E82] text-white" : "bg-[#EDE6DD] text-[#7A6E62]")}>Popup: {isDonationPopupActive ? 'Activo' : 'Inactivo'}</button>
                 </div>
               </div>
             </div>
           </section>
 
-        {/* Global Settings Section */}
-      <section className="mb-10 animate-fade-in-up">
-        <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div className="max-w-xl">
-              <h2 className="text-xl font-black text-[#3D3229] mb-2 flex items-center gap-2">
-                <span className="p-2 rounded-lg bg-[#F5EFE5] text-[#8B7355]">
-                  <DollarSign className="w-5 h-5" />
-                </span>
-                Configuración General
-              </h2>
-              <p className="text-[#7A6E62] text-sm leading-relaxed">
-                Controlá la visibilidad de elementos globales del sitio. Activá o desactivá la sección de donaciones según lo necesites.
-              </p>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-6 w-full md:w-auto">
-              {/* Toggle Sección */}
-              <div className="flex items-center gap-4 bg-[#F9F7F4] p-4 rounded-2xl border border-[#EDE6DD] flex-1">
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-[#3D3229]">Donación (Sección)</span>
-                  <span className={cn(
-                    "text-[10px] font-black uppercase tracking-wider",
-                    isDonationActive ? "text-[#4A7A52]" : "text-[#D84545]"
-                  )}>
-                    {isDonationActive ? "Visible" : "Oculto"}
-                  </span>
+          <section className="animate-fade-in-up">
+            <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="max-w-xl">
+                  <h2 className="text-xl font-black text-[#3D3229] mb-2 flex items-center gap-2">
+                    <ArrowUpDown className="w-5 h-5" />
+                    Ordenamiento de Apuntes
+                  </h2>
+                  <p className="text-[#7A6E62] text-sm leading-relaxed">Elegí cómo querés que se muestren los apuntes por defecto en todas las materias.</p>
                 </div>
-                
-                <button
-                  onClick={() => toggleDonation('section')}
+                <select
+                  value={noteSortingOrder}
+                  onChange={(e) => saveSortingSettings(e.target.value)}
                   disabled={isUpdatingSettings}
-                  className={cn(
-                    "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8BAA91] focus-visible:ring-offset-2 disabled:opacity-50",
-                    isDonationActive ? "bg-[#8BAA91]" : "bg-[#D5CAC0]"
-                  )}
+                  className="bg-[#F9F7F4] border border-[#EDE6DD] text-[#3D3229] rounded-2xl px-4 py-3 font-bold text-sm outline-none focus:ring-2 focus:ring-[#C4A87D]/20 cursor-pointer"
                 >
-                  <span
-                    className={cn(
-                      "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-300",
-                      isDonationActive ? "translate-x-6" : "translate-x-1"
-                    )}
-                  />
-                </button>
-              </div>
-
-              {/* Toggle Popup */}
-              <div className="flex items-center gap-4 bg-[#F9F7F4] p-4 rounded-2xl border border-[#EDE6DD] flex-1">
-                <div className="flex flex-col">
-                  <span className="text-sm font-bold text-[#3D3229]">Donación (Popup)</span>
-                  <span className={cn(
-                    "text-[10px] font-black uppercase tracking-wider",
-                    isDonationPopupActive ? "text-[#4A7A52]" : "text-[#D84545]"
-                  )}>
-                    {isDonationPopupActive ? "Activo" : "Inactivo"}
-                  </span>
-                </div>
-                
-                <button
-                  onClick={() => toggleDonation('popup')}
-                  disabled={isUpdatingSettings}
-                  className={cn(
-                    "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8BAA91] focus-visible:ring-offset-2 disabled:opacity-50",
-                    isDonationPopupActive ? "bg-[#4A6E82]" : "bg-[#D5CAC0]"
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-300",
-                      isDonationPopupActive ? "translate-x-6" : "translate-x-1"
-                    )}
-                  />
-                </button>
+                  <option value="newest">Más recientes</option>
+                  <option value="oldest">Más antiguos</option>
+                  <option value="score">Mejor puntuados</option>
+                  <option value="alphabetical">Alfabético</option>
+                </select>
               </div>
             </div>
-          </div>
+          </section>
         </div>
-      </section>
-
-      {/* Ordenamiento de Apuntes Section */}
-      <section className="mb-10 animate-fade-in-up">
-        <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-            <div className="max-w-xl">
-              <h2 className="text-xl font-black text-[#3D3229] mb-2 flex items-center gap-2">
-                <span className="p-2 rounded-lg bg-[#E5EFF5] text-[#4A6E82]">
-                  <ArrowUpDown className="w-5 h-5" />
-                </span>
-                Ordenamiento de Apuntes
-              </h2>
-              <p className="text-[#7A6E62] text-sm leading-relaxed">
-                Elegí cómo querés que se muestren los apuntes por defecto en todas las materias.
-              </p>
-            </div>
-
-            <div className="flex w-full md:w-auto relative group">
-              <select
-                value={noteSortingOrder}
-                onChange={(e) => saveSortingSettings(e.target.value)}
-                disabled={isUpdatingSettings}
-                className="w-full md:w-64 bg-[#F9F7F4] border border-[#EDE6DD] group-hover:border-[#C4A87D] text-[#3D3229] rounded-2xl px-4 py-3 pr-10 font-bold text-sm focus:outline-none focus:ring-2 focus:ring-[#C4A87D]/20 focus:border-[#C4A87D] transition-all disabled:opacity-50 appearance-none cursor-pointer"
-              >
-                <option value="newest">Más recientes primero</option>
-                <option value="oldest">Más antiguos primero</option>
-                <option value="score">Mejor puntuados primero</option>
-                <option value="alphabetical">Orden alfabético</option>
-              </select>
-              <div className="absolute inset-y-0 right-0 flex items-center px-4 pointer-events-none text-[#A89F95] group-hover:text-[#8B7355] transition-colors">
-                <ChevronDown className="w-4 h-4" />
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      </div>
       )}
 
-      {activeTab === 'autores' && (
-      <div className="animate-fade-in">
-      {/* Estilos para autores / Destacados */}
-      <section className="mb-10 animate-fade-in-up">
-        <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
-            <div className="max-w-xl">
-              <h2 className="text-xl font-black text-[#3D3229] mb-2 flex items-center gap-2">
-                <span className="p-2 rounded-lg bg-[#E8F0EA] text-[#4A7A52]">
-                  <Crown className="w-5 h-5" />
-                </span>
-                Personalizar Apuntes de Usuarios
-              </h2>
-              <p className="text-[#7A6E62] text-sm leading-relaxed">
-                Asigná un color especial y una etiqueta (ej: &quot;Amigo&quot;, &quot;VIP&quot;) a los apuntes subidos por alguien específico. Escribí el nombre exacto con el que subió el archivo.
-              </p>
-            </div>
-          </div>
-          
-          <form onSubmit={handleSaveAuthorStyle} className="flex flex-col sm:flex-row gap-4 mb-6">
-            <input 
-              type="text" 
-              placeholder="Nombre del Autor (ej: Juan Perez)" 
-              value={newAuthorName} 
-              onChange={(e) => setNewAuthorName(e.target.value)} 
-              required
-              className="flex-1 px-4 py-2.5 bg-white border border-[#E5DCD3] focus:border-[#4A7A52] rounded-xl outline-none"
-            />
-            <input 
-              type="text" 
-              placeholder="Etiqueta (ej: Amigo)" 
-              value={newAuthorLabel} 
-              onChange={(e) => setNewAuthorLabel(e.target.value)} 
-              required
-              className="w-full sm:w-1/4 px-4 py-2.5 bg-white border border-[#E5DCD3] focus:border-[#4A7A52] rounded-xl outline-none"
-            />
-            <div className="flex items-center gap-3">
-              <input 
-                type="color" 
-                value={newAuthorColor} 
-                onChange={(e) => setNewAuthorColor(e.target.value)} 
-                className="w-12 h-12 rounded-xl cursor-pointer border-none bg-transparent p-0"
-              />
-              <button
-                type="submit"
-                className="bg-[#4A7A52] hover:bg-[#3d6644] px-6 py-2.5 text-white font-medium rounded-xl transition-all shadow-sm h-[46px]"
-              >
-                Agregar
-              </button>
-            </div>
-          </form>
-
-          {Object.keys(authorStyles).length > 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 border-t border-[#EDE6DD] pt-6">
-              {Object.entries(authorStyles).map(([key, style]) => (
-                <div key={key} className="flex items-center justify-between p-4 rounded-xl border border-[#EDE6DD] bg-[#F9F7F4]">
-                  <div className="flex flex-col">
-                    <span className="font-bold text-[#3D3229] capitalize">{key}</span>
-                    <span 
-                      className="text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-1 w-max text-white"
-                      style={{ backgroundColor: style.color }}
-                    >
-                      {style.label}
-                    </span>
-                  </div>
-                  <button 
-                    onClick={() => handleDeleteAuthorStyle(key)}
-                    className="p-2 text-[#D84545] hover:bg-[#FFE5E5] rounded-lg transition-colors"
-                    title="Remover estilo"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-      </div>
-      )}
-
-      {activeTab === 'avisos' && (
-      <div className="animate-fade-in">
-      {/* Sistema de Anuncios o Popup Imagen */}
-      <section className="mb-10 animate-fade-in-up">
-        <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
-            <div className="max-w-xl">
-              <h2 className="text-xl font-black text-[#3D3229] mb-2 flex items-center gap-2">
-                <span className="p-2 rounded-lg bg-[#F5EFE5] text-[#8B7355]">
-                  <Megaphone className="w-5 h-5" />
-                </span>
-                Popup de Imagen Promocional
-              </h2>
-              <p className="text-[#7A6E62] text-sm leading-relaxed">
-                Mostrá una imagen emergente. El usuario solo lo verá 1 vez por imagen.
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-4 bg-[#F9F7F4] p-4 rounded-2xl border border-[#EDE6DD]">
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-[#3D3229]">Estado</span>
-                <span className={cn(
-                  "text-[10px] font-black uppercase tracking-wider",
-                  isImagePopupActive ? "text-[#4A7A52]" : "text-[#D84545]"
-                )}>
-                  {isImagePopupActive ? "Activo" : "Inactivo"}
-                </span>
-              </div>
-              
-              <button
-                onClick={toggleImagePopupState}
-                disabled={isUpdatingSettings}
-                className={cn(
-                  "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8BAA91] disabled:opacity-50",
-                  isImagePopupActive ? "bg-[#8BAA91]" : "bg-[#D5CAC0]"
-                )}
-              >
-                <span
-                  className={cn(
-                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-300",
-                    isImagePopupActive ? "translate-x-6" : "translate-x-1"
-                  )}
-                />
-              </button>
-            </div>
-          </div>
-
-          {isImagePopupActive && (
-            <div className="flex flex-col gap-4 bg-[#F9F7F4] p-5 rounded-2xl border border-[#EDE6DD] animate-fade-in-up">
-              <div className="flex flex-col gap-3">
-                <label className="text-sm font-bold text-[#4A433C]">Imagen del Anuncio</label>
-                <div className="flex items-center justify-center w-full">
-                  <label className="flex flex-col items-center justify-center w-full h-32 border-2 border-[#D5CAC0m border-dashed rounded-xl cursor-pointer bg-[#F5EFE5] hover:bg-[#EAE4D9] transition-colors">
-                    <div className="flex flex-col items-center justify-center pt-5 pb-6">
-                      {isUploadingImage ? (
-                        <Loader2 className="w-6 h-6 mb-2 text-[#8BAA91] animate-spin" />
-                      ) : (
-                        <p className="mb-2 text-sm text-[#7A6E62]">Click para subir</p>
-                      )}
-                    </div>
-                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} disabled={isUploadingImage} />
-                  </label>
-                </div>
-                {imagePopupUrl && (
-                  <div className="mt-2 text-center">
-                    <div className="p-2 bg-white rounded-lg border border-[#EDE6DD] relative inline-block">
-                      <button
-                        onClick={async () => {
-                          const { setDoc } = await import("firebase/firestore");
-                          await setDoc(doc(db, "settings", "global"), {
-                            imagePopupUrl: "",
-                          }, { merge: true });
-                          setImagePopupUrl("");
-                          showToast("Imagen eliminada.", "success");
-                        }}
-                        className="absolute -top-3 -right-3 z-10 w-8 h-8 flex items-center justify-center bg-red-500 hover:bg-red-600 text-white rounded-full transition-colors shadow-lg"
-                        title="Eliminar imagen"
-                      >
-                        <X className="w-5 h-5" />
-                      </button>
-                      <img 
-                        src={imagePopupUrl.startsWith("http") ? imagePopupUrl : `https://pub-be009cc7cdca400cb717da8a110bcaa8.r2.dev/${imagePopupUrl}`} 
-                        alt="Preview" 
-                        className="max-h-48 mx-auto rounded-md object-contain" 
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-[#4A433C]">Link (Opcional)</label>
-                <input
-                  type="url"
-                  value={imagePopupLink}
-                  onChange={(e) => setImagePopupLink(e.target.value)}
-                  className="w-full bg-white border border-[#D5CAC0] rounded-xl p-4 py-2.5 text-[#3D3229] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]"
-                />
-              </div>
-
-              <button
-                onClick={saveImagePopupSettings}
-                disabled={isUpdatingSettings}
-                className="mt-2 w-full sm:w-auto py-2.5 p-6 rounded-xl bg-[#4A433C] text-white font-bold hover:bg-[#2C2825] transition-colors disabled:opacity-50 self-end"
-              >
-                {isUpdatingSettings ? <Loader2 className="w-5 h-5 animate-spin" /> : "Guardar Configuración"}
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      {/* Sistema de Anuncios de Texto */}
-      <section className="mb-10 animate-fade-in-up">
-        <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6 mb-6">
-            <div className="max-w-xl">
-              <h2 className="text-xl font-black text-[#3D3229] mb-2 flex items-center gap-2">
-                <span className="p-2 rounded-lg bg-[#F5EFE5] text-[#8B7355]">
-                  <Megaphone className="w-5 h-5" />
-                </span>
-                Sistema de Anuncios: Popup Global
-              </h2>
-              <p className="text-[#7A6E62] text-sm leading-relaxed">
-                Mostrá un aviso temporal importante. El usuario podrá cerrarlo y no volverá a aparecer hasta que cambies el mensaje.
-              </p>
-            </div>
-            
-            <div className="flex items-center gap-4 bg-[#F9F7F4] p-4 rounded-2xl border border-[#EDE6DD]">
-              <div className="flex flex-col">
-                <span className="text-sm font-bold text-[#3D3229]">Estado del Aviso</span>
-                <span className={cn(
-                  "text-[10px] font-black uppercase tracking-wider",
-                  isAnnouncementActive ? "text-[#4A7A52]" : "text-[#D84545]"
-                )}>
-                  {isAnnouncementActive ? "Activo" : "Inactivo"}
-                </span>
-              </div>
-
-              <button
-                onClick={toggleAnnouncementState}
-                disabled={isUpdatingSettings}
-                className={cn(
-                  "relative inline-flex h-7 w-12 shrink-0 cursor-pointer items-center rounded-full transition-colors duration-300 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#8BAA91] focus-visible:ring-offset-2 disabled:opacity-50",
-                  isAnnouncementActive ? "bg-[#8BAA91]" : "bg-[#D5CAC0]"
-                )}
-              >
-                <span
-                  className={cn(
-                    "pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition-transform duration-300",
-                    isAnnouncementActive ? "translate-x-6" : "translate-x-1"
-                  )}
-                />
-              </button>
-            </div>
-          </div>
-
-          {isAnnouncementActive && (
-            <div className="flex flex-col gap-4 bg-[#F9F7F4] p-5 rounded-2xl border border-[#EDE6DD] animate-fade-in-up">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-[#4A433C]">Título del Aviso</label>
-                <input
-                  type="text"
-                  value={announcementTitle}
-                  onChange={(e) => setAnnouncementTitle(e.target.value)}
-                  placeholder="Ej: ¡Nuevo contenido!"
-                  className="w-full bg-white border border-[#D5CAC0] rounded-xl px-4 py-2.5 text-[#3D3229] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]"
-                />
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-bold text-[#4A433C]">Mensaje</label>
-                <textarea
-                  value={announcementMessage}
-                  onChange={(e) => setAnnouncementMessage(e.target.value)}
-                  placeholder="Detalles del aviso..."
-                  rows={3}
-                  className="w-full bg-white border border-[#D5CAC0] rounded-xl px-4 py-2.5 text-[#3D3229] focus:outline-none focus:ring-2 focus:ring-[#8BAA91] resize-none"
-                />
-              </div>
-
-              <button
-                onClick={saveAnnouncementSettings}
-                disabled={isUpdatingSettings}
-                className="mt-2 w-full sm:w-auto py-2.5 px-6 rounded-xl bg-[#4A433C] text-white font-bold hover:bg-[#2C2825] transition-colors disabled:opacity-50 flex items-center justify-center gap-2 self-end"
-              >
-                {isUpdatingSettings ? (
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                ) : (
-                  "Guardar Anuncio"
-                )}
-              </button>
-            </div>
-          )}
-        </div>
-      </section>
-
-      </div>
-      )}
-
-      {activeTab === 'apuntes' && (
-      <div className="animate-fade-in">
-      <div className="mb-6 flex items-center bg-white p-2 rounded-2xl border border-[#EDE6DD] shadow-sm max-w-md">
-        <input 
-          type="text" 
-          placeholder="Buscar por nombre de autor..." 
-          value={searchAuthor}
-          onChange={(e) => setSearchAuthor(e.target.value)}
-          className="w-full px-4 py-2 outline-none text-[#3D3229] placeholder:text-[#A89F95] bg-transparent"
-        />
-      </div>
-      <section className="mb-8">
-
-        <h2 className="text-xl font-bold text-[#4A433C] mb-4 ml-1 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#C4A87D]"></span>
-          Bandeja de Pendientes ({filteredPendingNotes.length})
-        </h2>
-
-        <div className="bg-white rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#EDE6DD] min-h-[300px]">
-          {filteredPendingNotes.length === 0 ? (
-            <EmptySection
-              title="¡Todo al día!"
-              description={searchAuthor ? "No hay apuntes pendientes que coincidan con la búsqueda." : "No hay apuntes pendientes de moderación en este momento."}
-              icon={<Check className="w-10 h-10 text-[#A8B8A0]" />}
-            />
-          ) : (
-            <div className="flex flex-col">
-              <div className="mb-4 p-4 bg-[#F9F7F4] border border-[#ede6dd] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedPendingNotes.length > 0 && selectedPendingNotes.length === filteredPendingNotes.length}
-                    onChange={handleSelectAllPending}
-                    className="w-5 h-5 cursor-pointer accent-[#4A7A52] rounded"
-                    title="Seleccionar todos"
-                  />
-                  <span className="text-sm font-bold text-[#4A433C]">
-                    {selectedPendingNotes.length} seleccionados
-                  </span>
-                </div>
-                
-                {selectedPendingNotes.length > 0 && (
-                  <div className="flex flex-1 w-full sm:w-auto items-center gap-2">
-                    <input
-                      type="text"
-                      placeholder="Carpeta masiva..."
-                      value={bulkFolderInput}
-                      onChange={(e) => setBulkFolderInput(e.target.value)}
-                      className="flex-1 min-w-[120px] max-w-[200px] border border-[#E5DCD3] rounded-xl px-3 py-2 text-sm focus:border-[#4A7A52] outline-none"
-                    />
-                    <button
-                      onClick={handleApplyBulkFolder}
-                      className="text-xs bg-white border border-[#EDE6DD] px-4 py-2.5 rounded-xl font-bold hover:bg-[#F5EFE5] transition-colors"
-                    >
-                      Aplicar a todos
-                    </button>
-                    <button
-                      onClick={handleBulkApprove}
-                      className="ml-auto text-xs bg-[#4A7A52] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-[#3A6040] shadow-sm transition-colors flex items-center gap-1"
-                    >
-                      <Check className="w-3.5 h-3.5" /> Aprobar {selectedPendingNotes.length}
-                    </button>
-                  </div>
-                )}
-              </div>
-              <div className="grid grid-cols-1 gap-4">
-              {filteredPendingNotes.map((note) => {
-                const folderSuggestions = getFolderSuggestions(note);
-                const datalistId = `folders-${note.id}`;
-                const authorFolder = normalizeFolderName(note.author ?? "");
-                const canUseAuthorFolder =
-                  authorFolder.length > 0 &&
-                  authorFolder.toLowerCase() !== "anónimo" &&
-                  authorFolder.toLowerCase() !== "anonimo";
-
-                return (
-                  <div key={note.id} className="flex gap-3">
-                    <div className="pt-6 pl-2 hidden sm:block">
-                       <input 
-                         type="checkbox" 
-                         checked={selectedPendingNotes.includes(note.id)}
-                         onChange={() => toggleNoteSelection(note.id)}
-                         className="w-5 h-5 cursor-pointer accent-[#4A7A52] rounded"
-                         title="Seleccionar apunte"
-                       />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                  <NoteCard
-                    note={note}
-                    extraContent={
-                      <div className="rounded-2xl border border-[#EDE6DD] bg-[#FFFBF7] p-4">
-                        <div className="flex flex-col gap-2">
-                          <label className="text-sm font-bold text-[#3D3229]">
-                            Carpeta en esta materia
-                          </label>
-                          <div className="flex flex-col lg:flex-row gap-2">
-                            <input
-                              list={folderSuggestions.length > 0 ? datalistId : undefined}
-                              value={folderInputs[note.id] ?? ""}
-                              onChange={(event) => handleFolderInputChange(note.id, event.target.value)}
-                              placeholder="Ej. Juan Pérez"
-                              className="flex-1 rounded-xl border border-[#E5DCD3] bg-white px-3.5 py-2.5 text-sm text-[#3D3229] placeholder:text-[#A89F95] focus:border-[#8BAA91] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]/20"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => handleUseAuthorFolder(note)}
-                              disabled={!canUseAuthorFolder}
-                              className="inline-flex items-center justify-center rounded-xl px-4 py-2.5 text-sm font-semibold border border-[#D5E8DB] bg-[#F2F8F4] text-[#2E7D32] hover:bg-[#E6F0E9] disabled:opacity-50 disabled:cursor-not-allowed"
-                            >
-                              Usar autor
-                            </button>
-                          </div>
-                          {folderSuggestions.length > 0 && (
-                            <datalist id={datalistId}>
-                              {folderSuggestions.map((folderName) => (
-                                <option key={folderName} value={folderName} />
-                              ))}
-                            </datalist>
-                          )}
-                          <p className="text-xs text-[#7A6E62]">
-                            Si completás una carpeta, este apunte va a quedar agrupado con otros de la misma carpeta dentro de la materia.
-                          </p>
-                        </div>
-                      </div>
-                    }
-                    actions={
-                      <>
-                        <button
-                          onClick={() => handleOpenFile(note)}
-                          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-[#EDE6DD] hover:bg-[#F9F7F4] text-[#7A6E62] rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                          title="Ver archivo"
-                          disabled={!note.fileUrl}
-                        >
-                          <ExternalLink className="w-4 h-4" />
-                          <span className="sm:hidden text-xs">Ver</span>
-                          <span className="hidden sm:inline text-xs">Ver</span>
-                        </button>
-                        <button
-                          onClick={() => handleDelete(note.id)}
-                          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#FFF0F0] hover:bg-[#FFE5E5] text-[#D84545] border border-[#FFDCDC] rounded-xl font-semibold transition-all duration-200"
-                          title="Rechazar y borrar"
-                        >
-                          <X className="w-4 h-4" />
-                          <span className="sm:hidden">Rechazar</span>
-                        </button>
-                        <button
-                          onClick={() => handleApprove(note)}
-                          className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#F2F8F4] hover:bg-[#E6F0E9] text-[#2E7D32] border border-[#D5E8DB] rounded-xl font-semibold transition-all duration-200"
-                          title="Aprobar apunte"
-                        >
-                          <Check className="w-4 h-4" />
-                          <span className="sm:hidden">Aprobar</span>
-                        </button>
-                      </>
-                    }
-                  />
-                    </div>
-                  </div>
-                );
-              })}
-              </div>
-            </div>
-          )}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="text-xl font-bold text-[#4A433C] mb-4 ml-1 flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-[#8BAA91]"></span>
-          Apuntes Aprobados ({filteredApprovedNotes.length})
-        </h2>
-
-        <div className="bg-white rounded-3xl p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#EDE6DD] min-h-[300px]">
-          {filteredApprovedNotes.length === 0 ? (
-            <EmptySection
-              title="Sin aprobados para revisar"
-              description={searchAuthor ? "No hay apuntes aprobados que coincidan con la búsqueda." : "Cuando apruebes apuntes, también vas a poder eliminarlos y ver en qué carpeta quedaron."}
-              icon={<FileText className="w-10 h-10 text-[#A8B8A0]" />}
-            />
-          ) : (
-            
-              <div className="flex flex-col gap-8">
-                {Object.entries(
-                  filteredApprovedNotes.reduce((acc, note) => {
-                    const subjectName = subjectsData.find(s => s.id === note.subjectId)?.name || note.subjectId || "General";
-                    if (!acc[subjectName]) acc[subjectName] = [];
-                    acc[subjectName].push(note);
-                    return acc;
-                  }, {} as Record<string, Note[]>)
-                ).sort((a, b) => a[0].localeCompare(b[0])).map(([subject, notes]) => (
-                  <SubjectGroup key={subject} subject={subject} notes={notes} onOpenFile={handleOpenFile} onEditNote={setEditingNote} onDeleteNote={handleDelete} />
-                ))}
-              </div>
-          )}
-        </div>
-      </section>
-      </div>
-      )}
-
-      {/* CUSTOM CONFIRMATION MODAL */}
       {confirmDeleteAdmin.isOpen && (
-        <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4 bg-[#2C2825]/40 shadow-[0_0_10px_rgba(0,0,0,0.02)] animate-fade-in">
-          <div className="bg-white w-full max-w-sm rounded-[2rem] border-2 border-[#EDE6DD] p-8 shadow-2xl animate-fade-in-up">
-            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100">
+        <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4 bg-black/50 animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-fade-in-up">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
               <ShieldAlert className="w-8 h-8" />
             </div>
             <h3 className="text-xl font-black text-[#2C2825] text-center mb-3">¿Confirmar eliminación?</h3>
-            <p className="text-[#7A6E62] text-center text-sm mb-8 leading-relaxed">
-              Estás por quitar a <strong className="text-[#3D3229]">{confirmDeleteAdmin.adminMail}</strong> de la lista de moderadores.
-            </p>
+            <p className="text-[#7A6E62] text-center text-sm mb-8">Vas a quitar los permisos de moderación a <strong>{confirmDeleteAdmin.adminMail}</strong>.</p>
             <div className="flex flex-col gap-3">
-              <button
-                onClick={confirmDeleteAdminAction}
-                className="w-full py-3.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl transition-all shadow-lg shadow-red-500/20 active:scale-95"
-              >
-                Eliminar Moderador
-              </button>
-              <button
-                onClick={() => setConfirmDeleteAdmin({ isOpen: false, adminMail: "" })}
-                className="w-full py-3.5 bg-[#F9F7F4] text-[#7A6E62] font-bold rounded-2xl border border-[#EDE6DD] hover:bg-[#EDE6DD] transition-all active:scale-95"
-              >
-                Cancelar
-              </button>
+              <button onClick={confirmDeleteAdminAction} className="w-full py-3.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl transition-all shadow-md">Eliminar Moderador</button>
+              <button onClick={() => setConfirmDeleteAdmin({ isOpen: false, adminMail: "" })} className="w-full py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all">Cancelar</button>
             </div>
           </div>
         </div>
       )}
 
-      {editingNote && (
-        <EditNoteModal
-          isOpen={!!editingNote}
-          onClose={() => setEditingNote(null)}
-          onSave={handleEditNoteSave}
-          note={editingNote}
-        />
-      )}
     </div>
+
+    {showReportModal && monthlyReport && typeof document !== 'undefined' && createPortal(
+      <div className="fixed inset-0 z-[1000000] flex justify-center items-start overflow-y-auto bg-black/80 backdrop-blur-md animate-fade-in py-8 px-4">
+        <div className="relative bg-white w-full max-w-2xl rounded-[2.5rem] shadow-2xl overflow-hidden animate-fade-in-up my-auto">
+          <div className="sticky top-0 z-10 bg-[#2C2825] p-6 text-white flex justify-between items-center">
+            <div className="flex items-center gap-3">
+              <BarChart3 className="w-6 h-6 text-[#C4A87D]" />
+              <h3 className="text-xl font-black tracking-tight">Reporte Mensual: <span className="capitalize text-[#C4A87D]">{monthlyReport.monthName}</span></h3>
+            </div>
+            <button onClick={() => setShowReportModal(false)} className="p-2 hover:bg-white/10 rounded-full transition-colors">
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+          
+          <div className="p-8">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+              <div className="bg-[#F9F7F4] p-5 rounded-3xl border border-[#EDE6DD] flex flex-col items-center text-center">
+                <span className="text-[#7A6E62] text-xs font-black uppercase tracking-widest mb-2">Apuntes Subidos</span>
+                <span className="text-4xl font-black text-[#3D3229]">{monthlyReport.totalNotes}</span>
+                <p className="text-[10px] text-[#A89F95] mt-1">Nuevos contenidos este mes</p>
+              </div>
+              <div className="bg-[#E8F0EA] p-5 rounded-3xl border border-[#C5DBC9] flex flex-col items-center text-center">
+                <span className="text-[#4A7A52] text-xs font-black uppercase tracking-widest mb-2">Top Colaborador</span>
+                <span className="text-xl font-black text-[#3D3229] truncate w-full">{monthlyReport.topAuthor?.name || 'N/A'}</span>
+                <p className="text-[10px] text-[#4A7A52] mt-1">{monthlyReport.topAuthor?.count || 0} aportes realizados</p>
+              </div>
+            </div>
+
+            <div className="space-y-4 mb-8">
+              <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#EDE6DD]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-[#F5EFE5] text-[#8B7355]">
+                    <Building2 className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm font-bold text-[#4A433C]">Carrera con más actividad</span>
+                </div>
+                <span className="text-sm font-black text-[#3D3229]">{monthlyReport.topCareer}</span>
+              </div>
+              <div className="flex items-center justify-between p-4 bg-white rounded-2xl border border-[#EDE6DD]">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-[#EFEBF5] text-[#6B5A8E]">
+                    <BookOpen className="w-4 h-4" />
+                  </div>
+                  <span className="text-sm font-bold text-[#4A433C]">Materia con más aportes</span>
+                </div>
+                <span className="text-sm font-black text-[#3D3229]">{monthlyReport.topSubject}</span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className="text-sm font-black text-[#3D3229] uppercase tracking-widest flex items-center gap-2 mb-4">
+                <TrendingUp className="w-4 h-4 text-[#D4856A]" /> Top 5 Descargadas del Mes
+              </h4>
+              {monthlyReport.topDownloaded.map((note: any, idx: number) => (
+                <div key={note.id} className="flex items-center justify-between p-3 bg-[#FCFAF8] rounded-xl border border-[#EDE6DD]">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-[10px] font-black text-[#A89F95]">{idx + 1}</span>
+                    <span className="text-xs font-bold text-[#3D3229] truncate">{note.title}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0 px-2 py-1 bg-white rounded-lg border border-[#EDE6DD]">
+                    <Download className="w-3 h-3 text-[#D4856A]" />
+                    <span className="text-[10px] font-black text-[#3D3229]">{note.downloadCount || 0}</span>
+                  </div>
+                </div>
+              ))}
+              {monthlyReport.topDownloaded.length === 0 && (
+                <p className="text-center text-xs text-[#A89F95] py-4 italic">No hay descargas registradas en estos apuntes.</p>
+              )}
+            </div>
+          </div>
+
+          <div className="p-6 bg-[#F9F7F4] border-t border-[#EDE6DD] flex flex-wrap gap-3">
+            <button
+              onClick={() => {
+                const text = `REPORTE MENSUAL: ${monthlyReport.monthName}\n\n` +
+                  `• Total de apuntes subidos: ${monthlyReport.totalNotes}\n` +
+                  `• Carrera más activa: ${monthlyReport.topCareer}\n` +
+                  `• Materia más aportada: ${monthlyReport.topSubject}\n` +
+                  `• Top Colaborador: ${monthlyReport.topAuthor?.name} (${monthlyReport.topAuthor?.count} aportes)\n\n` +
+                  `Top Descargadas del mes:\n` +
+                  monthlyReport.topDownloaded.map((n: any, i: number) => `${i+1}. ${n.title} (${n.downloadCount || 0} descargas)`).join('\n');
+                
+                navigator.clipboard.writeText(text);
+                showToast("Reporte copiado al portapapeles", "success");
+              }}
+              className="flex-1 min-w-[140px] py-3.5 bg-white border border-[#EDE6DD] hover:bg-[#EDE6DD] text-[#4A433C] font-bold rounded-2xl transition-all shadow-sm active:scale-95"
+            >
+              Copiar Texto
+            </button>
+            <button
+              onClick={downloadReportPDF}
+              className="flex-1 min-w-[140px] py-3.5 bg-[#4A7A52] hover:bg-[#3d6644] text-white font-bold rounded-2xl transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+            >
+              <Download className="w-4 h-4" />
+              Descargar PDF
+            </button>
+            <button
+              onClick={() => setShowReportModal(false)}
+              className="flex-1 min-w-[140px] py-3.5 bg-[#2C2825] hover:bg-black text-white font-bold rounded-2xl transition-all shadow-md active:scale-95"
+            >
+              Cerrar
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {editingNote && typeof document !== 'undefined' && createPortal(
+      <EditNoteModal
+        isOpen={!!editingNote}
+        onClose={() => setEditingNote(null)}
+        onSave={handleEditNoteSave}
+        note={editingNote}
+      />,
+      document.body
+    )}
+    </>
   );
 }

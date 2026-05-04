@@ -13,6 +13,8 @@ const eslintConfig = defineConfig([
     "build/**",
     "next-env.d.ts",
     "exact-center.js",
+    "check_*.js",
+    "fix_cuatri.js",
     "fix-gentle.js",
     "fix.js",
     "manual-crop.js",
