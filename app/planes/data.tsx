@@ -566,7 +566,7 @@ export const planesData = {
               aprobadas: [7,14],
               docente: "Bianchini, Germán y Caymes Scutari, Paola",
                 horario: "Martes y Viernes 14:30 a 17:30",
-                rendir: [14,7,15],
+                rendir: [14,7],
                 isElectiva: true
             },
         {
@@ -590,11 +590,11 @@ export const planesData = {
               name: "Arquitectura de Microservicios",
               weekly_hours: 8,
               total_hours: 0,
-              regulares: [22],
-                aprobadas: [6],
+              regulares: [20],
+                aprobadas: [6, 14],
               docente: "Marsollier, Néstor y Ceccoli, Andres",
                 horario: "Lunes y Jueves de 19:00 a 22:00",
-                rendir: [6],
+                rendir: [6, 14],
                 isElectiva: true
             },
         {
@@ -604,11 +604,11 @@ export const planesData = {
               name: "Base de Datos Avanzadas",
               weekly_hours: 8,
               total_hours: 0,
-              regulares: [],
-                aprobadas: [6],
+              regulares: [15, 19],
+                aprobadas: [6, 7],
               docente: "Bloise, Leonardo y Rey, Daniel",
                 horario: "Martes 16:00 a 19:00, Miércoles 19:00 a 22:00",
-                rendir: [],
+                rendir: [15, 19],
                 isElectiva: true
             },
         {
@@ -693,11 +693,11 @@ export const planesData = {
               name: "Evaluación e Innovación de Tecnología desde la perspectiva CTS",
               weekly_hours: 6,
               total_hours: 0,
-              regulares: [],
-                aprobadas: [],
+              regulares: [11, 18],
+                aprobadas: [8],
               docente: "Moralejo, Raúl y Manino, Gustavo",
                 horario: "Miércoles 14:30 a 19:00",
-                rendir: [],
+                rendir: [8],
                 isElectiva: true
             },
         {
