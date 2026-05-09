@@ -35,7 +35,7 @@ const AuthContext = createContext<AuthContextType>({
   resetPassword: async () => {},
 });
 
-const OWNER_ADMIN_EMAILS = new Set(["facundorodrigueezsp@gmail.com"]);
+const OWNER_ADMIN_EMAILS = new Set(["facundorodriguezsp@gmail.com"]);
 
 const normalizeEmail = (value?: string | null) => value?.trim().toLowerCase() ?? "";
 
@@ -56,8 +56,13 @@ const isAdminEmail = async (email?: string | null) => {
     return false;
   }
 
-  const adminDoc = await getDoc(doc(db, "admins", normalizedEmail));
-  return adminDoc.exists();
+  try {
+    const adminDoc = await getDoc(doc(db, "admins", normalizedEmail));
+    return adminDoc.exists();
+  } catch (error) {
+    console.error("Error checking admin access:", error);
+    return false;
+  }
 };
 
 const getProviderId = (currentUser: User | null) => currentUser?.providerData[0]?.providerId || "unknown";
@@ -135,21 +140,34 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const loginWithEmail = async (email: string, pass: string) => {
-    if (await isAdminEmail(email)) {
+    const normalizedEmail = email.trim().toLowerCase();
+    
+    // Chequeo sincrónico para evitar logs de firebase auth innecesarios
+    if (OWNER_ADMIN_EMAILS.has(normalizedEmail)) {
       throw createAdminLoginError();
     }
 
-    await signInWithEmailAndPassword(auth, email.trim().toLowerCase(), pass);
+    await signInWithEmailAndPassword(auth, normalizedEmail, pass);
+
+    if (await isAdminEmail(normalizedEmail)) {
+      await signOut(auth);
+      throw createAdminLoginError();
+    }
   };
 
   const registerWithEmail = async (email: string, pass: string, name?: string) => {
     const normalizedEmail = email.trim().toLowerCase();
 
-    if (await isAdminEmail(normalizedEmail)) {
+    if (OWNER_ADMIN_EMAILS.has(normalizedEmail)) {
       throw createAdminLoginError();
     }
 
     const credential = await createUserWithEmailAndPassword(auth, normalizedEmail, pass);
+
+    if (await isAdminEmail(normalizedEmail)) {
+      await signOut(auth);
+      throw createAdminLoginError();
+    }
     if (name && credential.user) {
       await updateProfile(credential.user, { displayName: name });
     }

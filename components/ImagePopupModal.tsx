@@ -29,6 +29,8 @@ export function ImagePopupModal() {
           setIsOpen(false);
         }
       }
+    }, (error) => {
+      console.error("Error al escuchar settings global en ImagePopupModal:", error);
     });
     return () => unsub();
   }, []);

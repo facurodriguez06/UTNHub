@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { Upload, Menu, X, ChevronRight, Heart, User, Settings, LogOut } from "lucide-react";
+import { Upload, Menu, X, ChevronRight, Heart, User, Settings, LogOut, ShieldCheck } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { DonationModal } from "@/components/DonationModal";
@@ -32,6 +32,7 @@ export function Header() {
 
   // Nombre a mostrar del usuario logueado
   const displayName = user?.displayName || user?.email?.split("@")[0] || "Usuario";
+  const isAdmin = user?.email?.toLowerCase() === "facundorodriguezsp@gmail.com";
 
   // Cerrar el menú mobile al hacer click fuera del header
   useEffect(() => {
@@ -154,10 +155,10 @@ export function Header() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="relative flex items-center gap-2 text-[12px] font-bold text-[#3D3229] hover:bg-[#F5F0EA] px-3 py-2 rounded-xl transition-all duration-300 border border-[#EDE6DD] bg-white group"
+                  className={`relative flex items-center gap-2 text-[12px] font-bold text-[#3D3229] hover:bg-[#F5F0EA] px-3 py-2 rounded-xl transition-all duration-300 border bg-white group ${isAdmin ? 'border-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.4)]' : 'border-[#EDE6DD]'}`}
                   id="user-menu-button"
                 >
-                  <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#8BAA91] to-[#6A8F70] flex items-center justify-center text-white text-[10px] font-black uppercase shadow-sm">
+                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-black uppercase shadow-sm ${isAdmin ? 'bg-gradient-to-br from-[#D4AF37] to-[#AA8C2C]' : 'bg-gradient-to-br from-[#8BAA91] to-[#6A8F70]'}`}>
                     {displayName.charAt(0)}
                   </div>
                   <span className="hidden sm:block text-[11px] truncate max-w-[160px]">{displayName}</span>
@@ -177,6 +178,16 @@ export function Header() {
 
                     {/* Opciones del menú */}
                     <div className="p-1.5">
+                      {isAdmin && (
+                        <Link
+                          href="/admin"
+                          onClick={() => setUserMenuOpen(false)}
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-bold text-[#D4AF37] hover:text-[#AA8C2C] hover:bg-[#FCF9F0] transition-all group"
+                        >
+                          <ShieldCheck className="w-4 h-4 text-[#D4AF37] group-hover:text-[#AA8C2C] transition-all duration-300" />
+                          Panel de Moderación
+                        </Link>
+                      )}
                       <Link
                         href="/configuracion"
                         onClick={() => setUserMenuOpen(false)}
@@ -264,15 +275,27 @@ export function Header() {
               {user ? (
                 <>
                   <div className="h-[1px] bg-[#EDE6DD] mx-2 my-1" />
-                  <div className="flex items-center gap-3 px-4 py-2">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#8BAA91] to-[#6A8F70] flex items-center justify-center text-white text-xs font-black uppercase shadow-sm">
+                  <div className={`flex items-center gap-3 px-4 py-2 rounded-xl ${isAdmin ? 'bg-[#FCF9F0] border border-[#F2E5C2] mx-2 my-1' : ''}`}>
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black uppercase shadow-sm ${isAdmin ? 'bg-gradient-to-br from-[#D4AF37] to-[#AA8C2C]' : 'bg-gradient-to-br from-[#8BAA91] to-[#6A8F70]'}`}>
                       {displayName.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-[#3D3229] truncate">{displayName}</p>
-                      {user.email && <p className="text-[11px] text-[#A89F95] truncate">{user.email}</p>}
+                      {user.email && <p className={`text-[11px] truncate ${isAdmin ? 'text-[#D4AF37] font-bold' : 'text-[#A89F95]'}`}>{user.email}</p>}
                     </div>
                   </div>
+                  {isAdmin && (
+                    <Link
+                      href="/admin"
+                      className="flex items-center justify-between text-sm font-bold text-[#D4AF37] hover:text-[#AA8C2C] px-4 py-3 rounded-xl hover:bg-[#FCF9F0] transition-all"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      <div className="flex items-center gap-2">
+                        <ShieldCheck className="w-4 h-4" /> Panel de Moderación
+                      </div>
+                      <ChevronRight className="w-4 h-4 opacity-50" />
+                    </Link>
+                  )}
                   <Link
                     href="/configuracion"
                     className="flex items-center justify-between text-sm font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-3 rounded-xl hover:bg-white transition-all"

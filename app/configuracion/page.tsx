@@ -28,9 +28,10 @@ const getFirebaseErrorCode = (error: unknown) =>
   typeof error === "object" && error !== null ? (error as FirebaseErrorLike).code : undefined;
 
 export default function ConfiguracionPage() {
-  const { user, loading } = useAuth();
+  const { user, loading, resetPassword } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
+  const [isSendingReset, setIsSendingReset] = useState(false);
 
   const [progressStats, setProgressStats] = useState<{ aprobadas: number; regulares: number }>({ aprobadas: 0, regulares: 0 });
   const [profileData, setProfileData] = useState<UserProfileData>({});
@@ -92,7 +93,7 @@ export default function ConfiguracionPage() {
             regulares: progress.regulares?.length || 0,
           });
           setProfileData({
-            role: data.role || (user.email?.toLowerCase() === "facundorodrigueezsp@gmail.com" ? "admin" : "user"),
+            role: data.role || (user.email?.toLowerCase() === "facundorodriguezsp@gmail.com" ? "admin" : "user"),
             providerId: data.providerId || user.providerData[0]?.providerId || "unknown",
             lastLoginAt: data.lastLoginAt || user.metadata.lastSignInTime || undefined,
             preferredCareerId: data.preferredCareerId || "",
@@ -234,6 +235,20 @@ export default function ConfiguracionPage() {
       }
     } finally {
       setIsChangingPassword(false);
+    }
+  };
+
+  const handleSendPasswordReset = async () => {
+    if (!user?.email) return;
+    setIsSendingReset(true);
+    try {
+      await resetPassword(user.email);
+      showToast("Se ha enviado un correo para establecer o cambiar tu contraseña.", "success");
+    } catch (error) {
+      console.error("Error al enviar correo de reseteo:", error);
+      showToast("Hubo un error al enviar el correo.", "error");
+    } finally {
+      setIsSendingReset(false);
     }
   };
 
@@ -578,12 +593,20 @@ export default function ConfiguracionPage() {
                   <p className="text-sm font-bold text-[#3D3229]">Contraseña</p>
                   <p className="text-[13px] text-[#7A6E62]">••••••••</p>
                 </div>
-                {isEmailProvider && (
+                {isEmailProvider ? (
                   <button
                     onClick={() => { setShowPasswordForm(!showPasswordForm); setCurrentPassword(""); setNewPassword(""); setConfirmNewPassword(""); }}
                     className="text-[12px] font-bold text-[#8BAA91] hover:text-[#6A8F70] px-3 py-1.5 rounded-lg hover:bg-[#F5F0EA] transition-all"
                   >
                     {showPasswordForm ? "Cancelar" : "Cambiar"}
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSendPasswordReset}
+                    disabled={isSendingReset}
+                    className="text-[12px] font-bold text-[#8BAA91] hover:text-[#6A8F70] px-3 py-1.5 rounded-lg hover:bg-[#F5F0EA] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {isSendingReset ? "Enviando..." : "Cambiar / Establecer"}
                   </button>
                 )}
               </div>

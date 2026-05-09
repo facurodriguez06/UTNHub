@@ -413,7 +413,7 @@ const CurriculumViewer = ({
           const data = docSnap.data() as UserProfileSummary & { progress?: UserProgress };
           setUserProgress(data.progress || { aprobadas: [], regulares: [] });
           setProfileSummary({
-            role: data.role || (user.email?.toLowerCase() === 'facundorodrigueezsp@gmail.com' ? 'admin' : 'user'),
+            role: data.role || (user.email?.toLowerCase() === 'facundorodriguezsp@gmail.com' ? 'admin' : 'user'),
             providerId: data.providerId || user.providerData[0]?.providerId || 'unknown',
             lastLoginAt: data.lastLoginAt || user.metadata.lastSignInTime || undefined,
             preferredCareerId: data.preferredCareerId || '',

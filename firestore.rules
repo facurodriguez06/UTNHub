@@ -19,7 +19,7 @@ service cloud.firestore {
     // Check if the authenticated user is the owner (único que puede gestionar admins)
     function isOwner() {
       return request.auth != null
-        && request.auth.token.email == 'facundorodrigueezsp@gmail.com';
+        && request.auth.token.email == 'facundorodriguezsp@gmail.com';
     }
 
     // 🛡️ MÉTRICAS

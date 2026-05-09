@@ -65,7 +65,7 @@ export function GlobalSearchBar() {
           });
           setNotes(notesList);
         } catch (error) {
-          console.error("Error fetching notes:", error);
+          console.warn("Error fetching notes:", error);
         }
       };
 
@@ -77,7 +77,7 @@ export function GlobalSearchBar() {
             setNoteSortingOrder(settingsSnap.data().noteSortingOrder || "newest");
           }
         } catch (error) {
-          console.error("Error fetching settings:", error);
+          console.warn("Error fetching settings:", error);
         }
       };
 
@@ -276,3 +276,4 @@ export function GlobalSearchBar() {
     </>
   );
 }
+

@@ -54,6 +54,9 @@ export default function Home() {
             console.log("Límite de popups o usuario lo descartó manualmente por hoy.");
           }
         }
+      },
+      (error) => {
+        console.error("Error al escuchar settings global en home:", error);
       }
     );
     return () => unsubscribe();

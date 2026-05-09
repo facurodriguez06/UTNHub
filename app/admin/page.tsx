@@ -47,7 +47,7 @@ import {
 } from "firebase/auth";
 import { auth, app as primaryApp, db } from "@/lib/firebase/config";
 import { initializeApp, getApps } from "firebase/app";
-import { collection, query, where, onSnapshot, updateDoc, deleteDoc, doc, setDoc, getDocs } from "firebase/firestore";
+import { collection, query, where, onSnapshot, updateDoc, deleteDoc, doc, setDoc, getDocs, deleteField } from "firebase/firestore";
 
 type AuthError = Partial<FirebaseError> & {
   message?: string;
@@ -62,7 +62,7 @@ type AdminRecord = {
 const toAuthError = (error: unknown): AuthError =>
   (typeof error === "object" && error !== null ? error : {}) as AuthError;
 
-const OWNER_ADMIN_EMAILS = new Set(["facundorodrigueezsp@gmail.com"]);
+const OWNER_ADMIN_EMAILS = new Set(["facundorodriguezsp@gmail.com"]);
 
 const normalizeAdminEmail = (value?: string | null) => value?.trim().toLowerCase() ?? "";
 
@@ -392,6 +392,16 @@ export default function AdminPage() {
 
   const [confirmReset, setConfirmReset] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
+  
+  const [confirmResetSubjects, setConfirmResetSubjects] = useState(false);
+  const [isResettingSubjects, setIsResettingSubjects] = useState(false);
+  
+  const [confirmResetNotes, setConfirmResetNotes] = useState(false);
+  const [isResettingNotes, setIsResettingNotes] = useState(false);
+
+  const [confirmResetDownloads, setConfirmResetDownloads] = useState(false);
+  const [isResettingDownloads, setIsResettingDownloads] = useState(false);
+
   const [showReportModal, setShowReportModal] = useState(false);
   const [monthlyReport, setMonthlyReport] = useState<any>(null);
 
@@ -426,8 +436,9 @@ export default function AdminPage() {
           buildAdminRecord(currentEmail, { source: "owner-email" }),
           { merge: true }
         ).catch((error) => {
-          console.error("No se pudo registrar el owner como admin:", error);
-          setAdminError("Ingresaste con el correo dueno, pero Firestore no permitio registrar el perfil admin automaticamente.");
+          console.warn("No se pudo registrar el owner como admin automáticamente:", error);
+          // Omitimos el setAdminError aquí para que no bloquee o muestre el cartel rojo al owner
+          // si llega a fallar (por ej. por cuotas de Firestore excedidas temporalmente).
         });
       }
 
@@ -443,7 +454,7 @@ export default function AdminPage() {
         setAdminError(canAccess ? "" : "Esta cuenta no esta registrada como moderador.");
       },
       (error) => {
-        console.error("No se pudo validar el acceso admin:", error);
+        console.warn("No se pudo validar el acceso admin:", error);
         setHasAdminAccess(false);
         setAdminAccessLoading(false);
         setAdminError("No se pudo validar si esta cuenta es moderador. Revisa las reglas de Firebase.");
@@ -481,7 +492,7 @@ export default function AdminPage() {
         setPendingNotes(mapSnapshotToNotes(snapshot, noteSortingOrder));
       },
       (error) => {
-        console.error("Error fetching notes:", error);
+        console.warn("Error fetching notes:", error);
       }
     );
 
@@ -491,7 +502,7 @@ export default function AdminPage() {
         setApprovedNotes(mapSnapshotToNotes(snapshot, noteSortingOrder));
       },
       (error) => {
-        console.error("Error fetching approved notes:", error);
+        console.warn("Error fetching approved notes:", error);
       }
     );
 
@@ -511,7 +522,8 @@ export default function AdminPage() {
           setAuthorStyles(docSnap.data().authorStyles || {});
           setNoteSortingOrder(docSnap.data().noteSortingOrder || "newest");
         }
-      }
+      },
+      (error) => console.warn("Error fetching settings:", error)
     );
 
     // Listen for admin list
@@ -526,29 +538,33 @@ export default function AdminPage() {
             createdAt: typeof data.createdAt === "string" ? data.createdAt : undefined,
           };
         }));
-      }
+      },
+      (error) => console.warn("Error fetching admins:", error)
     );
 
     // Listen for metrics
-    const unsubscribeMetrics = onSnapshot(collection(db, "metrics"), (snapshot) => {
-      let totalViews = 0;
-      let totalUnique = 0;
-      let todayViews = 0;
-      const d = new Date();
-      const baTime = new Date(d.toLocaleString("en-US", {timeZone: "America/Argentina/Buenos_Aires"}));
-      const todayString = baTime.getFullYear() + '-' + String(baTime.getMonth() + 1).padStart(2, '0') + '-' + String(baTime.getDate()).padStart(2, '0');
+    const unsubscribeMetrics = onSnapshot(collection(db, "metrics"), 
+      (snapshot) => {
+        let totalViews = 0;
+        let totalUnique = 0;
+        let todayViews = 0;
+        const d = new Date();
+        const baTime = new Date(d.toLocaleString("en-US", {timeZone: "America/Argentina/Buenos_Aires"}));
+        const todayString = baTime.getFullYear() + '-' + String(baTime.getMonth() + 1).padStart(2, '0') + '-' + String(baTime.getDate()).padStart(2, '0');
 
-      snapshot.forEach(d => {
-        const data = d.data();
-        if (d.id === "total") {
-          totalViews = data.pageViews || 0;
-          totalUnique = data.uniqueVisitors || 0;
-        } else if (d.id === todayString) {
-          todayViews = data.pageViews || 0;
-        }
-      });
-      setMetrics({ pageViews: totalViews, uniqueVisitors: totalUnique, todayViews });
-    });
+        snapshot.forEach(d => {
+          const data = d.data();
+          if (d.id === "total") {
+            totalViews = data.pageViews || 0;
+            totalUnique = data.uniqueVisitors || 0;
+          } else if (d.id === todayString) {
+            todayViews = data.pageViews || 0;
+          }
+        });
+        setMetrics({ pageViews: totalViews, uniqueVisitors: totalUnique, todayViews });
+      },
+      (error) => console.warn("Error fetching metrics:", error)
+    );
 
     return () => {
       unsubscribePending();
@@ -568,7 +584,7 @@ export default function AdminPage() {
       await signInWithEmailAndPassword(auth, normalizeAdminEmail(email), password);
     } catch (err: unknown) {
       const authError = toAuthError(err);
-      console.error(err);
+      console.warn(err);
       if(
         authError.code === "auth/invalid-credential" ||
         authError.code === "auth/user-not-found" ||
@@ -593,7 +609,7 @@ export default function AdminPage() {
       await signInWithPopup(auth, provider);
     } catch (err: unknown) {
       const authError = toAuthError(err);
-      console.error(err);
+      console.warn(err);
       if (authError.code === "auth/popup-closed-by-user") {
         setLoginError("Se cerro el ingreso con Google antes de terminar.");
       } else if (authError.code === "auth/operation-not-allowed") {
@@ -610,7 +626,7 @@ export default function AdminPage() {
     try {
       await signOut(auth);
     } catch (err) {
-      console.error(err);
+      console.warn(err);
     }
   };
 
@@ -666,7 +682,7 @@ export default function AdminPage() {
       setTimeout(() => setShowCreateAdmin(false), 3000);
     } catch (err: unknown) {
       const authError = toAuthError(err);
-      console.error(err);
+      console.warn(err);
       if (authError.code === "auth/email-already-in-use") {
         setCreateAdminMsg({ text: "Ese correo ya está registrado.", type: "error" });
       } else if (authError.code === "auth/weak-password") {
@@ -724,7 +740,7 @@ export default function AdminPage() {
       });
     } catch (err: unknown) {
       const authError = toAuthError(err);
-      console.error("No se pudo aprobar:", err);
+      console.warn("No se pudo aprobar:", err);
       setAdminError(`Error al aprobar (${authError.code || "unknown"}). Verificá las reglas de Firebase.`);
     }
   };
@@ -783,7 +799,7 @@ export default function AdminPage() {
       await updateDoc(doc(db, "notes", editingNote.id), updatedFields);
       showToast("Apunte editado correctamente.", "success");
     } catch (error) {
-      console.error(error);
+      console.warn(error);
       showToast("Error al editar apunte.", "error");
     }
   };
@@ -798,7 +814,7 @@ export default function AdminPage() {
       }, { merge: true });
       showToast("Ajustes de popup de imagen guardados.", "success");
     } catch (err) {
-      console.error(err);
+      console.warn(err);
       showToast("Error al guardar popup de imagen.", "error");
     } finally {
       setIsUpdatingSettings(false);
@@ -836,7 +852,7 @@ export default function AdminPage() {
       setImagePopupUrl(data.url);
       showToast("Imagen subida con éxito", "success");
     } catch (error: unknown) {
-      console.error(error);
+      console.warn(error);
       showToast(error instanceof Error ? error.message : "Error al subir imagen", "error");
     } finally {
       setIsUploadingImage(false);
@@ -853,7 +869,7 @@ export default function AdminPage() {
       }, { merge: true });
       showToast("Ajustes de anuncio guardados.", "success");
     } catch (err) {
-      console.error(err);
+      console.warn(err);
       showToast("Error al guardar anuncio.", "error");
     } finally {
       setIsUpdatingSettings(false);
@@ -869,7 +885,7 @@ export default function AdminPage() {
       }, { merge: true });
       showToast(`Orden actualizado: ${order === 'newest' ? 'Más nuevos' : order === 'oldest' ? 'Más antiguos' : order === 'score' ? 'Mejores puntuados' : 'Alfabético'}`, "success");
     } catch (err) {
-      console.error(err);
+      console.warn(err);
       showToast("Error al guardar el orden.", "error");
     } finally {
       setIsUpdatingSettings(false);
@@ -893,7 +909,7 @@ export default function AdminPage() {
       setNewAuthorName("");
       setNewAuthorLabel("Amigo");
       showToast("Estilo asignado con éxito.", "success");
-    } catch(err) { console.error(err); showToast("Error al guardar.", "error"); }
+    } catch(err) { console.warn(err); showToast("Error al guardar.", "error"); }
   };
 
   const handleDeleteAuthorStyle = async (key: string) => {
@@ -903,7 +919,7 @@ export default function AdminPage() {
         [`authorStyles.${key}`]: deleteField()
       });
       showToast("Estilo eliminado.", "success");
-    } catch(err) { console.error(err); showToast("Error.", "error"); }
+    } catch(err) { console.warn(err); showToast("Error.", "error"); }
   };
 
   const handleDelete = async (id: string) => {
@@ -912,7 +928,7 @@ export default function AdminPage() {
       await deleteDoc(doc(db, "notes", id));
     } catch (err: unknown) {
       const authError = toAuthError(err);
-      console.error("No se pudo eliminar:", err);
+      console.warn("No se pudo eliminar:", err);
       setAdminError(`Error al eliminar (${authError.code || "unknown"}). Verificá las reglas de Firebase.`);
     }
   };
@@ -942,7 +958,7 @@ export default function AdminPage() {
         [field]: newValue,
       }, { merge: true });
     } catch (err) {
-      console.error("Error updating settings:", err);
+      console.warn("Error updating settings:", err);
     } finally {
       setIsUpdatingSettings(false);
     }
@@ -961,7 +977,7 @@ export default function AdminPage() {
         "success"
       );
     } catch (err) {
-      console.error("Error updating settings:", err);
+      console.warn("Error updating settings:", err);
       setIsImagePopupActive(!newValue);
       showToast("Error al cambiar estado", "error");
     } finally {
@@ -982,7 +998,7 @@ export default function AdminPage() {
         "success"
       );
     } catch (err) {
-      console.error("Error updating settings:", err);
+      console.warn("Error updating settings:", err);
       setIsAnnouncementActive(!newValue);
       showToast("Error al cambiar estado", "error");
     } finally {
@@ -1000,7 +1016,7 @@ export default function AdminPage() {
       await deleteDoc(doc(db, "admins", adminMail));
       showToast("Moderador eliminado correctamente", "success");
     } catch (err) {
-      console.error("Error deleting admin:", err);
+      console.warn("Error deleting admin:", err);
       showToast("Error al eliminar administrador", "error");
     } finally {
       setConfirmDeleteAdmin({ isOpen: false, adminMail: "" });
@@ -1013,7 +1029,7 @@ export default function AdminPage() {
       await sendPasswordResetEmail(auth, email);
       showToast(`Correo de restablecimiento enviado a ${email}`, "success");
     } catch (err) {
-      console.error("Error resetting password:", err);
+      console.warn("Error resetting password:", err);
       showToast("Error al enviar el correo de restablecimiento.", "error");
     }
   };
@@ -1157,7 +1173,7 @@ export default function AdminPage() {
       doc.save(`Reporte_Mensual_${monthlyReport.monthName.replace(' ', '_')}.pdf`);
       showToast("PDF generado correctamente", "success");
     } catch (error) {
-      console.error("Error generating PDF:", error);
+      console.warn("Error generating PDF:", error);
       showToast("Error al generar el PDF. Reintentá en unos segundos.", "error");
     }
   };
@@ -2002,9 +2018,9 @@ export default function AdminPage() {
                           const qSnap = await getDocs(collection(db, "metrics"));
                           await Promise.all(qSnap.docs.map(d => deleteDoc(doc(db, "metrics", d.id))));
                           showToast("Métricas reiniciadas exitosamente a 0.", "success");
-                        } catch (err) {
-                           showToast("Hubo un error vaciando las visitas.", "error");
-                           console.error(err);
+                        } catch (err: any) {
+                           showToast(`Error: ${err.message || 'vaciando las visitas'}`, "error");
+                           console.warn(err);
                         } finally {
                            setIsResetting(false);
                            setConfirmReset(false);
@@ -2027,6 +2043,162 @@ export default function AdminPage() {
                   <p className="text-[#8E5A5A]/80 text-sm leading-relaxed">Eliminá todos los registros de la base de datos para arrancar desde cero el lanzamiento de la web.</p>
                 </div>
                 <button onClick={() => setConfirmReset(true)} className="px-6 py-2.5 font-bold text-sm bg-[#8E5A5A] text-white rounded-xl hover:-translate-y-0.5 transition-all shadow-md">Borrar 100%</button>
+              </div>
+            </div>
+          </section>
+
+          <section className="animate-fade-in-up">
+            <div className="bg-white rounded-[2.5rem] border border-[#f5c6c6] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] relative overflow-hidden">
+              {confirmResetSubjects && (
+                <div className="absolute inset-0 z-20 bg-white/95 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+                  <ShieldAlert className="w-10 h-10 text-[#8E5A5A] mb-3 animate-pulse" />
+                  <p className="font-bold text-[#3D3229] mb-1">¿Estás seguro de borrar las calificaciones de materias?</p>
+                  <p className="text-xs text-[#8E5A5A] mb-4">Se eliminarán los puntajes globales y de todos los usuarios.</p>
+                  <div className="flex gap-3">
+                    <button onClick={() => setConfirmResetSubjects(false)} disabled={isResettingSubjects} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
+                    <button 
+                      onClick={async () => {
+                        setIsResettingSubjects(true);
+                        try {
+                          const qSnap = await getDocs(collection(db, "subject_aggregates"));
+                          await Promise.all(qSnap.docs.map(d => deleteDoc(doc(db, "subject_aggregates", d.id))));
+                          
+                          const usersSnap = await getDocs(collection(db, "users"));
+                          await Promise.all(usersSnap.docs.map(d => {
+                            if (d.data().subjectRatings) {
+                              return updateDoc(doc(db, "users", d.id), { subjectRatings: deleteField() });
+                            }
+                            return Promise.resolve();
+                          }));
+                          
+                          showToast("Calificaciones de materias reiniciadas.", "success");
+                        } catch (err: any) {
+                           showToast(`Error: ${err.message || 'vaciando calificaciones'}`, "error");
+                           console.warn(err);
+                        } finally {
+                           setIsResettingSubjects(false);
+                           setConfirmResetSubjects(false);
+                        }
+                      }}
+                      disabled={isResettingSubjects}
+                      className="px-4 py-2 font-bold text-xs bg-[#8E5A5A] text-white rounded-xl shadow-md hover:bg-[#734a4a] transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isResettingSubjects ? <Loader2 className="w-3 h-3 animate-spin"/> : "Sí, borrar calificaciones"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="max-w-xl">
+                  <h2 className="text-xl font-black text-[#8E5A5A] mb-2 flex items-center gap-2">
+                    <Trash2 className="w-5 h-5" />
+                    Reiniciar Calificaciones de Materias
+                  </h2>
+                  <p className="text-[#8E5A5A]/80 text-sm leading-relaxed">Eliminá todas las calificaciones (Dificultad/Utilidad) de las materias en la base de datos.</p>
+                </div>
+                <button onClick={() => setConfirmResetSubjects(true)} className="px-6 py-2.5 font-bold text-sm bg-[#8E5A5A] text-white rounded-xl hover:-translate-y-0.5 transition-all shadow-md">Borrar Materias</button>
+              </div>
+            </div>
+          </section>
+
+          <section className="animate-fade-in-up">
+            <div className="bg-white rounded-[2.5rem] border border-[#f5c6c6] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] relative overflow-hidden">
+              {confirmResetNotes && (
+                <div className="absolute inset-0 z-20 bg-white/95 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+                  <ShieldAlert className="w-10 h-10 text-[#8E5A5A] mb-3 animate-pulse" />
+                  <p className="font-bold text-[#3D3229] mb-1">¿Estás seguro de borrar las estrellas de apuntes?</p>
+                  <p className="text-xs text-[#8E5A5A] mb-4">Se eliminarán las estrellas de la comunidad en cada archivo.</p>
+                  <div className="flex gap-3">
+                    <button onClick={() => setConfirmResetNotes(false)} disabled={isResettingNotes} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
+                    <button 
+                      onClick={async () => {
+                        setIsResettingNotes(true);
+                        try {
+                          const notesSnap = await getDocs(collection(db, "notes"));
+                          await Promise.all(notesSnap.docs.map(d => {
+                            if (d.data().ratings && d.data().ratings.length > 0) {
+                              return updateDoc(doc(db, "notes", d.id), { ratings: deleteField() });
+                            }
+                            return Promise.resolve();
+                          }));
+                          
+                          showToast("Calificaciones de apuntes reiniciadas.", "success");
+                        } catch (err: any) {
+                           showToast(`Error: ${err.message || 'vaciando estrellas'}`, "error");
+                           console.warn(err);
+                        } finally {
+                           setIsResettingNotes(false);
+                           setConfirmResetNotes(false);
+                        }
+                      }}
+                      disabled={isResettingNotes}
+                      className="px-4 py-2 font-bold text-xs bg-[#8E5A5A] text-white rounded-xl shadow-md hover:bg-[#734a4a] transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isResettingNotes ? <Loader2 className="w-3 h-3 animate-spin"/> : "Sí, borrar estrellas"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="max-w-xl">
+                  <h2 className="text-xl font-black text-[#8E5A5A] mb-2 flex items-center gap-2">
+                    <Trash2 className="w-5 h-5" />
+                    Reiniciar Calificaciones de Apuntes (Estrellas)
+                  </h2>
+                  <p className="text-[#8E5A5A]/80 text-sm leading-relaxed">Eliminá todas las valoraciones con estrellas que dejaron los usuarios en los apuntes.</p>
+                </div>
+                <button onClick={() => setConfirmResetNotes(true)} className="px-6 py-2.5 font-bold text-sm bg-[#8E5A5A] text-white rounded-xl hover:-translate-y-0.5 transition-all shadow-md">Borrar Estrellas</button>
+              </div>
+            </div>
+          </section>
+
+          <section className="animate-fade-in-up">
+            <div className="bg-white rounded-[2.5rem] border border-[#f5c6c6] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] relative overflow-hidden">
+              {confirmResetDownloads && (
+                <div className="absolute inset-0 z-20 bg-white/95 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+                  <ShieldAlert className="w-10 h-10 text-[#8E5A5A] mb-3 animate-pulse" />
+                  <p className="font-bold text-[#3D3229] mb-1">¿Estás seguro de borrar las estadísticas de descargas?</p>
+                  <p className="text-xs text-[#8E5A5A] mb-4">Se reseteará a 0 el contador de descargas de todos los apuntes.</p>
+                  <div className="flex gap-3">
+                    <button onClick={() => setConfirmResetDownloads(false)} disabled={isResettingDownloads} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
+                    <button 
+                      onClick={async () => {
+                        setIsResettingDownloads(true);
+                        try {
+                          const notesSnap = await getDocs(collection(db, "notes"));
+                          await Promise.all(notesSnap.docs.map(d => {
+                            if (d.data().downloadCount) {
+                              return updateDoc(doc(db, "notes", d.id), { downloadCount: deleteField() });
+                            }
+                            return Promise.resolve();
+                          }));
+                          
+                          showToast("Contador de descargas reiniciado exitosamente.", "success");
+                        } catch (err) {
+                           showToast("Hubo un error reseteando las descargas.", "error");
+                           console.warn(err);
+                        } finally {
+                           setIsResettingDownloads(false);
+                           setConfirmResetDownloads(false);
+                        }
+                      }}
+                      disabled={isResettingDownloads}
+                      className="px-4 py-2 font-bold text-xs bg-[#8E5A5A] text-white rounded-xl shadow-md hover:bg-[#734a4a] transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isResettingDownloads ? <Loader2 className="w-3 h-3 animate-spin"/> : "Sí, borrar descargas"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="max-w-xl">
+                  <h2 className="text-xl font-black text-[#8E5A5A] mb-2 flex items-center gap-2">
+                    <Trash2 className="w-5 h-5" />
+                    Reiniciar Estadísticas de Descargas
+                  </h2>
+                  <p className="text-[#8E5A5A]/80 text-sm leading-relaxed">Reseteá a cero el contador de descargas (`downloadCount`) de todos los apuntes del sistema.</p>
+                </div>
+                <button onClick={() => setConfirmResetDownloads(true)} className="px-6 py-2.5 font-bold text-sm bg-[#8E5A5A] text-white rounded-xl hover:-translate-y-0.5 transition-all shadow-md">Borrar Descargas</button>
               </div>
             </div>
           </section>
@@ -2213,3 +2385,4 @@ export default function AdminPage() {
     </>
   );
 }
+

@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from "firebase/app";
-import { getFirestore, initializeFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore, setLogLevel } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
 import { getStorage } from "firebase/storage";
 
@@ -32,3 +32,9 @@ if (getApps().length === 0) {
 export const db = firestoreInstance;
 export const auth = getAuth(app);
 export const storage = typeof window === "undefined" ? null : getStorage(app);
+
+// Silenciar logs de consola del SDK de Firebase para evitar la pantalla de error roja en Next.js
+// cuando se superan las cuotas de lectura gratuitas de Firestore.
+if (typeof window !== "undefined") {
+  setLogLevel("silent");
+}

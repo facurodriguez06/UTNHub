@@ -29,6 +29,8 @@ export function AnnouncementModal() {
           setIsOpen(false);
         }
       }
+    }, (error) => {
+      console.error("Error al escuchar settings global en AnnouncementModal:", error);
     });
     return () => unsub();
   }, []);
