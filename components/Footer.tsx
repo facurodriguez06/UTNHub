@@ -1,6 +1,7 @@
 "use client";
 
 import { Heart, Code2, Camera, MessageSquare, ExternalLink } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 
 export function Footer() {
@@ -16,11 +17,15 @@ export function Footer() {
       <div className="relative z-10 max-w-7xl mx-auto px-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-end">
           <div className="space-y-6">
-            <div className="inline-block bg-emerald-400 border-[4px] border-zinc-900 px-6 py-2 shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_rgba(255,255,255,1)] transition-all cursor-default">
+            <div className="inline-flex items-center gap-3 bg-white border-4 border-zinc-900 px-5 py-3 shadow-[8px_8px_0px_0px_rgba(16,185,129,1)] hover:-translate-y-1 transition-all cursor-default">
+              <Image src="/iconNeo-v2.png" alt="UTNHub" width={36} height={36} className="w-9 h-9 object-contain" />
               <h2 className="text-4xl font-black text-zinc-900 tracking-tighter uppercase italic">UTNHUB</h2>
             </div>
-            <p className="text-xl font-black text-white/90 uppercase tracking-tighter leading-tight max-w-md">
-              RELAJÁ TU SEMESTRE. LA COMUNIDAD DEFINITIVA DE RESÚMENES.
+            <p className="text-xl font-black text-white/90 uppercase tracking-tighter leading-none max-w-md flex flex-col gap-2">
+              <span>RELAJÁ TU SEMESTRE.</span>
+              <span className="inline-flex w-fit bg-emerald-400 text-zinc-900 px-3 py-1 border-[4px] border-zinc-900 shadow-[6px_6px_0px_0px_rgba(16,185,129,1)]">
+                LA COMUNIDAD DEFINITIVA DE RESÚMENES.
+              </span>
             </p>
             <div className="flex flex-wrap gap-4 pt-4">
               <a 

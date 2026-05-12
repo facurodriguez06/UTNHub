@@ -54,6 +54,18 @@ html {
   cursor: none; /* We will use a custom React cursor for max interactivity */
 }
 
+*,
+*::before,
+*::after,
+input,
+textarea,
+button,
+a,
+select,
+option {
+  cursor: none !important;
+}
+
 body {
   position: relative;
   background: var(--bg-warm);
@@ -206,7 +218,7 @@ body {
 .animate-bounce-subtle { animation: bounceSubtle 2s ease-in-out infinite; }
 .animate-fade-in { animation: fadeIn 0.4s ease-out both; }
 .animate-stamp { animation: stamp 0.5s cubic-bezier(0.22, 0.68, 0.36, 1.2) both; }
-.animate-marquee { animation: marquee 30s linear infinite; }
+.animate-marquee { animation: marquee 18s linear infinite; }
 .animate-fade-in-up { animation: fadeInUp 0.45s ease-out both; }
 .animate-fade-in-scale { animation: fadeInScale 0.35s ease-out both; }
 .animate-slide-down { animation: slideDown 0.3s ease-out both; }

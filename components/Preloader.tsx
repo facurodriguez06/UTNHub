@@ -18,26 +18,24 @@ export function Preloader() {
   if (!loading) return null;
 
   return (
-    <div className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[#FFFBF7] transition-all duration-700 ease-in-out ${loading ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
-      <div className="relative flex flex-col items-center justify-center animate-fade-in-up">
+    <div className={`fixed inset-0 z-[99999] flex flex-col items-center justify-center bg-[#F7F5F0] bg-texture-grain transition-all duration-700 ease-in-out ${loading ? "opacity-100" : "opacity-0 pointer-events-none"}`}>
+      <div className="relative flex flex-col items-center justify-center animate-fade-in-up px-8 py-10 bg-white border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(24,24,27,1)]">
         
-        <div className="relative flex items-center justify-center mb-6">
-           <Image 
-               src="/icon-optimized.webp" 
-               alt="UTNHub Logo" 
-               width={80}
-               height={80}
-               className="w-20 h-20 object-contain drop-shadow-md" 
-            />
-        </div>
+        <Image 
+          src="/iconNeo-v2.png" 
+          alt="UTNHub Logo" 
+          width={104}
+          height={104}
+          className="w-24 h-24 object-contain mb-6 drop-shadow-[6px_6px_0px_rgba(24,24,27,0.18)]" 
+        />
         
         <div className="flex flex-col items-center gap-4">
-          <span className="font-extrabold text-3xl tracking-tight text-[#3D3229] leading-none">
-            UTN<span className="text-[#8BAA91]">Hub</span>
+          <span className="font-black text-3xl tracking-tighter text-zinc-900 leading-none uppercase italic">
+            UTN<span className="text-emerald-500">Hub</span>
           </span>
           
-          <div className="relative w-40 h-1 bg-[#EDE6DD] rounded-full overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full bg-[#8BAA91] rounded-full origin-left animate-[progress_1.5s_ease-in-out_forwards]"></div>
+          <div className="relative w-44 h-2 bg-zinc-900 border-2 border-zinc-900 overflow-hidden">
+            <div className="absolute top-0 left-0 w-full h-full bg-emerald-400 origin-left animate-[progress_1.5s_ease-in-out_forwards]"></div>
           </div>
         </div>
       </div>

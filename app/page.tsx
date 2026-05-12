@@ -85,9 +85,12 @@ export default function Home() {
             </span>
           </h1>
           
-          <p className="text-xl md:text-3xl text-zinc-800 mb-16 max-w-2xl font-black uppercase tracking-tight leading-none rotate-[-0.5deg]">
-            Relajá tu semestre. <br/>
-            <span className="bg-emerald-400 border-2 border-zinc-900 px-2 box-decoration-clone">La comunidad definitiva</span> de resúmenes.
+          <p className="text-xl md:text-3xl text-zinc-800 mb-16 max-w-2xl font-black uppercase tracking-tight leading-none rotate-[-0.5deg] flex flex-col items-center gap-3">
+            <span className="block">Relajá tu semestre.</span>
+            <span className="inline-block bg-emerald-400 border-2 border-zinc-900 px-3 py-1 text-zinc-900 whitespace-nowrap">
+              La comunidad definitiva
+            </span>
+            <span className="block">de resúmenes.</span>
           </p>
           
           <div className="w-full max-w-3xl relative group z-30 mb-20">
@@ -126,9 +129,33 @@ export default function Home() {
 
         {/* Scrolling Marquee Tape - High Impact */}
         <div className="w-[120vw] relative left-1/2 -translate-x-1/2 bg-yellow-400 text-zinc-900 py-6 transform -rotate-3 mb-40 border-y-[6px] border-zinc-900 overflow-hidden flex whitespace-nowrap shadow-[0px_10px_30px_rgba(0,0,0,0.1)]">
-          <div className="animate-marquee inline-block font-black text-4xl md:text-5xl uppercase tracking-tighter">
-            <span>🚀 APROBÁ TUS FINALES 🚀 APUNTES COLABORATIVOS 🚀 UTNHUB 🚀 SIN PUBLICIDAD 🚀 DE ESTUDIANTES PARA ESTUDIANTES 🚀 </span>
-            <span>🚀 APROBÁ TUS FINALES 🚀 APUNTES COLABORATIVOS 🚀 UTNHUB 🚀 SIN PUBLICIDAD 🚀 DE ESTUDIANTES PARA ESTUDIANTES 🚀 </span>
+          <div className="animate-marquee inline-flex w-max items-center font-black text-4xl md:text-5xl uppercase tracking-tighter gap-8 whitespace-nowrap">
+            <span className="flex items-center gap-8 shrink-0">
+              <span>APROBÁ TUS FINALES</span>
+              <span className="text-zinc-500">•</span>
+              <span>APUNTES COLABORATIVOS</span>
+              <span className="text-zinc-500">•</span>
+              <span>UTNHUB</span>
+              <span className="text-zinc-500">•</span>
+              <span>SIN PUBLICIDAD</span>
+              <span className="text-zinc-500">•</span>
+              <span>DE ESTUDIANTES PARA ESTUDIANTES</span>
+              <span className="text-zinc-500">•</span>
+              <span>RECURSOS PARA TU CARRERA</span>
+            </span>
+            <span className="flex items-center gap-8 shrink-0" aria-hidden="true">
+              <span>APROBÁ TUS FINALES</span>
+              <span className="text-zinc-500">•</span>
+              <span>APUNTES COLABORATIVOS</span>
+              <span className="text-zinc-500">•</span>
+              <span>UTNHUB</span>
+              <span className="text-zinc-500">•</span>
+              <span>SIN PUBLICIDAD</span>
+              <span className="text-zinc-500">•</span>
+              <span>DE ESTUDIANTES PARA ESTUDIANTES</span>
+              <span className="text-zinc-500">•</span>
+              <span>RECURSOS PARA TU CARRERA</span>
+            </span>
           </div>
         </div>
 

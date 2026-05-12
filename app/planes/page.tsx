@@ -8,7 +8,6 @@ import {
   CheckCircle2, AlertTriangle, Unlock, Info, Layers, Sparkles, X,
   Code2, LineChart, Briefcase, ShieldCheck, GraduationCap, Lock, Trophy, Rocket, Layout
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
 
 import { planesData } from './data';
 import Link from 'next/link';
@@ -950,26 +949,16 @@ const CurriculumViewer = ({
       </div>
 
       {/* Subject Detail Sidebar - Neo-Brutalist Drawer */}
-      <AnimatePresence>
-        {selectedSubject && (
-          <>
-            {/* Overlay */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              onClick={() => setSelectedSubject(null)}
-              className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[90]"
-            />
-            
-            {/* Drawer Panel */}
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
-              className="fixed right-0 top-0 h-full w-full max-w-xl bg-white border-l-8 border-zinc-900 z-[100] shadow-[-12px_0px_0px_0px_rgba(24,24,27,1)] flex flex-col"
-            >
+      {selectedSubject && (
+        <>
+          {/* Overlay */}
+          <div
+            onClick={() => setSelectedSubject(null)}
+            className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[90]"
+          />
+          
+          {/* Drawer Panel */}
+          <div className="fixed right-0 top-0 h-full w-full max-w-xl bg-white border-l-8 border-zinc-900 z-[100] shadow-[-12px_0px_0px_0px_rgba(24,24,27,1)] flex flex-col">
               {/* Header */}
               <div className="p-8 border-b-4 border-zinc-900 bg-zinc-50 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400 rotate-45 translate-x-16 -translate-y-16 border-l-4 border-zinc-900 opacity-20" />
@@ -1125,10 +1114,9 @@ const CurriculumViewer = ({
                   CERRAR
                 </button>
               </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
+          </div>
+        </>
+      )}
 
       {/* Celebration Modal */}
       <YearCelebrationModal

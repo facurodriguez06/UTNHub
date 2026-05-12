@@ -6,11 +6,9 @@ import {
   User,
   Mail,
   Shield,
-  Bell,
   Trash2,
   Save,
   LogOut,
-  Camera,
   AlertTriangle,
   ChevronRight,
   Settings,
@@ -18,21 +16,18 @@ import {
   CheckCircle2,
   Award,
   Hash,
-  Star,
   RefreshCw,
   MoreVertical,
   X,
   CreditCard,
   MessageSquare,
   Lock,
-  Smartphone,
   Moon,
   Sun,
   ShieldCheck,
 } from "lucide-react";
 import { auth, db } from "@/lib/firebase/config";
 import {
-  updateProfile,
   updateEmail,
   updatePassword,
   deleteUser,
@@ -52,7 +47,6 @@ import {
 } from "firebase/firestore";
 import { useRouter } from "next/navigation";
 import { useToast } from "@/context/ToastContext";
-import { Header } from "@/components/Header";
 
 export default function ConfigurationPage() {
   const router = useRouter();
@@ -67,8 +61,6 @@ export default function ConfigurationPage() {
 
   // Perfil state
   const [displayName, setDisplayName] = useState("");
-  const [bio, setBio] = useState("");
-  const [photoURL, setPhotoURL] = useState("");
 
   // Stats for the clear progress section
   const [aprobadasCount, setAprobadasCount] = useState(0);
@@ -77,35 +69,40 @@ export default function ConfigurationPage() {
 
   useEffect(() => {
     const unsubscribe = auth.onAuthStateChanged(async (user) => {
-      if (user) {
-        setUser(user);
-        setDisplayName(user.displayName || "");
-        setPhotoURL(user.photoURL || "");
+      if (!user) {
+        setLoading(false);
+        router.push("/auth");
+        return;
+      }
 
+      setUser(user);
+      setDisplayName(user.displayName || "");
+
+      try {
         const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
           const data = userDoc.data();
           setUserData(data);
-          setBio(data.bio || "");
           
           // Fetch stats
           const approvedQuery = query(collection(db, `users/${user.uid}/materias_aprobadas`));
           const regularsQuery = query(collection(db, `users/${user.uid}/materias_regulares`));
           const ratingsQuery = query(collection(db, "ratings"), where("userId", "==", user.uid));
 
-          const [approvedSnap, regularsSnap, ratingsSnap] = await Promise.all([
+          const [approvedSnap, regularsSnap, ratingsSnap] = await Promise.allSettled([
             getDocs(approvedQuery),
             getDocs(regularsQuery),
             getDocs(ratingsQuery)
           ]);
 
-          setAprobadasCount(approvedSnap.size);
-          setRegularesCount(regularsSnap.size);
-          setRatingsCount(ratingsSnap.size);
+          setAprobadasCount(approvedSnap.status === "fulfilled" ? approvedSnap.value.size : 0);
+          setRegularesCount(regularsSnap.status === "fulfilled" ? regularsSnap.value.size : 0);
+          setRatingsCount(ratingsSnap.status === "fulfilled" ? ratingsSnap.value.size : 0);
         }
+      } catch (error) {
+        console.error("Error loading configuration data:", error);
+      } finally {
         setLoading(false);
-      } else {
-        router.push("/auth");
       }
     });
 
@@ -116,11 +113,8 @@ export default function ConfigurationPage() {
     if (!user) return;
     setSaving(true);
     try {
-      await updateProfile(user, { displayName, photoURL });
       await updateDoc(doc(db, "users", user.uid), {
         displayName,
-        bio,
-        photoURL,
         updatedAt: new Date().toISOString(),
       });
       showToast("Perfil actualizado correctamente", "success");
@@ -237,13 +231,10 @@ export default function ConfigurationPage() {
     { id: "perfil", label: "Perfil", icon: User, color: "bg-emerald-400" },
     { id: "seguridad", label: "Seguridad", icon: Shield, color: "bg-yellow-400" },
     { id: "datos", label: "Mis Datos", icon: RefreshCw, color: "bg-coral" },
-    { id: "notificaciones", label: "Avisos", icon: Bell, color: "bg-sky" },
   ];
 
   return (
     <div className="min-h-screen bg-[#FDFCFB] bg-texture-grain flex flex-col font-sans text-zinc-900">
-      <Header />
-
       <main className="flex-grow pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header Section */}
@@ -347,38 +338,6 @@ export default function ConfigurationPage() {
                 <div className="p-8 md:p-12 lg:p-16">
                   {activeTab === "perfil" && (
                     <div className="max-w-3xl space-y-12">
-                      {/* Avatar Upload */}
-                      <div className="flex flex-col md:flex-row items-center gap-10 p-8 border-4 border-dashed border-zinc-200 bg-zinc-50/50">
-                        <div className="relative group">
-                          <div className="w-40 h-40 bg-white border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden transform transition-all group-hover:-translate-y-1 group-hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
-                            {photoURL ? (
-                              <img src={photoURL} alt="Avatar" className="w-full h-full object-cover" />
-                            ) : (
-                              <div className="w-full h-full flex items-center justify-center text-zinc-200">
-                                <User className="w-20 h-20" strokeWidth={3} />
-                              </div>
-                            )}
-                          </div>
-                          <button className="absolute -bottom-4 -right-4 p-4 bg-yellow-400 border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:scale-110 transition-transform active:scale-95">
-                            <Camera className="w-6 h-6 text-zinc-900" strokeWidth={3} />
-                          </button>
-                        </div>
-                        <div className="flex-1 text-center md:text-left space-y-4">
-                          <h3 className="text-2xl font-black uppercase italic text-zinc-900 leading-none">IDENTIDAD VISUAL</h3>
-                          <p className="text-zinc-500 font-bold text-xs uppercase tracking-widest leading-relaxed max-w-sm">
-                            ESTA IMAGEN SERÁ TU AVATAR PÚBLICO EN LA COMUNIDAD DE ESTUDIANTES.
-                          </p>
-                          <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-2">
-                            <button className="px-5 py-3 border-4 border-zinc-900 bg-white text-[10px] font-black uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1 active:translate-y-1">
-                              SUBIR ARCHIVO
-                            </button>
-                            <button className="px-5 py-3 border-4 border-zinc-900 bg-white text-[10px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(225,29,72,0.2)] active:shadow-none active:translate-x-1 active:translate-y-1">
-                              ELIMINAR
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-
                       <div className="grid grid-cols-1 gap-10">
                         <div className="space-y-4">
                           <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900 flex items-center gap-2">
@@ -395,24 +354,6 @@ export default function ConfigurationPage() {
                               className="w-full pl-16 pr-6 py-5 bg-white border-4 border-zinc-900 text-zinc-900 font-black uppercase tracking-widest text-sm placeholder:text-zinc-300 focus:outline-none focus:bg-zinc-50 focus:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)] transition-all"
                               placeholder="ESCRIBE TU NOMBRE..."
                             />
-                          </div>
-                        </div>
-
-                        <div className="space-y-4">
-                          <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900 flex items-center gap-2">
-                            <span className="w-2 h-2 bg-zinc-900" /> BIO / DESCRIPCIÓN ACADÉMICA
-                          </label>
-                          <textarea
-                            value={bio}
-                            onChange={(e) => setBio(e.target.value)}
-                            rows={4}
-                            maxLength={160}
-                            className="w-full px-6 py-5 bg-white border-4 border-zinc-900 text-zinc-900 font-bold text-sm placeholder:text-zinc-300 focus:outline-none focus:bg-zinc-50 focus:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)] transition-all resize-none"
-                            placeholder="CUÉNTANOS SOBRE TUS OBJETIVOS..."
-                          />
-                          <div className="flex justify-between items-center px-1">
-                             <p className="text-[9px] text-zinc-400 font-black uppercase tracking-widest italic leading-none">LA INFO SE MOSTRARÁ EN TU PERFIL</p>
-                             <p className="text-[10px] text-zinc-900 font-black uppercase tracking-tighter bg-zinc-100 px-2 py-0.5 border-2 border-zinc-900">{bio.length}/160</p>
                           </div>
                         </div>
                       </div>
@@ -571,56 +512,6 @@ export default function ConfigurationPage() {
                     </div>
                   )}
 
-                  {activeTab === "notificaciones" && (
-                    <div className="max-w-3xl space-y-12">
-                      <div className="p-10 border-4 border-zinc-900 bg-sky-light shadow-[10px_10px_0px_0px_rgba(186,230,253,1)] relative overflow-hidden">
-                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-sky/20 rounded-full blur-3xl" />
-                        <div className="flex items-center gap-6 mb-10 relative z-10">
-                          <div className="w-16 h-16 bg-sky border-4 border-zinc-900 flex items-center justify-center text-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform rotate-3">
-                            <Bell className="w-8 h-8" strokeWidth={3} />
-                          </div>
-                          <div>
-                            <h3 className="text-3xl font-black uppercase italic text-zinc-900 leading-none mb-1 tracking-tighter">PREFERENCIAS DE AVISO</h3>
-                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">CENTRO DE NOTIFICACIONES HUB</p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-4 relative z-10">
-                          {[
-                            { label: "Nuevas notas de mi carrera", desc: "TE AVISAMOS CUANDO ALGUIEN SUBE UN RESUMEN NUEVO." },
-                            { label: "Comentarios en mis notas", desc: "RECIBE UN AVISO CUANDO ALGUIEN AGRADEZCA TU APORTE." },
-                            { label: "Recordatorios de examen", desc: "ALERTAS 48HS ANTES DE LAS FECHAS DE FINALES." }
-                          ].map((item, i) => (
-                            <div key={i} className="flex items-center justify-between p-6 bg-white border-4 border-zinc-900 group hover:bg-zinc-50 transition-colors">
-                              <div className="pr-6">
-                                <p className="font-black uppercase tracking-widest text-sm text-zinc-900 mb-2 leading-none">{item.label}</p>
-                                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest italic">{item.desc}</p>
-                              </div>
-                              <div className="relative inline-block w-16 h-8 transition duration-200 ease-in">
-                                <input type="checkbox" id={`toggle-${i}`} className="opacity-0 w-0 h-0 peer" defaultChecked />
-                                <label htmlFor={`toggle-${i}`} className="absolute cursor-pointer inset-0 bg-zinc-200 border-4 border-zinc-900 peer-checked:bg-emerald-400 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
-                                  <span className="absolute left-1.5 top-1.5 w-3 h-3 bg-zinc-900 transition-transform peer-checked:translate-x-8"></span>
-                                </label>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="p-10 border-4 border-zinc-900 bg-zinc-900 text-white shadow-[10px_10px_0px_0px_rgba(52,211,153,1)] relative overflow-hidden group">
-                        <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('/noise.png')] pointer-events-none" />
-                        <h4 className="font-black uppercase tracking-[0.3em] text-base mb-4 text-emerald-400 italic flex items-center gap-3">
-                          <Smartphone className="w-6 h-6" /> MODO ESTUDIO INTENSO
-                        </h4>
-                        <p className="text-sm font-bold text-zinc-400 mb-8 leading-relaxed max-w-xl">
-                          ¿NECESITAS CONCENTRACIÓN TOTAL? SILENCIA TODAS LAS ALERTAS DEL SISTEMA POR UN TIEMPO DETERMINADO. TUS NOTIFICACIONES SE ACUMULARÁN PARA CUANDO TERMINES.
-                        </p>
-                        <button className="neo-btn px-8 py-4 bg-white text-zinc-900 hover:bg-emerald-400 hover:text-zinc-900 transition-all font-black uppercase tracking-widest text-xs border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[8px_8px_0px_0px_rgba(52,211,153,1)]">
-                          PAUSAR TODO POR 24 HORAS
-                        </button>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

@@ -75,7 +75,7 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
       <div className="absolute inset-0 bg-zinc-900/80 backdrop-blur-sm animate-fade-in" onClick={handleClose} />
 
       <div className={cn(
-        "relative w-full max-w-4xl bg-white border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all duration-300 transform",
+        "relative w-full max-w-4xl bg-white border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all duration-300 transform pointer-events-auto",
         isClosing ? 'scale-95 opacity-0 translate-y-4' : 'scale-100 opacity-100 translate-y-0'
       )}>
         {/* Close Button */}

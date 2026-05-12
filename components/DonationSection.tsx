@@ -56,14 +56,10 @@ export function DonationSection() {
   };
 
   return (
-    <section className="mt-24 mb-16 w-full animate-fade-in-up">
+    <section className="mt-20 mb-16 w-full animate-fade-in-up">
       <div 
-        className="relative overflow-hidden rounded-xl border-4 border-zinc-900 bg-white p-8 md:p-12 shadow-[8px_8px_0px_0px_rgba(24,24,27,1)] transition-all duration-700"
+        className="relative overflow-hidden rounded-none border-4 border-zinc-900 bg-white p-8 md:p-12 shadow-[10px_10px_0px_0px_rgba(24,24,27,1)] transition-all duration-700"
       >
-        {/* Decorative Cross Pattern */}
-        <div className="absolute top-4 right-4 w-24 h-24 opacity-5 pointer-events-none">
-          <div className="absolute inset-0" style={{ backgroundImage: 'repeating-linear-gradient(0deg, #18181b 0, #18181b 2px, transparent 2px, transparent 12px), repeating-linear-gradient(90deg, #18181b 0, #18181b 2px, transparent 2px, transparent 12px)', backgroundSize: '12px 12px' }} />
-        </div>
 
         <div className="relative z-10 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
           {/* Text Content */}
@@ -72,7 +68,7 @@ export function DonationSection() {
               <Heart className="h-3 w-3 fill-current" />
               Apoyá el proyecto
             </div>
-            <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight leading-[1.1] mb-6 uppercase">
+            <h2 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tight leading-[1.05] mb-6 uppercase">
               Ayudanos a seguir <br /> 
               <span className="text-emerald-500">creciendo juntos.</span>
             </h2>
@@ -81,17 +77,12 @@ export function DonationSection() {
             </p>
             
             <div className="flex items-center gap-4 text-sm font-black text-zinc-500">
-              <div className="flex -space-x-2">
-                {[1, 2, 3].map((i) => (
-                  <div key={i} className="w-8 h-8 border-2 border-zinc-900 bg-emerald-200" style={{ borderRadius: 0 }} />
-                ))}
-              </div>
               <span className="uppercase tracking-wider text-xs">Tu aporte hace la diferencia</span>
             </div>
           </div>
 
           {/* Donation Control Card */}
-          <div className="bg-zinc-50 rounded-xl border-[3px] border-zinc-900 p-6 md:p-8 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
+          <div className="bg-zinc-50 rounded-none border-[3px] border-zinc-900 p-6 md:p-8 shadow-[6px_6px_0px_0px_rgba(24,24,27,1)]">
             <h3 className="text-sm font-black text-zinc-900 mb-4 flex items-center gap-2 uppercase tracking-wider">
               <DollarSign className="w-4 h-4 text-emerald-600" /> Elegí un monto
             </h3>

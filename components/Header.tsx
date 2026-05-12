@@ -96,21 +96,19 @@ export function Header() {
         <div className="flex justify-between items-center h-14">
           
           {/* Logo Section */}
-          <Link href="/" className="flex items-center gap-3 group" onClick={() => setMenuOpen(false)}>
-            <div className="w-10 h-10 bg-white border-4 border-zinc-900 flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] group-hover:shadow-none group-hover:translate-x-[1px] group-hover:translate-y-[1px] transition-all">
-              <Image 
-                src="/icon-optimized.webp" 
-                alt="Logo UTNHub" 
-                width={24}
-                height={24}
-                className="w-6 h-6 object-contain"
-              />
-            </div>
+          <Link href="/" className="flex items-center gap-4 group" onClick={() => setMenuOpen(false)}>
+            <Image 
+              src="/iconNeo-v2.png" 
+              alt="Logo UTNHub" 
+              width={56}
+              height={56}
+              className="w-14 h-14 object-contain drop-shadow-[4px_4px_0px_rgba(24,24,27,0.2)] group-hover:-translate-y-0.5 transition-transform"
+            />
             <div className="flex flex-col">
-              <span className="font-black text-xl tracking-tighter text-zinc-900 leading-none uppercase italic">
+              <span className="font-black text-2xl tracking-tighter text-zinc-900 leading-none uppercase italic">
                 UTN<span className="text-emerald-500">Hub</span>
               </span>
-              <span className="text-[8px] font-black text-zinc-400 tracking-[0.25em] uppercase leading-tight">
+              <span className="text-[9px] font-black text-zinc-400 tracking-[0.25em] uppercase leading-tight">
                 Subí tu apunte!
               </span>
             </div>

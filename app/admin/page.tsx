@@ -127,42 +127,42 @@ function NoteCard({
   const folderLabel = getFolderLabel(note);
 
   return (
-    <div className="group flex flex-col gap-4 p-5 rounded-2xl border border-[#EDE6DD] hover:border-[#C4A87D] hover:shadow-md transition-all duration-300">
+    <div className="group flex flex-col gap-4 p-5 rounded-none border-4 border-zinc-900 bg-white shadow-[8px_8px_0px_0px_rgba(24,24,27,1)] hover:-translate-x-1 hover:-translate-y-1 transition-all duration-300">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div className="flex items-start gap-4">
-          <div className="w-12 h-12 bg-[#F5EFE5] text-[#8B7355] rounded-xl flex items-center justify-center shrink-0 border border-[#E2D6C2]">
+          <div className="w-12 h-12 bg-emerald-100 text-zinc-900 rounded-none flex items-center justify-center shrink-0 border-4 border-zinc-900 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]">
             <FileText className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="text-lg font-bold text-[#2C2825] leading-tight mb-1">{note.title}</h3>
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-[#7A6E62]">
-              <span className="font-medium text-[#8B7355]">{note.type}</span>
-              <span className="w-1 h-1 rounded-full bg-[#D5CAC0]"></span>
-              <span>
+            <h3 className="text-lg font-black text-zinc-900 leading-tight mb-2 uppercase tracking-tight">{note.title}</h3>
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 text-sm text-zinc-600">
+              <span className="font-black text-[10px] uppercase tracking-[0.25em] bg-yellow-300 text-zinc-900 px-2.5 py-1 border-2 border-zinc-900 shadow-[2px_2px_0px_0px_rgba(24,24,27,1)]">{note.type}</span>
+              <span className="w-1.5 h-1.5 rounded-none bg-zinc-400"></span>
+              <span className="font-medium uppercase tracking-tight">
                 Subido por: <strong className="text-[#4A433C]">{note.author}</strong>
               </span>
-              <span className="w-1 h-1 rounded-full bg-[#D5CAC0]"></span>
-              <span>{note.uploadDate}</span>
-              <span className="w-1 h-1 rounded-full bg-[#D5CAC0]"></span>
-              <span>
+              <span className="w-1.5 h-1.5 rounded-none bg-zinc-400"></span>
+              <span className="font-black text-zinc-800">{note.uploadDate}</span>
+              <span className="w-1.5 h-1.5 rounded-none bg-zinc-400"></span>
+              <span className="font-black text-zinc-800">
                 {note.fileType} ({note.fileSize})
               </span>
-              <span className="w-1 h-1 rounded-full bg-[#D5CAC0]"></span>
-              <span className="font-bold text-[#4A7A52] bg-[#E8F0EA] px-2 py-0.5 rounded-lg text-xs">
+              <span className="w-1.5 h-1.5 rounded-none bg-zinc-400"></span>
+              <span className="font-black text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-none text-xs border border-zinc-900 shadow-[2px_2px_0px_0px_rgba(16,185,129,1)]">
                 {careersData.find(c => c.id === note.careerId)?.shortName || note.careerId}
               </span>
-              <span className="w-1 h-1 rounded-full bg-[#D5CAC0]"></span>
-              <span className="font-bold text-[#8B7355] bg-[#F5EFE5] px-2 py-0.5 rounded-lg text-xs">
+              <span className="w-1.5 h-1.5 rounded-none bg-zinc-400"></span>
+              <span className="font-black text-zinc-900 bg-white px-2 py-0.5 rounded-none text-xs border-2 border-zinc-900 shadow-[2px_2px_0px_0px_rgba(24,24,27,1)]">
                 {subjectsData.find(s => s.id === note.subjectId)?.name || note.subjectId}
               </span>
-              <span className="w-1 h-1 rounded-full bg-[#D5CAC0]"></span>
-              <span className="font-bold text-[#4A6E82] bg-[#E5EFF5] px-2 py-0.5 rounded-lg text-xs">
+              <span className="w-1.5 h-1.5 rounded-none bg-zinc-400"></span>
+              <span className="font-black text-sky-700 bg-sky-100 px-2 py-0.5 rounded-none text-xs border border-zinc-900 shadow-[2px_2px_0px_0px_rgba(125,211,252,1)]">
                 {yearConfig[note.year || 0]?.label || `Año ${note.year}`}
               </span>
               {folderLabel && (
                 <>
-                  <span className="w-1 h-1 rounded-full bg-[#D5CAC0]"></span>
-                  <span className="inline-flex items-center gap-1 rounded-full bg-[#E8F0EA] px-2 py-0.5 text-xs font-semibold text-[#4A7A52]">
+                  <span className="w-1.5 h-1.5 rounded-none bg-zinc-400"></span>
+                  <span className="inline-flex items-center gap-1 rounded-none bg-emerald-50 px-2 py-0.5 text-xs font-black text-zinc-900 border-2 border-zinc-900 shadow-[2px_2px_0px_0px_rgba(74,122,82,1)] uppercase tracking-tight">
                     <FolderOpen className="w-3 h-3" />
                     {folderLabel}
                   </span>
@@ -172,7 +172,7 @@ function NoteCard({
           </div>
         </div>
 
-        <div className="flex w-full sm:w-auto items-center gap-2 mt-2 sm:mt-0 pt-4 sm:pt-0 border-t border-[#EDE6DD] sm:border-0">
+        <div className="flex w-full sm:w-auto items-center gap-2 mt-2 sm:mt-0 pt-4 sm:pt-0 border-t-4 border-zinc-900 sm:border-0">
           {actions}
         </div>
       </div>
@@ -218,17 +218,22 @@ function SubjectGroup({
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <div className="bg-white/50 rounded-2xl border border-[#EDE6DD] overflow-hidden transition-all">
+    <div className="bg-white rounded-none border-4 border-zinc-900 overflow-hidden transition-all shadow-[8px_8px_0px_0px_rgba(24,24,27,1)]">
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center justify-between p-4 bg-[#F9F7F4] hover:bg-[#F5EFE5] transition-colors"
+        className="w-full flex items-center justify-between gap-4 p-5 bg-zinc-900 hover:bg-zinc-800 transition-colors"
       >
-        <h3 className="text-lg font-bold text-[#4A433C] flex items-center gap-2">
-          {subject} <span className="text-[#A89F95] text-sm font-normal">({notes.length} {notes.length === 1 ? 'apunte' : 'apuntes'})</span>
+        <h3 className="text-lg md:text-xl font-black text-white flex flex-wrap items-center gap-3 uppercase tracking-tight text-left">
+          <span className="inline-flex items-center px-3 py-1 bg-emerald-400 text-zinc-900 border-2 border-black shadow-[3px_3px_0px_0px_rgba(16,185,129,1)]">
+            {subject}
+          </span>
+          <span className="text-zinc-300 text-sm font-black uppercase tracking-[0.25em]">
+            ({notes.length} {notes.length === 1 ? 'apunte' : 'apuntes'})
+          </span>
         </h3>
         <span
           className={cn(
-            "transform transition-transform duration-300 w-8 h-8 flex items-center justify-center bg-white rounded-full border border-[#EDE6DD] text-[#8B7355]",
+            "transform transition-transform duration-300 w-11 h-11 flex items-center justify-center bg-emerald-400 rounded-none border-4 border-black text-zinc-900 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]",
             isOpen ? "rotate-180" : "rotate-0"
           )}
         >
@@ -237,7 +242,7 @@ function SubjectGroup({
       </button>
       
       {isOpen && (
-        <div className="p-4 grid grid-cols-1 gap-4 bg-white border-t border-[#EDE6DD] animate-fade-in-up">
+        <div className="p-4 md:p-5 grid grid-cols-1 gap-4 bg-zinc-50 border-t-4 border-zinc-900 animate-fade-in-up">
           {notes.map((note) => (
             <NoteCard
               key={note.id}
@@ -246,7 +251,7 @@ function SubjectGroup({
                 <>
                   <button
                     onClick={() => onOpenFile(note)}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-[#EDE6DD] hover:bg-[#F9F7F4] text-[#7A6E62] rounded-xl font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border-4 border-zinc-900 hover:bg-yellow-300 text-zinc-900 rounded-none font-black uppercase tracking-wider transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]"
                     title="Ver archivo"
                     disabled={!note.fileUrl}
                   >
@@ -255,7 +260,7 @@ function SubjectGroup({
                   </button>
                   <button
                     onClick={() => onEditNote(note)}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-3 py-2 bg-white border border-[#EDE6DD] hover:bg-[#F9F7F4] text-[#8BAA91] rounded-xl font-medium transition-all duration-200"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-white border-4 border-zinc-900 hover:bg-emerald-200 text-zinc-900 rounded-none font-black uppercase tracking-wider transition-all duration-200 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]"
                     title="Editar apunte"
                   >
                     <Edit className="w-4 h-4" />
@@ -263,7 +268,7 @@ function SubjectGroup({
                   </button>
                   <button
                     onClick={() => onDeleteNote(note.id)}
-                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2 bg-[#FFF0F0] hover:bg-[#FFE5E5] text-[#D84545] border border-[#FFDCDC] rounded-xl font-semibold transition-all duration-200"
+                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-4 py-2.5 bg-red-400 hover:bg-red-300 text-zinc-900 border-4 border-zinc-900 rounded-none font-black uppercase tracking-wider transition-all duration-200 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]"
                     title="Eliminar apunte aprobado"
                   >
                     <Trash2 className="w-4 h-4" />
@@ -1287,44 +1292,50 @@ export default function AdminPage() {
 
   return (
     <>
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 animate-fade-in">
+    <div className="relative max-w-6xl mx-auto px-4 sm:px-6 py-8 md:py-12 animate-fade-in">
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 gap-4">
         <div>
-          <h1 className="text-3xl font-black text-[#2C2825] tracking-tight flex items-center gap-3">
-            <ShieldAlert className="w-8 h-8 text-[#C4A87D]" />
+          <div className="inline-flex items-center gap-3 mb-4 px-4 py-2 bg-white border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(24,24,27,1)]">
+            <ShieldAlert className="w-7 h-7 text-emerald-600" />
+            <span className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-500">Moderación</span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black text-zinc-900 tracking-tighter flex items-center gap-3 uppercase italic">
+            <span className="inline-flex items-center justify-center w-12 h-12 bg-emerald-400 border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
+              <ShieldAlert className="w-7 h-7 text-zinc-900" />
+            </span>
             Panel de Moderación
           </h1>
-          <p className="text-[#7A6E62] mt-2">
+          <p className="text-zinc-600 mt-3 max-w-2xl font-medium leading-relaxed">
             Revisá los aportes pendientes y ubicá los apuntes en carpetas para que cada materia quede más ordenada.
           </p>
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3">
-          <div className="flex gap-4 sm:mr-4 bg-white border border-[#EDE6DD] rounded-xl p-3 shadow-sm min-w-max hidden lg:flex">
+          <div className="flex gap-4 sm:mr-4 bg-white border-4 border-zinc-900 rounded-none p-4 shadow-[8px_8px_0px_0px_rgba(24,24,27,1)] min-w-max hidden lg:flex">
             <div className="pr-4 border-r border-[#EDE6DD]">
-              <p className="text-[10px] font-extrabold text-[#A89F95] uppercase tracking-wider mb-0.5">Visitas Hoy</p>
-              <p className="text-xl font-black text-[#2C2825] leading-none">{metrics.todayViews}</p>
+              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.25em] mb-1">Visitas Hoy</p>
+              <p className="text-2xl font-black text-zinc-900 leading-none">{metrics.todayViews}</p>
             </div>
             <div className="pr-4 border-r border-[#EDE6DD]">
-              <p className="text-[10px] font-extrabold text-[#A89F95] uppercase tracking-wider mb-0.5">Vistas Totales</p>
-              <p className="text-xl font-black text-[#2C2825] leading-none">{metrics.pageViews}</p>
+              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.25em] mb-1">Vistas Totales</p>
+              <p className="text-2xl font-black text-zinc-900 leading-none">{metrics.pageViews}</p>
             </div>
             <div>
-              <p className="text-[10px] font-extrabold text-[#A89F95] uppercase tracking-wider mb-0.5">Visitas ÚNICA</p>
-              <p className="text-xl font-black text-[#4A7A52] leading-none">{metrics.uniqueVisitors}</p>
+              <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.25em] mb-1">Visitas Única</p>
+              <p className="text-2xl font-black text-emerald-600 leading-none">{metrics.uniqueVisitors}</p>
             </div>
           </div>
 
           <button
             onClick={() => setShowCreateAdmin(!showCreateAdmin)}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-white text-[#4A433C] border border-[#EDE6DD] hover:bg-[#F9F7F4] rounded-xl font-medium transition-all shadow-sm"
+            className="flex items-center justify-center gap-2 px-5 py-3 bg-white text-zinc-900 border-4 border-zinc-900 rounded-none font-black uppercase tracking-wider transition-all shadow-[5px_5px_0px_0px_rgba(24,24,27,1)] hover:-translate-y-1 hover:-translate-x-1"
           >
             <UserPlus className="w-4 h-4" />
             Nuevo Admin
           </button>
           <button
             onClick={handleLogout}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#FDFCFB] text-[#D84545] border border-[#FFDCDC] hover:bg-[#FFF0F0] rounded-xl font-medium transition-all shadow-sm"
+            className="flex items-center justify-center gap-2 px-5 py-3 bg-white text-red-600 border-4 border-zinc-900 rounded-none font-black uppercase tracking-wider transition-all shadow-[5px_5px_0px_0px_rgba(24,24,27,1)] hover:-translate-y-1 hover:-translate-x-1"
           >
             <LogOut className="w-4 h-4" />
             Salir
@@ -1333,14 +1344,14 @@ export default function AdminPage() {
       </div>
 
       {showCreateAdmin && (
-        <div className="bg-[#FFFDFB] rounded-3xl p-6 shadow-sm border border-[#C4A87D]/30 mb-8 animate-fade-in-up">
+        <div className="bg-white rounded-none p-6 border-4 border-zinc-900 shadow-[10px_10px_0px_0px_rgba(24,24,27,1)] mb-8 animate-fade-in-up">
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-bold text-[#2C2825]">Invitar a un Moderador</h2>
-            <button onClick={() => setShowCreateAdmin(false)} className="text-[#A89F95] hover:text-[#4A433C]">
+            <h2 className="text-xl font-black text-zinc-900 uppercase tracking-tight">Invitar a un Moderador</h2>
+            <button onClick={() => setShowCreateAdmin(false)} className="text-zinc-500 hover:text-zinc-900">
               <X className="w-5 h-5" />
             </button>
           </div>
-          <p className="text-[#7A6E62] text-sm mb-5">
+          <p className="text-zinc-600 text-sm mb-5 font-medium">
             Completa el correo para habilitarlo como moderador. La contrasena solo hace falta si queres crear una cuenta nueva.
           </p>
 
@@ -1351,19 +1362,19 @@ export default function AdminPage() {
               required
               value={newAdminEmail}
               onChange={(e) => setNewAdminEmail(e.target.value)}
-              className="flex-1 w-full px-4 py-2.5 bg-white border border-[#E5DCD3] focus:border-[#C4A87D] rounded-xl outline-none"
+              className="flex-1 w-full px-4 py-3 bg-white border-4 border-zinc-900 rounded-none outline-none shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] focus:-translate-y-0.5 focus:-translate-x-0.5 transition-all"
             />
             <input
               type="password"
               placeholder="Contrasena nueva (opcional)"
               value={newAdminPassword}
               onChange={(e) => setNewAdminPassword(e.target.value)}
-              className="flex-1 w-full px-4 py-2.5 bg-white border border-[#E5DCD3] focus:border-[#C4A87D] rounded-xl outline-none"
+              className="flex-1 w-full px-4 py-3 bg-white border-4 border-zinc-900 rounded-none outline-none shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] focus:-translate-y-0.5 focus:-translate-x-0.5 transition-all"
             />
             <button
               type="submit"
               disabled={isCreatingAdmin}
-              className="w-full sm:w-auto bg-[#2C2825] hover:bg-[#1A1816] px-6 py-2.5 text-white font-medium rounded-xl transition-all disabled:opacity-70 flex justify-center h-[46px]"
+              className="w-full sm:w-auto bg-emerald-400 hover:bg-emerald-300 px-6 py-3 text-zinc-900 font-black uppercase tracking-wider border-4 border-zinc-900 rounded-none transition-all disabled:opacity-70 flex justify-center h-[52px] shadow-[5px_5px_0px_0px_rgba(24,24,27,1)]"
             >
               {isCreatingAdmin ? <Loader2 className="w-5 h-5 animate-spin" /> : "Guardar Moderador"}
             </button>
@@ -1380,19 +1391,19 @@ export default function AdminPage() {
           )}
 
           <div className="mt-8 border-t border-[#EDE6DD] pt-6">
-            <h3 className="text-sm font-black text-[#3D3229] uppercase tracking-widest mb-4 flex items-center gap-2">
+            <h3 className="text-sm font-black text-zinc-900 uppercase tracking-[0.25em] mb-4 flex items-center gap-2">
               <UserCheck className="w-4 h-4" /> Moderadores Registrados
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {adminList.map((adm) => (
-                <div key={adm.id} className="bg-white p-4 rounded-2xl border border-[#EDE6DD] shadow-sm flex flex-col gap-3 group transition-all hover:border-[#C4A87D]">
+                <div key={adm.id} className="bg-white p-4 rounded-none border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(24,24,27,1)] flex flex-col gap-3 group transition-all hover:-translate-y-1 hover:-translate-x-1">
                   <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-xl bg-[#F5EFE5] text-[#8B7355]">
+                    <div className="p-2 bg-emerald-100 text-zinc-900 border-2 border-zinc-900 rounded-none">
                       <Mail className="w-4 h-4" />
                     </div>
                     <div className="flex flex-col overflow-hidden">
-                      <span className="text-sm font-bold text-[#3D3229] truncate">{adm.email}</span>
-                      <span className="text-[10px] text-[#A89F95] flex items-center gap-1">
+                      <span className="text-sm font-black text-zinc-900 truncate uppercase tracking-tight">{adm.email}</span>
+                      <span className="text-[10px] text-zinc-500 flex items-center gap-1 uppercase tracking-[0.2em]">
                         <Calendar className="w-3 h-3" /> {formatAdminDate(adm.createdAt)}
                       </span>
                     </div>
@@ -1400,13 +1411,13 @@ export default function AdminPage() {
                   <div className="flex gap-2 mt-auto">
                     <button 
                       onClick={() => handleResetPassword(adm.email)}
-                      className="flex-1 py-1.5 px-3 rounded-lg border border-[#EDE6DD] text-[10px] font-black uppercase tracking-wider text-[#7A6E62] hover:bg-[#F9F7F4] transition-all"
+                      className="flex-1 py-2 px-3 rounded-none border-4 border-zinc-900 text-[10px] font-black uppercase tracking-wider text-zinc-900 bg-white hover:bg-yellow-300 transition-all shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]"
                     >
                       Reset Clave
                     </button>
                     <button 
                       onClick={() => handleDeleteAdmin(adm.id)}
-                      className="p-1.5 rounded-lg border border-[#FFDCDC] text-[#D84545] hover:bg-[#FFF0F0] transition-all"
+                      className="p-2 rounded-none border-4 border-zinc-900 bg-red-400 text-zinc-900 hover:bg-red-300 transition-all shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]"
                       title="Eliminar de la lista"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1428,7 +1439,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 mb-8 bg-white p-2 rounded-2xl border border-[#EDE6DD] shadow-sm">
+      <div className="flex flex-wrap gap-2 mb-8 bg-white p-2 rounded-none border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(24,24,27,1)]">
         {[
           { id: 'apuntes', label: 'Apuntes' },
           { id: 'estadisticas', label: 'Estadísticas' },
@@ -1440,8 +1451,8 @@ export default function AdminPage() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex-1 py-3 px-4 rounded-xl font-bold text-sm transition-all whitespace-nowrap",
-              activeTab === tab.id ? "bg-[#4A7A52] text-white shadow-md" : "text-[#7A6E62] hover:bg-[#F5F0EA]"
+              "flex-1 py-3 px-4 rounded-none font-black text-sm uppercase tracking-widest transition-all whitespace-nowrap border-2 border-transparent",
+              activeTab === tab.id ? "bg-zinc-900 text-emerald-400 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] -translate-y-1" : "text-zinc-600 hover:bg-emerald-100 hover:text-zinc-900"
             )}
           >
             {tab.label}
@@ -1460,7 +1471,7 @@ export default function AdminPage() {
               placeholder="Buscar por autor..."
               value={searchAuthor}
               onChange={(e) => setSearchAuthor(e.target.value)}
-              className="w-full pl-12 pr-4 py-4 bg-white border border-[#EDE6DD] focus:border-[#C4A87D] focus:ring-4 focus:ring-[#C4A87D]/5 text-[#3D3229] rounded-[2rem] outline-none transition-all shadow-sm font-medium"
+              className="w-full pl-12 pr-4 py-4 bg-white border-4 border-zinc-900 focus:border-emerald-500 text-zinc-900 rounded-none outline-none transition-all shadow-[6px_6px_0px_0px_rgba(24,24,27,1)] font-black"
             />
           </div>
 
@@ -1470,7 +1481,7 @@ export default function AdminPage() {
               Bandeja de Pendientes ({filteredPendingNotes.length})
             </h2>
 
-            <div className="bg-white rounded-[2.5rem] p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#EDE6DD] min-h-[300px]">
+            <div className="bg-white rounded-none p-6 md:p-8 shadow-[10px_10px_0px_0px_rgba(24,24,27,1)] border-4 border-zinc-900 min-h-[300px]">
               {filteredPendingNotes.length === 0 ? (
                 <EmptySection
                   title="¡Todo al día!"
@@ -1479,7 +1490,7 @@ export default function AdminPage() {
                 />
               ) : (
                 <div className="flex flex-col">
-                  <div className="mb-6 p-4 bg-[#F9F7F4] border border-[#ede6dd] rounded-2xl flex flex-col sm:flex-row items-start sm:items-center gap-4">
+                  <div className="mb-6 p-4 bg-zinc-50 border-4 border-zinc-900 rounded-none flex flex-col sm:flex-row items-start sm:items-center gap-4 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
                     <div className="flex items-center gap-3">
                       <input
                         type="checkbox"
@@ -1499,17 +1510,17 @@ export default function AdminPage() {
                           placeholder="Carpeta masiva..."
                           value={bulkFolderInput}
                           onChange={(e) => setBulkFolderInput(e.target.value)}
-                          className="flex-1 min-w-[120px] max-w-[200px] border border-[#E5DCD3] rounded-xl px-3 py-2 text-sm focus:border-[#4A7A52] outline-none"
+                          className="flex-1 min-w-[120px] max-w-[200px] border-4 border-zinc-900 rounded-none px-3 py-2 text-sm focus:border-emerald-500 outline-none bg-white shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]"
                         />
                         <button
                           onClick={handleApplyBulkFolder}
-                          className="text-xs bg-white border border-[#EDE6DD] px-4 py-2.5 rounded-xl font-bold hover:bg-[#F5EFE5] transition-colors"
+                          className="text-xs bg-white border-4 border-zinc-900 px-4 py-2.5 rounded-none font-black uppercase tracking-wider hover:bg-yellow-300 transition-all shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]"
                         >
                           Aplicar a todos
                         </button>
                         <button
                           onClick={handleBulkApprove}
-                          className="ml-auto text-xs bg-[#4A7A52] text-white px-5 py-2.5 rounded-xl font-bold hover:bg-[#3A6040] shadow-sm transition-colors flex items-center gap-1"
+                          className="ml-auto text-xs bg-emerald-400 text-zinc-900 px-5 py-2.5 rounded-none font-black uppercase tracking-wider hover:bg-emerald-300 border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] transition-all flex items-center gap-1"
                         >
                           <Check className="w-3.5 h-3.5" /> Aprobar {selectedPendingNotes.length}
                         </button>
@@ -1616,7 +1627,7 @@ export default function AdminPage() {
               Apuntes Aprobados ({filteredApprovedNotes.length})
             </h2>
 
-            <div className="bg-white rounded-[2.5rem] p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#EDE6DD] min-h-[300px]">
+            <div className="bg-white rounded-none p-6 md:p-8 shadow-[10px_10px_0px_0px_rgba(24,24,27,1)] border-4 border-zinc-900 min-h-[300px]">
               {filteredApprovedNotes.length === 0 ? (
                 <EmptySection
                   title="Sin aprobados para revisar"
@@ -1645,7 +1656,7 @@ export default function AdminPage() {
       {activeTab === 'estadisticas' && (
         <div className="animate-fade-in space-y-8">
           <section>
-            <div className="bg-white rounded-[2.5rem] border border-[#EDE6DD] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)]">
+            <div className="bg-white rounded-none border-4 border-zinc-900 p-6 md:p-8 shadow-[10px_10px_0px_0px_rgba(24,24,27,1)]">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-6 mb-8">
                 <div className="flex items-center gap-3">
                   <div className="p-3 rounded-2xl bg-[#F5EFE5] text-[#8B7355]">

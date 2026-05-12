@@ -69,7 +69,7 @@ export function CareerCard({ career }: { career: Career }) {
         {/* Text area is pushed to the bottom logically since mb-auto on header wrapper */}
         <div className="mt-12 flex-1">
           <h3 className={cn(
-            "text-2xl font-black uppercase tracking-tight mb-3 transition-colors duration-150 font-serif",
+            "text-2xl font-black uppercase tracking-tight mb-3 transition-colors duration-150",
             career.implemented ? "text-zinc-900" : "text-zinc-600"
           )}>
             {career.shortName}

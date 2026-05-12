@@ -51,7 +51,7 @@ export function CustomCursor() {
 
   return (
     <div
-      className={`fixed top-0 left-0 w-8 h-8 pointer-events-none z-[9999] transition-transform duration-75 ease-out mix-blend-difference ${hidden ? 'opacity-0' : 'opacity-100'}`}
+      className={`fixed top-0 left-0 w-8 h-8 pointer-events-none z-[2147483647] transition-transform duration-75 ease-out mix-blend-difference ${hidden ? 'opacity-0' : 'opacity-100'}`}
       style={{
         transform: `translate3d(${position.x - 16}px, ${position.y - 16}px, 0) scale(${clicked ? 0.8 : linkHovered ? 1.5 : 1})`,
       }}
