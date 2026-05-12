@@ -31,6 +31,7 @@ export async function POST(request: Request) {
           from: 'UTNHub <noreply@utnhub.com>', // User's custom verified domain!
           to: email,
           subject: 'UTNHub - Código de verificación',
+          text: `¡Hola! Estás a un paso de unirte a UTNHub.\n\nTu código de verificación de 6 dígitos es: ${otp}\n\nEste código expirará en 15 minutos. No lo compartas con nadie.`,
           html: `
             <div style="font-family: Arial, sans-serif; text-align: center; color: #3D3229; padding: 20px;">
               <h2>¡Hola! Estás a un paso de unirte a UTNHub.</h2>

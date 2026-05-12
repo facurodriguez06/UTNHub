@@ -3,7 +3,7 @@
 import { useScrollLock } from "@/hooks/useScrollLock";
 import { useState, useEffect } from "react";
 import { Note } from "@/lib/data";
-import { X, Check } from "lucide-react";
+import { X, Check, Loader2 } from "lucide-react";
 import { careersData, subjectsData, getSubjectsByCareer } from "@/lib/data";
 import { CustomSelect } from "./CustomSelect";
 
@@ -66,67 +66,122 @@ export function EditNoteModal({ isOpen, onClose, note, onSave }: EditNoteModalPr
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 shadow-[0_0_10px_rgba(0,0,0,0.02)] p-4 sm:p-6 overscroll-none"
+      className="fixed inset-0 z-[10002] flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in overscroll-none"
       onWheel={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
     >
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-[calc(100vw-2rem)] sm:max-w-lg max-h-[90vh] sm:max-h-[85vh] flex flex-col border border-[#E3DCD2] overflow-hidden">
-        <div className="p-4 border-b border-[#EDE6DD] flex justify-between items-center bg-white rounded-t-2xl shrink-0 z-10">
-          <h2 className="text-lg font-bold text-[#3D3229]">Editar Apunte</h2>
-          <button onClick={onClose} className="p-2 bg-[#F5F0EA] hover:bg-[#EDE6DD] rounded-xl text-[#7A6E62] transition-colors outline-none"><X className="w-4 h-4" /></button>
+      <div className="bg-white w-full max-w-lg border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] flex flex-col overflow-hidden animate-fade-in-up">
+        {/* Header */}
+        <div className="bg-zinc-900 p-6 text-white flex justify-between items-center border-b-4 border-zinc-900 shrink-0">
+          <div className="flex items-center gap-4">
+            <h2 className="text-2xl font-black uppercase italic tracking-tighter leading-none">EDITAR APUNTE</h2>
+          </div>
+          <button 
+            onClick={onClose} 
+            className="p-2 bg-white text-zinc-900 border-2 border-zinc-900 hover:translate-x-[2px] hover:translate-y-[2px] hover:shadow-none transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]"
+          >
+            <X className="w-5 h-5" strokeWidth={3} />
+          </button>
         </div>
         
-        <div className="p-5 space-y-4 overflow-y-auto overflow-x-hidden flex-1 custom-scrollbar">
-          <div>
-            <label className="block text-sm font-bold text-[#3D3229] mb-1.5">Título</label>
-            <input type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full rounded-xl border border-[#EDE6DD] px-3.5 py-2.5 text-sm text-[#3D3229] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]/20 focus:border-[#8BAA91]" />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-[#3D3229] mb-1.5">Autor</label>
-            <input type="text" value={author} onChange={(e) => setAuthor(e.target.value)} className="w-full rounded-xl border border-[#EDE6DD] px-3.5 py-2.5 text-sm text-[#3D3229] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]/20 focus:border-[#8BAA91]" />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-[#3D3229] mb-1.5">Materia</label>
-            <CustomSelect
-              value={subjectId}
-              onChange={setSubjectId}
-              options={validSubjects.map(s => ({ value: s.id, label: s.name }))}
-              placeholder="Materia..."
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-[#3D3229] mb-1.5">Carrera</label>
-            <CustomSelect
-              value={careerId}
-              onChange={setCareerId}
-              options={careersData.map(c => ({ value: c.id, label: c.name }))}
-              placeholder="Carrera..."
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-[#3D3229] mb-1.5">Tipo</label>
-            <CustomSelect
-              value={type}
-              onChange={(val) => setType(val as Note["type"])}
-              options={["Resumen", "Examen", "Trabajo Práctico", "Guía de Ejercicios"].map(t => ({ value: t, label: t }))}
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-[#3D3229] mb-1.5">Carpeta / Agrupación (Opcional)</label>
-            <input type="text" value={folderName} onChange={(e) => setFolderName(e.target.value)} placeholder="Ej. Primer Parcial" className="w-full rounded-xl border border-[#EDE6DD] px-3.5 py-2.5 text-sm text-[#3D3229] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]/20 focus:border-[#8BAA91]" />
-            <p className="text-xs text-[#A89F95] mt-1">Si dejas este campo vacío, se mostrará en &quot;General&quot;.</p>
-          </div>
-          <div>
-            <label className="block text-sm font-bold text-[#3D3229] mb-1.5">Puntos de Prioridad (Orden Manual)</label>
-            <input type="number" value={priority} onChange={(e) => setPriority(parseInt(e.target.value) || 0)} placeholder="Ej. 1" className="w-full rounded-xl border border-[#EDE6DD] px-3.5 py-2.5 text-sm text-[#3D3229] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]/20 focus:border-[#8BAA91]" />
-            <p className="text-xs text-[#A89F95] mt-1">Un número mayor hará que el apunte aparezca más arriba.</p>
+        {/* Form Body */}
+        <div className="p-8 space-y-6 overflow-y-auto max-h-[70vh] custom-scrollbar text-left">
+          <div className="space-y-4 text-left">
+            <div>
+              <label className="block text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2 text-left">TÍTULO DEL APUNTE</label>
+              <input 
+                type="text" 
+                value={title} 
+                onChange={(e) => setTitle(e.target.value)} 
+                className="w-full bg-white border-4 border-zinc-900 px-4 py-3 font-bold text-sm text-zinc-900 outline-none focus:bg-zinc-50 transition-colors" 
+              />
+            </div>
+            
+            <div>
+              <label className="block text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2 text-left">AUTOR / COLABORADOR</label>
+              <input 
+                type="text" 
+                value={author} 
+                onChange={(e) => setAuthor(e.target.value)} 
+                className="w-full bg-white border-4 border-zinc-900 px-4 py-3 font-bold text-sm text-zinc-900 outline-none focus:bg-zinc-50 transition-colors" 
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2 text-left">MATERIA</label>
+                <CustomSelect
+                  value={subjectId}
+                  onChange={setSubjectId}
+                  options={validSubjects.map(s => ({ value: s.id, label: s.name }))}
+                  placeholder="SELECCIONAR..."
+                />
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2 text-left">CARRERA</label>
+                <CustomSelect
+                  value={careerId}
+                  onChange={setCareerId}
+                  options={careersData.map(c => ({ value: c.id, label: c.name }))}
+                  placeholder="SELECCIONAR..."
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2 text-left">TIPO DE CONTENIDO</label>
+              <CustomSelect
+                value={type}
+                onChange={(val) => setType(val as Note["type"])}
+                options={["Resumen", "Examen", "Trabajo Práctico", "Guía de Ejercicios"].map(t => ({ value: t, label: t.toUpperCase() }))}
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2 text-left">AGRUPACIÓN (OPCIONAL)</label>
+              <input 
+                type="text" 
+                value={folderName} 
+                onChange={(e) => setFolderName(e.target.value)} 
+                placeholder="EJ: PRIMER PARCIAL" 
+                className="w-full bg-white border-4 border-zinc-900 px-4 py-3 font-bold text-sm text-zinc-900 outline-none focus:bg-zinc-50 transition-colors uppercase placeholder:text-zinc-300" 
+              />
+            </div>
+
+            <div>
+              <label className="block text-[10px] font-black text-zinc-900 uppercase tracking-widest mb-2 text-left">PRIORIDAD (ORDEN MANUAL)</label>
+              <input 
+                type="number" 
+                value={priority} 
+                onChange={(e) => setPriority(parseInt(e.target.value) || 0)} 
+                className="w-full bg-white border-4 border-zinc-900 px-4 py-3 font-bold text-sm text-zinc-900 outline-none focus:bg-zinc-50 transition-colors" 
+              />
+            </div>
           </div>
         </div>
         
-        <div className="p-4 border-t border-[#EDE6DD] bg-[#FFFBF7] rounded-b-2xl flex justify-end gap-3 shrink-0">
-          <button onClick={onClose} disabled={isSaving} className="px-4 py-2 text-sm font-semibold text-[#7A6E62] hover:bg-[#EDE6DD] rounded-xl transition-all outline-none">Cancelar</button>
-          <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 px-5 py-2 bg-[#8BAA91] hover:bg-[#7A9980] text-white text-sm font-bold rounded-xl transition-all shadow-sm outline-none">
-            {isSaving ? "Guardando..." : <><Check className="w-4 h-4" /> Guardar</>}
+        {/* Footer */}
+        <div className="p-8 border-t-4 border-zinc-900 bg-zinc-50 flex flex-col sm:flex-row gap-4 shrink-0">
+          <button 
+            onClick={onClose} 
+            disabled={isSaving} 
+            className="w-full sm:w-1/3 neo-btn bg-white text-zinc-900 py-4 text-xs font-black"
+          >
+            CANCELAR
+          </button>
+          <button 
+            onClick={handleSave} 
+            disabled={isSaving} 
+            className="w-full sm:w-2/3 neo-btn-primary bg-zinc-900 text-white py-4 text-xs font-black flex items-center justify-center gap-3"
+          >
+            {isSaving ? (
+              <Loader2 className="w-5 h-5 animate-spin" />
+            ) : (
+              <>
+                <Check className="w-5 h-5 text-emerald-400" strokeWidth={3} />
+                GUARDAR CAMBIOS
+              </>
+            )}
           </button>
         </div>
       </div>

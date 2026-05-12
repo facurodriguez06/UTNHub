@@ -23,22 +23,19 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
   const [isClosing, setIsClosing] = useState(false);
   const [mounted, setMounted] = useState(false);
 
-  // Asegurar que el componente esté montado (para Portals en Next.js/SSR)
   useEffect(() => {
     setMounted(true);
     return () => setMounted(false);
   }, []);
 
-  // Bloquear scroll del fondo cuando el modal esté abierto
   useScrollLock(isOpen);
 
-  // Handle closing animation
   const handleClose = () => {
     setIsClosing(true);
     setTimeout(() => {
       onClose();
       setIsClosing(false);
-    }, 300);
+    }, 200);
   };
 
   const currentAmount = selectedPreset || parseInt(customAmount) || 0;
@@ -68,83 +65,64 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
   if (!isOpen && !isClosing) return null;
   if (!mounted) return null;
 
-  // El contenido del Modal que se inyectará al final del body
   const modalContent = (
     <div 
       className={cn(
-        "fixed inset-0 z-[10000] flex items-center justify-center p-2 sm:p-4 transition-all duration-300 overscroll-none",
+        "fixed inset-0 z-[10000] flex items-center justify-center p-4 transition-all duration-200",
         isClosing ? "opacity-0" : "opacity-100"
       )}
-      onWheel={(e) => e.stopPropagation()}
-      onTouchMove={(e) => e.stopPropagation()}
     >
-      {/* High-Impact Overlay (Sin acción de cierre para forzar el uso de la cruz) */}
-      <div className="absolute inset-0 bg-black/75 bg-black/90 animate-fade-in" />
+      <div className="absolute inset-0 bg-zinc-900/80 backdrop-blur-sm animate-fade-in" onClick={handleClose} />
 
-      {/* Modal Container */}
       <div className={cn(
-        "relative w-full max-w-[calc(100vw-1rem)] sm:max-w-4xl max-h-[90vh] overflow-y-auto overflow-x-hidden rounded-[2rem] sm:rounded-[3rem] bg-white border-[4px] sm:border-[6px] border-[#8BAA91]/10 shadow-[0_45px_100px_-20px_rgba(0,0,0,0.5)] transition-all duration-700 transform",
-        
-        isClosing ? 'scale-90 opacity-0 translate-y-12' : 'scale-100 opacity-100 translate-y-0'
+        "relative w-full max-w-4xl bg-white border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all duration-300 transform",
+        isClosing ? 'scale-95 opacity-0 translate-y-4' : 'scale-100 opacity-100 translate-y-0'
       )}>
         {/* Close Button */}
         <button 
           onClick={handleClose}
-          className="absolute top-6 right-6 p-2 rounded-full bg-white/80 shadow-lg border border-[#EDE6DD] text-[#3D3229] hover:bg-[#D84545] hover:text-white transition-all z-30 group"
+          className="absolute -top-6 -right-6 w-12 h-12 bg-white border-4 border-zinc-900 flex items-center justify-center text-zinc-900 hover:bg-red-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all z-50 group"
         >
-          <X className="w-5 h-5 group-hover:rotate-90 transition-transform" />
+          <X className="w-6 h-6 group-hover:rotate-90 transition-transform" strokeWidth={4} />
         </button>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-12 items-stretch min-h-[300px]">
-          
-          {/* LEFT COLUMN: Message & Branding */}
-          <div className="lg:col-span-1 xl:col-span-5 relative bg-gradient-to-br from-[#8BAA91] via-[#D5E8DB] to-[#F5EFE5] p-6 lg:p-10 flex flex-col justify-center items-center text-center overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
+        <div className="grid grid-cols-1 md:grid-cols-2">
+          {/* Left: Branding */}
+          <div className="bg-emerald-400 p-8 border-b-4 md:border-b-0 md:border-r-4 border-zinc-900 flex flex-col justify-center items-center text-center">
+            <div className="w-24 h-24 bg-white border-4 border-zinc-900 flex items-center justify-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] mb-6 animate-bounce-slow">
+              <Image src="/utn-logo-optimized.webp" alt="UTN Logo" width={64} height={64} className="w-16 h-16 object-contain" />
+            </div>
+
+            <h2 className="text-4xl font-black text-zinc-900 tracking-tighter leading-none mb-4 uppercase italic">
+              UTN<span className="text-white">HUB</span>
+            </h2>
+            <p className="text-zinc-900 text-lg font-black uppercase tracking-widest bg-white border-2 border-zinc-900 px-4 py-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+              Apoyá el proyecto
+            </p>
             
-            <div className="relative z-10">
-              <div className="inline-flex items-center justify-center w-20 h-20 rounded-[2rem] bg-white shadow-xl border border-white/50 mb-6 animate-bounce-slow">
-                <Image src="/utn-logo-optimized.webp" alt="UTN Logo" width={48} height={48} className="w-12 h-12 object-contain" />
-                <div className="absolute -top-1 -right-1 bg-[#2C2825] p-2 rounded-xl shadow-lg">
-                  <Zap className="w-3 h-3 text-amber-400 fill-amber-400" />
-                </div>
-              </div>
-
-              <div className="px-4 py-1.5 rounded-full bg-[#2C2825] text-white text-[9px] font-black uppercase tracking-[0.2em] mb-4 shadow-sm inline-block">
-                Sumate a la plataforma
-              </div>
-
-              <h2 className="text-3xl md:text-4xl lg:text-5xl font-black text-[#3D3229] tracking-tighter leading-none mb-4 uppercase">
-                HOLA,<br />
-                <span className="bg-gradient-to-r from-[#D84545] to-[#4A7A52] bg-clip-text text-transparent italic">ESTUDIANTE</span>
-              </h2>
-              
-              <p className="text-[#6B5A50] text-lg lg:text-xl font-bold leading-tight">
-                Apoya el crecimiento de la plataforma
+            <div className="mt-8 space-y-2">
+              <p className="text-zinc-900 text-sm font-black uppercase tracking-tighter italic">
+                Mantener los servidores no es gratis.
               </p>
-              <div className="flex items-center justify-center gap-1.5 text-[#A89F95] mt-4">
-                <div className="h-px w-8 bg-[#D5CAC0]" />
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4" />
-                  <span className="text-[10px] font-black uppercase tracking-widest">Impulsá el proyecto</span>
-                </div>
-                <div className="h-px w-8 bg-[#D5CAC0]" />
-              </div>
+              <p className="text-zinc-900 text-sm font-black uppercase tracking-tighter italic">
+                Tu aporte nos ayuda a seguir creciendo.
+              </p>
             </div>
           </div>
 
-          {/* RIGHT COLUMN: Donation Form */}
-          <div className="lg:col-span-1 xl:col-span-7 bg-white p-6 lg:p-10 flex flex-col justify-center">
-            <div className="flex items-center gap-3 mb-6">
-              <div className="w-10 h-10 rounded-xl bg-[#F9F7F4] border border-[#EDE6DD] flex items-center justify-center">
-                <DollarSign className="w-5 h-5 text-[#8BAA91]" />
+          {/* Right: Form */}
+          <div className="p-8 bg-white flex flex-col justify-center">
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-12 h-12 bg-yellow-400 border-4 border-zinc-900 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                <DollarSign className="w-6 h-6 text-zinc-900" strokeWidth={4} />
               </div>
               <div>
-                <h3 className="text-xs font-black text-[#8B7355] uppercase tracking-[0.2em]">Paso Seguro</h3>
-                <p className="text-lg font-black text-[#3D3229]">Elegi el monto a donar</p>
+                <h3 className="text-xs font-black text-zinc-400 uppercase tracking-widest">Elegir monto</h3>
+                <p className="text-xl font-black text-zinc-900 uppercase tracking-tighter">Colaborá ahora</p>
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="grid grid-cols-3 gap-3 mb-6">
               {PRESET_AMOUNTS.map((amount) => (
                 <button
                   key={amount}
@@ -153,10 +131,10 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
                     setCustomAmount("");
                   }}
                   className={cn(
-                    "relative py-4 rounded-2xl text-base font-black transition-all duration-300 border-2",
+                    "py-4 text-lg font-black transition-all border-4 border-zinc-900 uppercase tracking-tighter",
                     selectedPreset === amount 
-                      ? "bg-[#2C2825] text-white border-[#2C2825] shadow-xl scale-[1.05] z-10"
-                      : "bg-white text-[#3D3229] border-[#EDE6DD] hover:border-[#8BAA91] hover:-translate-y-1"
+                      ? "bg-zinc-900 text-white shadow-none translate-x-[2px] translate-y-[2px]"
+                      : "bg-white text-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-zinc-50 active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
                   )}
                 >
                   ${amount}
@@ -164,20 +142,17 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
               ))}
             </div>
 
-            <div className="relative mb-6 group">
-              <span className="absolute left-5 top-1/2 -translate-y-1/2 text-[#8BAA91] font-black text-xl">$</span>
+            <div className="relative mb-8">
+              <div className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-900 font-black text-xl">$</div>
               <input
                 type="text"
-                placeholder="Introducir otro monto..."
+                placeholder="OTRO MONTO..."
                 value={customAmount}
                 onChange={(e) => {
                   setCustomAmount(e.target.value.replace(/[^0-9]/g, ""));
                   setSelectedPreset(null);
                 }}
-                className={cn(
-                  "w-full pl-10 pr-6 py-4 rounded-2xl border-2 bg-white text-base font-black transition-all outline-none text-[#3D3229] placeholder:text-[#D5CAC0]",
-                  !selectedPreset && customAmount ? "border-[#8BAA91] ring-8 ring-[#8BAA91]/5" : "border-[#EDE6DD] focus:border-[#8BAA91]"
-                )}
+                className="w-full pl-10 pr-6 py-4 bg-white border-4 border-zinc-900 text-lg font-black uppercase tracking-tighter outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:shadow-none focus:translate-x-[2px] focus:translate-y-[2px] transition-all placeholder:text-zinc-300"
               />
             </div>
 
@@ -185,35 +160,30 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
               onClick={handleDonate}
               disabled={currentAmount <= 0 || isLoading}
               className={cn(
-                "group relative w-full flex items-center justify-center gap-4 py-5 rounded-[2rem] font-black text-lg transition-all duration-500 overflow-hidden shadow-2xl",
+                "w-full flex items-center justify-center gap-4 py-5 border-4 border-zinc-900 font-black text-xl uppercase tracking-widest transition-all",
                 currentAmount > 0 && !isLoading
-                  ? "bg-[#2C2825] text-white hover:bg-black"
-                  : "bg-[#EDE6DD] text-[#A89F95] cursor-not-allowed"
+                  ? "bg-emerald-400 text-zinc-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px]"
+                  : "bg-zinc-100 text-zinc-400 cursor-not-allowed border-zinc-200 shadow-none"
               )}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
-              
               {isLoading ? (
                 <div className="flex items-center gap-3">
-                  <div className="w-6 h-6 border-4 border-white/20 border-t-white rounded-full animate-spin" />
-                  <span>Procesando</span>
+                  <div className="w-6 h-6 border-4 border-zinc-900 border-t-transparent animate-spin" />
+                  <span>PROCESANDO</span>
                 </div>
               ) : (
                 <>
-                  <Wallet className="w-6 h-6 text-[#8BAA91]" />
-                  <span>Donar Ahora</span>
-                  <ArrowRight className="w-5 h-5 transition-transform group-hover:translate-x-2 text-[#8BAA91]" />
+                  <Wallet className="w-6 h-6" strokeWidth={3} />
+                  <span>DONAR ${currentAmount}</span>
                 </>
               )}
             </button>
 
-            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 pt-6 border-t border-[#F5F1EB]">
-              <div className="flex items-center gap-2">
-                <ShieldCheck className="w-4 h-4 text-[#8BAA91]" />
-                <span className="text-[9px] font-black text-[#A89F95] uppercase tracking-widest text-center sm:text-left">
-                  Seguro via Mercado Pago
-                </span>
-              </div>
+            <div className="mt-8 flex items-center justify-center gap-3">
+              <ShieldCheck className="w-5 h-5 text-emerald-500" strokeWidth={3} />
+              <span className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">
+                Seguro vía MERCADO PAGO
+              </span>
             </div>
           </div>
         </div>

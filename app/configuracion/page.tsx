@@ -1,844 +1,678 @@
 "use client";
 
-import { useAuth } from "@/context/AuthContext";
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import {
+  User,
+  Mail,
+  Shield,
+  Bell,
+  Trash2,
+  Save,
+  LogOut,
+  Camera,
+  AlertTriangle,
+  ChevronRight,
+  Settings,
+  BookOpen,
+  CheckCircle2,
+  Award,
+  Hash,
+  Star,
+  RefreshCw,
+  MoreVertical,
+  X,
+  CreditCard,
+  MessageSquare,
+  Lock,
+  Smartphone,
+  Moon,
+  Sun,
+  ShieldCheck,
+} from "lucide-react";
+import { auth, db } from "@/lib/firebase/config";
+import {
+  updateProfile,
+  updateEmail,
+  updatePassword,
+  deleteUser,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
+} from "firebase/auth";
+import {
+  doc,
+  getDoc,
+  updateDoc,
+  collection,
+  query,
+  where,
+  getDocs,
+  deleteDoc,
+  writeBatch,
+} from "firebase/firestore";
 import { useRouter } from "next/navigation";
-import React, { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
-import { ArrowLeft, Trash2, AlertTriangle, User, Shield, BookOpen, CheckCircle2, Mail, Lock, Save, Eye, EyeOff, Pencil, BadgeCheck, Clock3, Sparkles, Bell, GraduationCap, Building2, ExternalLink, Star } from "lucide-react";
-import Link from "next/link";
-import { db } from "@/lib/firebase/config";
 import { useToast } from "@/context/ToastContext";
-import { updateEmail, updatePassword, updateProfile, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
-import { careersData } from "@/lib/data";
+import { Header } from "@/components/Header";
 
-type FirebaseErrorLike = {
-  code?: string;
-};
-
-type UserProfileData = {
-  role?: string;
-  providerId?: string;
-  lastLoginAt?: string;
-  preferredCareerId?: string;
-  preferredSemester?: string;
-  notificationsEnabled?: boolean;
-};
-
-const getFirebaseErrorCode = (error: unknown) =>
-  typeof error === "object" && error !== null ? (error as FirebaseErrorLike).code : undefined;
-
-export default function ConfiguracionPage() {
-  const { user, loading, resetPassword } = useAuth();
+export default function ConfigurationPage() {
   const router = useRouter();
   const { showToast } = useToast();
-  const [isSendingReset, setIsSendingReset] = useState(false);
-
-  const [progressStats, setProgressStats] = useState<{ aprobadas: number; regulares: number }>({ aprobadas: 0, regulares: 0 });
-  const [profileData, setProfileData] = useState<UserProfileData>({});
-  const [showConfirmDialog, setShowConfirmDialog] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("perfil");
+  const [user, setUser] = useState<any>(null);
+  const [userData, setUserData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [isUpdatingPreferences, setIsUpdatingPreferences] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState<string | null>(null);
+
+  // Perfil state
+  const [displayName, setDisplayName] = useState("");
+  const [bio, setBio] = useState("");
+  const [photoURL, setPhotoURL] = useState("");
+
+  // Stats for the clear progress section
+  const [aprobadasCount, setAprobadasCount] = useState(0);
+  const [regularesCount, setRegularesCount] = useState(0);
   const [ratingsCount, setRatingsCount] = useState(0);
 
-  // Estado para cambio de email
-  const [newEmail, setNewEmail] = useState("");
-  const [emailCurrentPassword, setEmailCurrentPassword] = useState("");
-  const [isChangingEmail, setIsChangingEmail] = useState(false);
-  const [showEmailForm, setShowEmailForm] = useState(false);
-
-  // Estado para cambio de contraseña
-  const [currentPassword, setCurrentPassword] = useState("");
-  const [newPassword, setNewPassword] = useState("");
-  const [confirmNewPassword, setConfirmNewPassword] = useState("");
-  const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [showPasswordForm, setShowPasswordForm] = useState(false);
-  const [showCurrentPass, setShowCurrentPass] = useState(false);
-  const [showNewPass, setShowNewPass] = useState(false);
-
-  const preferredCareer = careersData.find((career) => career.id === profileData.preferredCareerId);
-  const providerLabel = profileData.providerId === "google.com" ? "Google" : profileData.providerId === "password" ? "Email/Contraseña" : "No detectado";
-  const roleLabel = profileData.role === "admin" ? "Administrador" : profileData.role === "moderator" ? "Moderador" : "Usuario";
-
-  // Estado para cambio de nombre
-  const [newName, setNewName] = useState("");
-  const [isChangingName, setIsChangingName] = useState(false);
-  const [showNameForm, setShowNameForm] = useState(false);
-
-  // Verificar si el usuario usa email/password (no Google)
-  const isEmailProvider = user?.providerData[0]?.providerId === "password";
-
-  // Redirigir si no está logueado
   useEffect(() => {
-    if (!loading && !user) {
-      router.push("/auth");
-    }
-  }, [user, loading, router]);
+    const unsubscribe = auth.onAuthStateChanged(async (user) => {
+      if (user) {
+        setUser(user);
+        setDisplayName(user.displayName || "");
+        setPhotoURL(user.photoURL || "");
 
-  // Cargar estadísticas del progreso actual
-  useEffect(() => {
-    if (!user) return;
-
-    const loadProfile = async () => {
-      try {
-        const userRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userRef);
+        const userDoc = await getDoc(doc(db, "users", user.uid));
         if (userDoc.exists()) {
-          const data = userDoc.data() as UserProfileData & { 
-            progress?: { aprobadas?: unknown[]; regulares?: unknown[] };
-            subjectRatings?: Record<string, unknown>;
-          };
-          const progress = data.progress || { aprobadas: [], regulares: [] };
-          setProgressStats({
-            aprobadas: progress.aprobadas?.length || 0,
-            regulares: progress.regulares?.length || 0,
-          });
-          setProfileData({
-            role: data.role || (user.email?.toLowerCase() === "facundorodriguezsp@gmail.com" ? "admin" : "user"),
-            providerId: data.providerId || user.providerData[0]?.providerId || "unknown",
-            lastLoginAt: data.lastLoginAt || user.metadata.lastSignInTime || undefined,
-            preferredCareerId: data.preferredCareerId || "",
-            preferredSemester: data.preferredSemester || "",
-            notificationsEnabled: typeof data.notificationsEnabled === "boolean" ? data.notificationsEnabled : true,
-          });
-          setRatingsCount(Object.keys(data.subjectRatings || {}).length);
+          const data = userDoc.data();
+          setUserData(data);
+          setBio(data.bio || "");
+          
+          // Fetch stats
+          const approvedQuery = query(collection(db, `users/${user.uid}/materias_aprobadas`));
+          const regularsQuery = query(collection(db, `users/${user.uid}/materias_regulares`));
+          const ratingsQuery = query(collection(db, "ratings"), where("userId", "==", user.uid));
+
+          const [approvedSnap, regularsSnap, ratingsSnap] = await Promise.all([
+            getDocs(approvedQuery),
+            getDocs(regularsQuery),
+            getDocs(ratingsQuery)
+          ]);
+
+          setAprobadasCount(approvedSnap.size);
+          setRegularesCount(regularsSnap.size);
+          setRatingsCount(ratingsSnap.size);
         }
-      } catch (error) {
-        console.error("Error al cargar la configuración del usuario:", error);
+        setLoading(false);
+      } else {
+        router.push("/auth");
       }
-    };
+    });
 
-    loadProfile();
-  }, [user]);
+    return () => unsubscribe();
+  }, [router]);
 
-  const updatePreferences = async (patch: Partial<UserProfileData>) => {
+  const handleUpdateProfile = async () => {
     if (!user) return;
-
-    setIsUpdatingPreferences(true);
+    setSaving(true);
     try {
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, patch);
-      setProfileData((current) => ({ ...current, ...patch }));
-      showToast("Preferencias actualizadas.", "success");
-    } catch (error) {
-      console.error("Error al actualizar preferencias:", error);
-      showToast("No se pudieron guardar las preferencias.", "error");
+      await updateProfile(user, { displayName, photoURL });
+      await updateDoc(doc(db, "users", user.uid), {
+        displayName,
+        bio,
+        photoURL,
+        updatedAt: new Date().toISOString(),
+      });
+      showToast("Perfil actualizado correctamente", "success");
+    } catch (error: any) {
+      showToast("Error al actualizar el perfil", "error");
     } finally {
-      setIsUpdatingPreferences(false);
+      setSaving(false);
     }
   };
 
-  // Cambiar nombre
-  const handleChangeName = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !newName.trim()) return;
-
-    setIsChangingName(true);
-    try {
-      await updateProfile(user, { displayName: newName.trim() });
-
-      // Actualizar también en Firestore
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, { displayName: newName.trim() });
-
-      showToast("Nombre actualizado correctamente.", "success");
-      setNewName("");
-      setShowNameForm(false);
-    } catch (error) {
-      console.error("Error al cambiar nombre:", error);
-      showToast("Error al actualizar el nombre.", "error");
-    } finally {
-      setIsChangingName(false);
-    }
-  };
-
-  // Cambiar email
-  const handleChangeEmail = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !newEmail || !emailCurrentPassword) return;
-
-    setIsChangingEmail(true);
-    try {
-      // Reautenticar al usuario primero
-      const credential = EmailAuthProvider.credential(user.email!, emailCurrentPassword);
-      await reauthenticateWithCredential(user, credential);
-      
-      // Actualizar el email
-      await updateEmail(user, newEmail);
-      
-      // Actualizar también en Firestore
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, { email: newEmail });
-
-      showToast("Correo electrónico actualizado correctamente.", "success");
-      setNewEmail("");
-      setEmailCurrentPassword("");
-      setShowEmailForm(false);
-    } catch (error: unknown) {
-      console.error("Error al cambiar email:", error);
-      const errorCode = getFirebaseErrorCode(error);
-      if (errorCode === "auth/wrong-password" || errorCode === "auth/invalid-credential") {
-        showToast("Contraseña actual incorrecta.", "error");
-      } else if (errorCode === "auth/email-already-in-use") {
-        showToast("Ese correo ya está en uso por otra cuenta.", "error");
-      } else if (errorCode === "auth/invalid-email") {
-        showToast("El formato del correo no es válido.", "error");
-      } else if (errorCode === "auth/requires-recent-login") {
-        showToast("Por seguridad, cerrá sesión y volvé a ingresar antes de cambiar el email.", "error");
-      } else {
-        showToast("Error al actualizar el correo electrónico.", "error");
-      }
-    } finally {
-      setIsChangingEmail(false);
-    }
-  };
-
-  // Cambiar contraseña
-  const handleChangePassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !currentPassword || !newPassword || !confirmNewPassword) return;
-
-    if (newPassword.length < 6) {
-      showToast("La nueva contraseña debe tener al menos 6 caracteres.", "error");
-      return;
-    }
-
-    if (newPassword !== confirmNewPassword) {
-      showToast("Las contraseñas no coinciden.", "error");
-      return;
-    }
-
-    setIsChangingPassword(true);
-    try {
-      // Reautenticar al usuario primero
-      const credential = EmailAuthProvider.credential(user.email!, currentPassword);
-      await reauthenticateWithCredential(user, credential);
-      
-      // Actualizar la contraseña
-      await updatePassword(user, newPassword);
-
-      showToast("Contraseña actualizada correctamente.", "success");
-      setCurrentPassword("");
-      setNewPassword("");
-      setConfirmNewPassword("");
-      setShowPasswordForm(false);
-    } catch (error: unknown) {
-      console.error("Error al cambiar contraseña:", error);
-      const errorCode = getFirebaseErrorCode(error);
-      if (errorCode === "auth/wrong-password" || errorCode === "auth/invalid-credential") {
-        showToast("Contraseña actual incorrecta.", "error");
-      } else if (errorCode === "auth/weak-password") {
-        showToast("La contraseña es demasiado débil.", "error");
-      } else if (errorCode === "auth/requires-recent-login") {
-        showToast("Por seguridad, cerrá sesión y volvé a ingresar antes de cambiar la contraseña.", "error");
-      } else {
-        showToast("Error al actualizar la contraseña.", "error");
-      }
-    } finally {
-      setIsChangingPassword(false);
-    }
-  };
-
-  const handleSendPasswordReset = async () => {
-    if (!user?.email) return;
-    setIsSendingReset(true);
-    try {
-      await resetPassword(user.email);
-      showToast("Se ha enviado un correo para establecer o cambiar tu contraseña.", "success");
-    } catch (error) {
-      console.error("Error al enviar correo de reseteo:", error);
-      showToast("Hubo un error al enviar el correo.", "error");
-    } finally {
-      setIsSendingReset(false);
-    }
-  };
-
-  // Borrar solo las materias aprobadas
   const handleClearAprobadas = async () => {
     if (!user) return;
     setIsProcessing(true);
     try {
-      const userRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userRef);
-      if (userDoc.exists()) {
-        const currentProgress = userDoc.data().progress || { aprobadas: [], regulares: [] };
-        await updateDoc(userRef, {
-          progress: { ...currentProgress, aprobadas: [] }
-        });
-        setProgressStats(prev => ({ ...prev, aprobadas: 0 }));
-        showToast("Materias aprobadas eliminadas correctamente.", "success");
-      }
+      const q = query(collection(db, `users/${user.uid}/materias_aprobadas`));
+      const snap = await getDocs(q);
+      const batch = writeBatch(db);
+      snap.docs.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+      setAprobadasCount(0);
+      showToast("Materias aprobadas eliminadas", "success");
     } catch (error) {
-      console.error("Error al borrar aprobadas:", error);
-      showToast("Error al borrar las materias aprobadas.", "error");
+      showToast("Error al limpiar materias", "error");
     } finally {
       setIsProcessing(false);
       setShowConfirmDialog(null);
     }
   };
 
-  // Borrar solo las materias regularizadas
   const handleClearRegulares = async () => {
     if (!user) return;
     setIsProcessing(true);
     try {
-      const userRef = doc(db, "users", user.uid);
-      const userDoc = await getDoc(userRef);
-      if (userDoc.exists()) {
-        const currentProgress = userDoc.data().progress || { aprobadas: [], regulares: [] };
-        await updateDoc(userRef, {
-          progress: { ...currentProgress, regulares: [] }
-        });
-        setProgressStats(prev => ({ ...prev, regulares: 0 }));
-        showToast("Materias regularizadas eliminadas correctamente.", "success");
-      }
+      const q = query(collection(db, `users/${user.uid}/materias_regulares`));
+      const snap = await getDocs(q);
+      const batch = writeBatch(db);
+      snap.docs.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
+      setRegularesCount(0);
+      showToast("Materias regularizadas eliminadas", "success");
     } catch (error) {
-      console.error("Error al borrar regulares:", error);
-      showToast("Error al borrar las materias regularizadas.", "error");
+      showToast("Error al limpiar materias", "error");
     } finally {
       setIsProcessing(false);
       setShowConfirmDialog(null);
     }
   };
 
-  // Borrar todo el progreso (aprobadas + regulares)
   const handleClearAllProgress = async () => {
     if (!user) return;
     setIsProcessing(true);
     try {
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, {
-        progress: { aprobadas: [], regulares: [] }
-      });
-      setProgressStats({ aprobadas: 0, regulares: 0 });
-      showToast("Todo tu progreso fue reiniciado.", "success");
+      const batch = writeBatch(db);
+      
+      const approvedQuery = query(collection(db, `users/${user.uid}/materias_aprobadas`));
+      const regularsQuery = query(collection(db, `users/${user.uid}/materias_regulares`));
+      
+      const [approvedSnap, regularsSnap] = await Promise.all([
+        getDocs(approvedQuery),
+        getDocs(regularsQuery)
+      ]);
+
+      approvedSnap.docs.forEach((doc) => batch.delete(doc.ref));
+      regularsSnap.docs.forEach((doc) => batch.delete(doc.ref));
+      
+      await batch.commit();
+      setAprobadasCount(0);
+      setRegularesCount(0);
+      showToast("Todo el progreso ha sido reiniciado", "success");
     } catch (error) {
-      console.error("Error al borrar progreso:", error);
-      showToast("Error al reiniciar el progreso.", "error");
+      showToast("Error al reiniciar progreso", "error");
     } finally {
       setIsProcessing(false);
       setShowConfirmDialog(null);
     }
   };
 
-  // Borrar todas las calificaciones de materias
   const handleClearRatings = async () => {
     if (!user) return;
     setIsProcessing(true);
     try {
-      const userRef = doc(db, "users", user.uid);
-      await updateDoc(userRef, {
-        subjectRatings: deleteField()
-      });
+      const q = query(collection(db, "ratings"), where("userId", "==", user.uid));
+      const snap = await getDocs(q);
+      const batch = writeBatch(db);
+      snap.docs.forEach((doc) => batch.delete(doc.ref));
+      await batch.commit();
       setRatingsCount(0);
-      showToast("Tus calificaciones han sido eliminadas.", "success");
+      showToast("Calificaciones eliminadas", "success");
     } catch (error) {
-      console.error("Error al borrar calificaciones:", error);
-      showToast("Error al borrar las calificaciones.", "error");
+      showToast("Error al eliminar calificaciones", "error");
     } finally {
       setIsProcessing(false);
       setShowConfirmDialog(null);
     }
   };
 
+  const handleLogout = async () => {
+    await auth.signOut();
+    router.push("/");
+  };
+
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="w-8 h-8 border-4 border-[#8BAA91] border-t-transparent rounded-full animate-spin"></div>
+      <div className="min-h-screen bg-[#F7F5F0] bg-texture-grain flex items-center justify-center">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-12 h-12 border-4 border-zinc-900 border-t-emerald-400 rounded-full animate-spin shadow-neo"></div>
+          <p className="font-black uppercase tracking-widest text-zinc-900 italic">Cargando configuración...</p>
+        </div>
       </div>
     );
   }
 
-  if (!user) return null;
-
-  const displayName = user.displayName || user.email?.split("@")[0] || "Usuario";
+  const tabs = [
+    { id: "perfil", label: "Perfil", icon: User, color: "bg-emerald-400" },
+    { id: "seguridad", label: "Seguridad", icon: Shield, color: "bg-yellow-400" },
+    { id: "datos", label: "Mis Datos", icon: RefreshCw, color: "bg-coral" },
+    { id: "notificaciones", label: "Avisos", icon: Bell, color: "bg-sky" },
+  ];
 
   return (
-    <div className="min-h-[85vh] flex flex-col items-center p-4 relative z-10 w-full mb-20 mt-6">
-      {/* Botón volver */}
-      <div className="w-full max-w-2xl">
-        <Link
-          href="/planes"
-          className="inline-flex items-center gap-2 text-sm font-bold text-[#8BAA91] hover:text-[#6A8F70] transition-colors mb-8"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Volver
-        </Link>
-      </div>
+    <div className="min-h-screen bg-[#FDFCFB] bg-texture-grain flex flex-col font-sans text-zinc-900">
+      <Header />
 
-      <div className="w-full max-w-2xl space-y-6 animate-fade-in-up">
-        {/* Encabezado */}
-        <div className="flex items-center gap-4 mb-2">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#8BAA91] to-[#6A8F70] flex items-center justify-center text-white text-xl font-black uppercase shadow-lg">
-            {displayName.charAt(0)}
-          </div>
-          <div>
-            <h1 className="text-2xl font-extrabold text-[#3D3229] tracking-tight">Configuración</h1>
-            <p className="text-sm font-medium text-[#A89F95]">{user.email}</p>
-          </div>
-        </div>
-
-        {/* Sección: Perfil */}
-        <div className="bg-white border border-[#EDE6DD] rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 bg-[#FAFAF8] border-b border-[#EDE6DD]">
-            <div className="flex items-center gap-2">
-              <BadgeCheck className="w-4 h-4 text-[#8BAA91]" />
-              <h2 className="text-sm font-bold uppercase tracking-widest text-[#A0A0A0]">Perfil</h2>
-            </div>
-          </div>
-          <div className="p-6 space-y-5">
-            <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
-                <div className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
-                  <Shield className="w-3.5 h-3.5" /> Rol
-                </div>
-                <p className="text-sm font-bold text-[#3D3229]">{roleLabel}</p>
-                <p className="text-[12px] text-[#7A6E62] mt-1">Define qué acciones puede hacer esta cuenta dentro de la app.</p>
+      <main className="flex-grow pt-32 pb-20 px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto">
+          {/* Header Section */}
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10 mb-20 animate-fade-in">
+            <div className="max-w-3xl">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-zinc-900 text-white text-[10px] font-black uppercase tracking-[0.3em] mb-8 shadow-[4px_4px_0px_0px_rgba(52,211,153,1)] transform -rotate-1">
+                <Settings className="w-4 h-4" />
+                CENTRO DE CONFIGURACIÓN
               </div>
-              <div className="rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
-                <div className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
-                  <Sparkles className="w-3.5 h-3.5" /> Proveedor
-                </div>
-                <p className="text-sm font-bold text-[#3D3229]">{providerLabel}</p>
-                <p className="text-[12px] text-[#7A6E62] mt-1">{user.providerData[0]?.providerId === "google.com" ? "Gestionado por Google" : "Gestionado por Firebase Auth"}</p>
-              </div>
-              <div className="rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
-                <div className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
-                  <Clock3 className="w-3.5 h-3.5" /> Último acceso
-                </div>
-                <p className="text-sm font-bold text-[#3D3229]">
-                  {profileData.lastLoginAt ? new Date(profileData.lastLoginAt).toLocaleString() : "Sin datos"}
-                </p>
-                <p className="text-[12px] text-[#7A6E62] mt-1">Se actualiza cada vez que inicia sesión.</p>
-              </div>
-              <div className="rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
-                <div className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
-                  <GraduationCap className="w-3.5 h-3.5" /> Tu Carrera
-                </div>
-                <p className="text-sm font-bold text-[#3D3229]">{preferredCareer?.name || "Sin definir"}</p>
-                <p className="text-[12px] text-[#7A6E62] mt-1">Carrera a la que pertenecés.</p>
-              </div>
+              <h1 className="text-6xl md:text-9xl font-black text-zinc-900 uppercase tracking-tighter italic leading-[0.85] mb-8">
+                TU <span className="text-emerald-500 underline decoration-zinc-900 decoration-8 underline-offset-4">ESPACIO</span>
+              </h1>
+              <p className="text-zinc-600 font-black uppercase tracking-widest text-sm md:text-base border-l-8 border-emerald-400 pl-8 py-3 max-w-2xl leading-relaxed">
+                GESTIÓN INTEGRAL DE IDENTIDAD ELECTRÓNICA Y PROGRESO ACADÉMICO. <br/>
+                SEGURIDAD: <span className="text-emerald-600 bg-emerald-50 px-2 border-2 border-emerald-200">NIVEL 1 VERIFICADO</span>
+              </p>
             </div>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              <label className="block rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
-                <span className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
-                  <Building2 className="w-3.5 h-3.5" /> Tu carrera
-                </span>
-                <select
-                  className="w-full rounded-xl border border-[#EDE6DD] bg-white px-3 py-2.5 text-sm font-medium text-[#3D3229] outline-none focus:border-[#8BAA91] focus:ring-1 focus:ring-[#8BAA91]/30"
-                  value={profileData.preferredCareerId || ""}
-                  onChange={(e) => updatePreferences({ preferredCareerId: e.target.value })}
-                  disabled={isUpdatingPreferences}
-                >
-                  <option value="">Elegí una carrera</option>
-                  {careersData.filter(c => c.id !== "basicas").map((career) => (
-                    <option key={career.id} value={career.id}>{career.name}</option>
-                  ))}
-                </select>
-              </label>
-
-              <label className="block rounded-xl border border-[#EDE6DD] bg-[#FAFAF8] p-4">
-                <span className="flex items-center gap-2 text-[#A89F95] text-[11px] font-bold uppercase tracking-widest mb-2">
-                  <Bell className="w-3.5 h-3.5" /> Notificaciones
-                </span>
-                <div className="flex items-center justify-between gap-3">
-                  <div>
-                    <p className="text-sm font-bold text-[#3D3229]">{profileData.notificationsEnabled ? "Activadas" : "Desactivadas"}</p>
-                    <p className="text-[12px] text-[#7A6E62] mt-1">Recibí avisos de progreso y novedades.</p>
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => updatePreferences({ notificationsEnabled: !profileData.notificationsEnabled })}
-                    disabled={isUpdatingPreferences}
-                    className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${profileData.notificationsEnabled ? "bg-[#8BAA91]" : "bg-[#D1C7BB]"}`}
-                    aria-label="Cambiar notificaciones"
-                  >
-                    <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${profileData.notificationsEnabled ? "translate-x-6" : "translate-x-1"}`} />
-                  </button>
-                </div>
-              </label>
-            </div>
-          </div>
-        </div>
-
-        {/* Sección: Información de la cuenta */}
-        <div className="bg-white border border-[#EDE6DD] rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 bg-[#FAFAF8] border-b border-[#EDE6DD]">
-            <div className="flex items-center gap-2">
-              <User className="w-4 h-4 text-[#8BAA91]" />
-              <h2 className="text-sm font-bold uppercase tracking-widest text-[#A0A0A0]">Cuenta</h2>
-            </div>
-          </div>
-          <div className="p-6 space-y-4">
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-[#3D3229]">Nombre</p>
-                  <p className="text-[13px] text-[#7A6E62]">{displayName}</p>
-                </div>
-                <button
-                  onClick={() => { setShowNameForm(!showNameForm); setNewName(displayName); }}
-                  className="text-[12px] font-bold text-[#8BAA91] hover:text-[#6A8F70] px-3 py-1.5 rounded-lg hover:bg-[#F5F0EA] transition-all"
-                >
-                  {showNameForm ? "Cancelar" : "Cambiar"}
-                </button>
-              </div>
-
-              {/* Formulario para cambiar nombre */}
-              {showNameForm && (
-                <form onSubmit={handleChangeName} className="bg-[#FAFAF8] p-4 rounded-xl border border-[#EDE6DD] space-y-3 animate-fade-in-up">
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Pencil className="h-4 w-4 text-[#A89F95]" />
-                    </div>
-                    <input
-                      type="text"
-                      placeholder="Nuevo nombre"
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#8BAA91] focus:ring-1 focus:ring-[#8BAA91]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
-                      value={newName}
-                      onChange={(e) => setNewName(e.target.value)}
-                      required
-                      autoFocus
-                    />
-                  </div>
-                  <button
-                    type="submit"
-                    disabled={isChangingName || !newName.trim() || newName.trim() === displayName}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-[#8BAA91] hover:bg-[#6A8F70] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                  >
-                    {isChangingName ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <Save className="w-3.5 h-3.5" />
-                        Guardar nombre
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
-            </div>
-            <div className="h-[1px] bg-[#EDE6DD]" />
             
-            {/* Email - con opción de cambiar */}
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-[#3D3229]">Correo electrónico</p>
-                  <p className="text-[13px] text-[#7A6E62]">{user.email || "No disponible"}</p>
-                </div>
-                {isEmailProvider && (
-                  <button
-                    onClick={() => { setShowEmailForm(!showEmailForm); setNewEmail(""); setEmailCurrentPassword(""); }}
-                    className="text-[12px] font-bold text-[#8BAA91] hover:text-[#6A8F70] px-3 py-1.5 rounded-lg hover:bg-[#F5F0EA] transition-all"
-                  >
-                    {showEmailForm ? "Cancelar" : "Cambiar"}
-                  </button>
-                )}
+            <button
+              onClick={handleLogout}
+              className="neo-btn px-8 py-5 bg-white hover:bg-rose-50 text-rose-600 border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(194,139,139,1)] hover:shadow-[8px_8px_0px_0px_rgba(194,139,139,1)] active:shadow-none transition-all font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3"
+            >
+              <LogOut className="w-6 h-6" strokeWidth={3} />
+              CERRAR SESIÓN
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+            {/* Sidebar Navigation */}
+            <div className="lg:col-span-3 space-y-6 animate-fade-in-up delay-100">
+              <div className="bg-white border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-4">
+                <nav className="flex flex-col gap-3">
+                  {tabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveTab(tab.id)}
+                      className={`
+                        flex items-center gap-4 px-5 py-4 font-black uppercase tracking-[0.2em] text-xs transition-all duration-300 border-4
+                        ${activeTab === tab.id 
+                          ? `${tab.color} text-zinc-900 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform translate-x-2` 
+                          : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 border-transparent"
+                        }
+                      `}
+                    >
+                      <tab.icon className={`w-5 h-5 ${activeTab === tab.id ? "animate-wiggle" : ""}`} strokeWidth={3} />
+                      {tab.label}
+                    </button>
+                  ))}
+                </nav>
               </div>
 
-              {/* Formulario para cambiar email */}
-              {showEmailForm && isEmailProvider && (
-                <form onSubmit={handleChangeEmail} className="bg-[#FAFAF8] p-4 rounded-xl border border-[#EDE6DD] space-y-3 animate-fade-in-up">
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Mail className="h-4 w-4 text-[#A89F95]" />
-                    </div>
-                    <input
-                      type="email"
-                      placeholder="Nuevo correo electrónico"
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#8BAA91] focus:ring-1 focus:ring-[#8BAA91]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
-                      value={newEmail}
-                      onChange={(e) => setNewEmail(e.target.value)}
-                      required
-                    />
+              {/* Quick Info Card */}
+              <div className="bg-zinc-900 border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(52,211,153,1)] p-8 text-white transform rotate-1 relative overflow-hidden group">
+                <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl group-hover:bg-emerald-400/20 transition-all" />
+                <h3 className="font-black uppercase tracking-[0.3em] text-[10px] mb-6 text-emerald-400 italic flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4" /> ESTADO DE CUENTA
+                </h3>
+                <div className="flex items-center gap-4 mb-6">
+                  <div className="w-14 h-14 bg-emerald-400 border-4 border-white flex items-center justify-center text-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.5)]">
+                    <Award className="w-8 h-8" strokeWidth={3} />
                   </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-[#A89F95]" />
-                    </div>
-                    <input
-                      type="password"
-                      placeholder="Contraseña actual (para confirmar)"
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#8BAA91] focus:ring-1 focus:ring-[#8BAA91]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
-                      value={emailCurrentPassword}
-                      onChange={(e) => setEmailCurrentPassword(e.target.value)}
-                      required
-                    />
+                  <div>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-500 mb-1">CATEGORÍA</p>
+                    <p className="font-black uppercase italic text-lg leading-none">MIEMBRO PRO</p>
                   </div>
-                  <button
-                    type="submit"
-                    disabled={isChangingEmail || !newEmail || !emailCurrentPassword}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-[#8BAA91] hover:bg-[#6A8F70] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                  >
-                    {isChangingEmail ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <Save className="w-3.5 h-3.5" />
-                        Guardar nuevo email
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
+                </div>
+                <div className="space-y-2">
+                  <div className="h-4 bg-zinc-800 border-2 border-zinc-700 overflow-hidden shadow-inner">
+                    <div className="h-full bg-emerald-400 border-r-2 border-zinc-900 transition-all duration-1000" style={{ width: "85%" }}></div>
+                  </div>
+                  <p className="text-[9px] text-zinc-500 font-black uppercase tracking-widest text-right">85% COMPLETADO / NIVEL 2</p>
+                </div>
+              </div>
             </div>
 
-            <div className="h-[1px] bg-[#EDE6DD]" />
-
-            {/* Contraseña - con opción de cambiar */}
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-bold text-[#3D3229]">Contraseña</p>
-                  <p className="text-[13px] text-[#7A6E62]">••••••••</p>
+            {/* Main Content Area */}
+            <div className="lg:col-span-9 animate-fade-in-up delay-200">
+              <div className="bg-white border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-h-[700px]">
+                {/* Content Header */}
+                <div className="border-b-4 border-zinc-900 bg-zinc-50 p-8 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className={`w-16 h-16 flex items-center justify-center border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${tabs.find(t => t.id === activeTab)?.color}`}>
+                      {(() => {
+                        const Icon = tabs.find(t => t.id === activeTab)?.icon || User;
+                        return <Icon className="w-8 h-8 text-zinc-900" strokeWidth={3} /> ;
+                      })()}
+                    </div>
+                    <div>
+                      <h2 className="text-3xl md:text-4xl font-black uppercase italic text-zinc-900 leading-none mb-2 tracking-tighter">
+                        {tabs.find(t => t.id === activeTab)?.label}
+                      </h2>
+                      <div className="flex items-center gap-2">
+                        <span className="w-3 h-3 bg-zinc-900" />
+                        <p className="text-[10px] font-black text-zinc-500 uppercase tracking-[0.3em]">MÓDULO DE AJUSTES TÉCNICOS</p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
-                {isEmailProvider ? (
-                  <button
-                    onClick={() => { setShowPasswordForm(!showPasswordForm); setCurrentPassword(""); setNewPassword(""); setConfirmNewPassword(""); }}
-                    className="text-[12px] font-bold text-[#8BAA91] hover:text-[#6A8F70] px-3 py-1.5 rounded-lg hover:bg-[#F5F0EA] transition-all"
-                  >
-                    {showPasswordForm ? "Cancelar" : "Cambiar"}
-                  </button>
-                ) : (
-                  <button
-                    onClick={handleSendPasswordReset}
-                    disabled={isSendingReset}
-                    className="text-[12px] font-bold text-[#8BAA91] hover:text-[#6A8F70] px-3 py-1.5 rounded-lg hover:bg-[#F5F0EA] transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {isSendingReset ? "Enviando..." : "Cambiar / Establecer"}
-                  </button>
-                )}
-              </div>
 
-              {/* Formulario para cambiar contraseña */}
-              {showPasswordForm && isEmailProvider && (
-                <form onSubmit={handleChangePassword} className="bg-[#FAFAF8] p-4 rounded-xl border border-[#EDE6DD] space-y-3 animate-fade-in-up">
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-[#A89F95]" />
+                {/* Tab Content */}
+                <div className="p-8 md:p-12 lg:p-16">
+                  {activeTab === "perfil" && (
+                    <div className="max-w-3xl space-y-12">
+                      {/* Avatar Upload */}
+                      <div className="flex flex-col md:flex-row items-center gap-10 p-8 border-4 border-dashed border-zinc-200 bg-zinc-50/50">
+                        <div className="relative group">
+                          <div className="w-40 h-40 bg-white border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden transform transition-all group-hover:-translate-y-1 group-hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)]">
+                            {photoURL ? (
+                              <img src={photoURL} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-zinc-200">
+                                <User className="w-20 h-20" strokeWidth={3} />
+                              </div>
+                            )}
+                          </div>
+                          <button className="absolute -bottom-4 -right-4 p-4 bg-yellow-400 border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:scale-110 transition-transform active:scale-95">
+                            <Camera className="w-6 h-6 text-zinc-900" strokeWidth={3} />
+                          </button>
+                        </div>
+                        <div className="flex-1 text-center md:text-left space-y-4">
+                          <h3 className="text-2xl font-black uppercase italic text-zinc-900 leading-none">IDENTIDAD VISUAL</h3>
+                          <p className="text-zinc-500 font-bold text-xs uppercase tracking-widest leading-relaxed max-w-sm">
+                            ESTA IMAGEN SERÁ TU AVATAR PÚBLICO EN LA COMUNIDAD DE ESTUDIANTES.
+                          </p>
+                          <div className="flex flex-wrap justify-center md:justify-start gap-3 pt-2">
+                            <button className="px-5 py-3 border-4 border-zinc-900 bg-white text-[10px] font-black uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1 active:translate-y-1">
+                              SUBIR ARCHIVO
+                            </button>
+                            <button className="px-5 py-3 border-4 border-zinc-900 bg-white text-[10px] font-black uppercase tracking-widest text-rose-600 hover:bg-rose-600 hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(225,29,72,0.2)] active:shadow-none active:translate-x-1 active:translate-y-1">
+                              ELIMINAR
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-10">
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-zinc-900" /> NOMBRE DE USUARIO
+                          </label>
+                          <div className="relative group">
+                            <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-zinc-400 group-focus-within:text-emerald-500 transition-colors">
+                              <User className="w-6 h-6" strokeWidth={3} />
+                            </div>
+                            <input
+                              type="text"
+                              value={displayName}
+                              onChange={(e) => setDisplayName(e.target.value)}
+                              className="w-full pl-16 pr-6 py-5 bg-white border-4 border-zinc-900 text-zinc-900 font-black uppercase tracking-widest text-sm placeholder:text-zinc-300 focus:outline-none focus:bg-zinc-50 focus:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)] transition-all"
+                              placeholder="ESCRIBE TU NOMBRE..."
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900 flex items-center gap-2">
+                            <span className="w-2 h-2 bg-zinc-900" /> BIO / DESCRIPCIÓN ACADÉMICA
+                          </label>
+                          <textarea
+                            value={bio}
+                            onChange={(e) => setBio(e.target.value)}
+                            rows={4}
+                            maxLength={160}
+                            className="w-full px-6 py-5 bg-white border-4 border-zinc-900 text-zinc-900 font-bold text-sm placeholder:text-zinc-300 focus:outline-none focus:bg-zinc-50 focus:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)] transition-all resize-none"
+                            placeholder="CUÉNTANOS SOBRE TUS OBJETIVOS..."
+                          />
+                          <div className="flex justify-between items-center px-1">
+                             <p className="text-[9px] text-zinc-400 font-black uppercase tracking-widest italic leading-none">LA INFO SE MOSTRARÁ EN TU PERFIL</p>
+                             <p className="text-[10px] text-zinc-900 font-black uppercase tracking-tighter bg-zinc-100 px-2 py-0.5 border-2 border-zinc-900">{bio.length}/160</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-8 border-t-4 border-zinc-100">
+                        <button
+                          onClick={handleUpdateProfile}
+                          disabled={saving}
+                          className="neo-btn-primary w-full md:w-auto min-w-[280px] py-5 text-sm"
+                        >
+                          {saving ? (
+                            <RefreshCw className="w-6 h-6 animate-spin mx-auto" strokeWidth={3} />
+                          ) : (
+                            <div className="flex items-center justify-center gap-3">
+                              <Save className="w-6 h-6" strokeWidth={3} />
+                              GUARDAR CAMBIOS
+                            </div>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <input
-                      type={showCurrentPass ? "text" : "password"}
-                      placeholder="Contraseña actual"
-                      className="w-full pl-9 pr-10 py-2.5 bg-white border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#8BAA91] focus:ring-1 focus:ring-[#8BAA91]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
-                      value={currentPassword}
-                      onChange={(e) => setCurrentPassword(e.target.value)}
-                      required
-                    />
-                    <button type="button" onClick={() => setShowCurrentPass(!showCurrentPass)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#A89F95] hover:text-[#7A6E62] transition-colors">
-                      {showCurrentPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-[#A89F95]" />
-                    </div>
-                    <input
-                      type={showNewPass ? "text" : "password"}
-                      placeholder="Nueva contraseña (mín. 6 caracteres)"
-                      className="w-full pl-9 pr-10 py-2.5 bg-white border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#8BAA91] focus:ring-1 focus:ring-[#8BAA91]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      required
-                      minLength={6}
-                    />
-                    <button type="button" onClick={() => setShowNewPass(!showNewPass)} className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#A89F95] hover:text-[#7A6E62] transition-colors">
-                      {showNewPass ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Lock className="h-4 w-4 text-[#A89F95]" />
-                    </div>
-                    <input
-                      type={showNewPass ? "text" : "password"}
-                      placeholder="Confirmar nueva contraseña"
-                      className="w-full pl-9 pr-4 py-2.5 bg-white border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#8BAA91] focus:ring-1 focus:ring-[#8BAA91]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
-                      value={confirmNewPassword}
-                      onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      required
-                      minLength={6}
-                    />
-                  </div>
-                  {newPassword && confirmNewPassword && newPassword !== confirmNewPassword && (
-                    <p className="text-[11px] font-bold text-[#E57A7A] pl-1">Las contraseñas no coinciden.</p>
                   )}
-                  <button
-                    type="submit"
-                    disabled={isChangingPassword || !currentPassword || !newPassword || !confirmNewPassword || newPassword !== confirmNewPassword}
-                    className="flex items-center justify-center gap-2 w-full px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-[#8BAA91] hover:bg-[#6A8F70] transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
-                  >
-                    {isChangingPassword ? (
-                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    ) : (
-                      <>
-                        <Save className="w-3.5 h-3.5" />
-                        Guardar nueva contraseña
-                      </>
-                    )}
-                  </button>
-                </form>
-              )}
-            </div>
 
-            <div className="h-[1px] bg-[#EDE6DD]" />
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-bold text-[#3D3229]">Proveedor de inicio de sesión</p>
-                <p className="text-[13px] text-[#7A6E62]">
-                  {user.providerData[0]?.providerId === "google.com" ? "Google" : "Email/Contraseña"}
-                </p>
+                  {activeTab === "seguridad" && (
+                    <div className="max-w-3xl space-y-12">
+                      <div className="space-y-8">
+                        <div className="flex items-center gap-4 mb-8">
+                          <div className="w-14 h-14 bg-yellow-400 border-4 border-zinc-900 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
+                            <Lock className="w-8 h-8 text-zinc-900" strokeWidth={3} />
+                          </div>
+                          <div>
+                            <h3 className="text-2xl font-black uppercase italic text-zinc-900 leading-none mb-1">AUTENTICACIÓN</h3>
+                            <p className="text-[10px] font-black text-zinc-400 uppercase tracking-widest">SISTEMA DE ACCESO SEGURO</p>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                          <div className="p-8 border-4 border-zinc-900 bg-zinc-50 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.05)] relative overflow-hidden group hover:bg-white transition-colors">
+                            <div className="absolute -top-6 -right-6 p-4 opacity-5 transform group-hover:scale-110 group-hover:-rotate-12 transition-all">
+                              <Mail className="w-32 h-32 text-zinc-900" />
+                            </div>
+                            <div className="relative z-10 space-y-6">
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">CANAL PRIMARIO</p>
+                                <p className="text-base font-black text-zinc-900 break-all">{user?.email}</p>
+                              </div>
+                              <button className="w-full px-5 py-4 bg-white border-4 border-zinc-900 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1 active:translate-y-1">
+                                CAMBIAR EMAIL
+                              </button>
+                            </div>
+                          </div>
+
+                          <div className="p-8 border-4 border-zinc-900 bg-zinc-50 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.05)] relative overflow-hidden group hover:bg-white transition-colors">
+                            <div className="absolute -top-6 -right-6 p-4 opacity-5 transform group-hover:scale-110 group-hover:-rotate-12 transition-all">
+                              <Shield className="w-32 h-32 text-zinc-900" />
+                            </div>
+                            <div className="relative z-10 space-y-6">
+                              <div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-400 mb-2">CLAVE DE ACCESO</p>
+                                <p className="text-xl font-black text-zinc-900 tracking-[0.5em]">••••••••</p>
+                              </div>
+                              <button className="w-full px-5 py-4 bg-white border-4 border-zinc-900 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-900 hover:text-white transition-all shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] active:shadow-none active:translate-x-1 active:translate-y-1">
+                                ACTUALIZAR PASS
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-12 border-t-4 border-zinc-100">
+                        <div className="p-10 bg-rose-50 border-4 border-rose-600 shadow-[10px_10px_0px_0px_rgba(225,29,72,1)] relative overflow-hidden group">
+                           {/* Danger texture */}
+                           <div className="absolute inset-0 opacity-[0.03] pointer-events-none group-hover:opacity-[0.05] transition-opacity bg-[radial-gradient(#e11d48_2px,transparent_2px)] [background-size:20px_20px]" />
+                           
+                          <div className="flex flex-col md:flex-row items-start md:items-center gap-6 mb-8 relative z-10">
+                            <div className="w-16 h-16 bg-rose-600 border-4 border-zinc-900 flex items-center justify-center text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] transform -rotate-3">
+                              <AlertTriangle className="w-10 h-10" strokeWidth={3} />
+                            </div>
+                            <div>
+                              <h4 className="text-2xl font-black uppercase italic text-rose-600 leading-none mb-1">PROTOCOLO DE BAJA</h4>
+                              <p className="text-[10px] font-black text-rose-600/70 uppercase tracking-widest">ESTA ACCIÓN ES TOTALMENTE IRREVERSIBLE</p>
+                            </div>
+                          </div>
+                          
+                          <p className="text-sm text-rose-600/80 font-bold mb-10 leading-relaxed max-w-2xl relative z-10">
+                            AL ELIMINAR TU CUENTA, SE BORRARÁ DE FORMA PERMANENTE TODO TU HISTORIAL DE MATERIAS, NOTAS COMPARTIDAS, REPUTACIÓN Y CONFIGURACIONES PERSONALIZADAS. NO PODRÁS RECUPERAR NADA.
+                          </p>
+                          
+                          <button className="w-full md:w-auto px-10 py-5 bg-rose-600 text-white border-4 border-zinc-900 font-black uppercase tracking-[0.2em] text-xs shadow-[6px_6px_0px_0px_rgba(24,24,27,1)] hover:shadow-[10px_10px_0px_0px_rgba(24,24,27,1)] hover:-translate-y-1 active:translate-y-1 active:shadow-none transition-all relative z-10">
+                            ELIMINAR MI CUENTA DEFINITIVAMENTE
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === "datos" && (
+                    <div className="max-w-4xl space-y-12">
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                        <div className="bg-emerald-400 p-8 border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform -rotate-1 relative overflow-hidden group hover:rotate-0 transition-transform">
+                          <BookOpen className="w-20 h-20 text-zinc-900/10 absolute -bottom-6 -right-6 transform group-hover:scale-125 transition-transform" />
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-900/60 mb-2">APROBADAS</p>
+                          <p className="text-6xl font-black text-zinc-900 italic leading-none">{aprobadasCount}</p>
+                        </div>
+                        <div className="bg-yellow-400 p-8 border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative overflow-hidden group hover:-translate-y-1 transition-all">
+                          <Award className="w-20 h-20 text-zinc-900/10 absolute -bottom-6 -right-6 transform group-hover:scale-125 transition-transform" />
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-900/60 mb-2">REGULARES</p>
+                          <p className="text-6xl font-black text-zinc-900 italic leading-none">{regularesCount}</p>
+                        </div>
+                        <div className="bg-coral p-8 border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] transform rotate-1 relative overflow-hidden group hover:rotate-0 transition-transform">
+                          <Star className="w-20 h-20 text-zinc-900/10 absolute -bottom-6 -right-6 transform group-hover:scale-125 transition-transform" />
+                          <p className="text-[10px] font-black uppercase tracking-[0.2em] text-zinc-900/60 mb-2">RATINGS</p>
+                          <p className="text-6xl font-black text-zinc-900 italic leading-none">{ratingsCount}</p>
+                        </div>
+                      </div>
+
+                      <div className="space-y-8 pt-8">
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="w-12 h-12 bg-zinc-900 text-white flex items-center justify-center border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(52,211,153,1)]">
+                            <RefreshCw className="w-6 h-6" strokeWidth={3} />
+                          </div>
+                          <h3 className="text-2xl font-black uppercase italic text-zinc-900 leading-none">MANTENIMIENTO DE DATOS</h3>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {[
+                            { id: "aprobadas", label: "REINICIAR MATERIAS APROBADAS", icon: BookOpen, count: aprobadasCount, color: "hover:bg-emerald-50", accent: "bg-emerald-400" },
+                            { id: "regulares", label: "REINICIAR MATERIAS REGULARES", icon: Award, count: regularesCount, color: "hover:bg-yellow-50", accent: "bg-yellow-400" },
+                            { id: "ratings", label: "ELIMINAR MIS CALIFICACIONES", icon: Star, count: ratingsCount, color: "hover:bg-coral-light", accent: "bg-coral" },
+                            { id: "todo", label: "REINICIAR TODO EL PROGRESO", icon: Trash2, count: null, color: "hover:bg-rose-50", text: "text-rose-600", accent: "bg-rose-600" }
+                          ].map((action) => (
+                            <button
+                              key={action.id}
+                              onClick={() => setShowConfirmDialog(action.id)}
+                              className={`w-full group flex flex-col gap-6 p-8 bg-white border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] transition-all duration-300 hover:-translate-y-2 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] ${action.color} text-left`}
+                            >
+                              <div className="flex items-center justify-between w-full">
+                                <div className={`w-14 h-14 flex items-center justify-center border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${action.accent} transition-transform group-hover:rotate-6`}>
+                                  <action.icon className={`w-7 h-7 ${action.id === 'todo' ? 'text-white' : 'text-zinc-900'}`} strokeWidth={3} />
+                                </div>
+                                <ChevronRight className="w-8 h-8 text-zinc-300 group-hover:text-zinc-900 transition-colors group-hover:translate-x-2" strokeWidth={3} />
+                              </div>
+                              <div>
+                                <p className={`font-black uppercase tracking-[0.1em] text-base leading-tight mb-2 ${action.text || "text-zinc-900"}`}>{action.label}</p>
+                                {action.count !== null && (
+                                  <div className="flex items-center gap-2">
+                                    <span className="w-2 h-2 bg-zinc-900 rounded-full" />
+                                    <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">{action.count} REGISTROS ACTIVOS</p>
+                                  </div>
+                                )}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {activeTab === "notificaciones" && (
+                    <div className="max-w-3xl space-y-12">
+                      <div className="p-10 border-4 border-zinc-900 bg-sky-light shadow-[10px_10px_0px_0px_rgba(186,230,253,1)] relative overflow-hidden">
+                        <div className="absolute -top-10 -right-10 w-40 h-40 bg-sky/20 rounded-full blur-3xl" />
+                        <div className="flex items-center gap-6 mb-10 relative z-10">
+                          <div className="w-16 h-16 bg-sky border-4 border-zinc-900 flex items-center justify-center text-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform rotate-3">
+                            <Bell className="w-8 h-8" strokeWidth={3} />
+                          </div>
+                          <div>
+                            <h3 className="text-3xl font-black uppercase italic text-zinc-900 leading-none mb-1 tracking-tighter">PREFERENCIAS DE AVISO</h3>
+                            <p className="text-[10px] font-black text-zinc-500 uppercase tracking-widest">CENTRO DE NOTIFICACIONES HUB</p>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4 relative z-10">
+                          {[
+                            { label: "Nuevas notas de mi carrera", desc: "TE AVISAMOS CUANDO ALGUIEN SUBE UN RESUMEN NUEVO." },
+                            { label: "Comentarios en mis notas", desc: "RECIBE UN AVISO CUANDO ALGUIEN AGRADEZCA TU APORTE." },
+                            { label: "Recordatorios de examen", desc: "ALERTAS 48HS ANTES DE LAS FECHAS DE FINALES." }
+                          ].map((item, i) => (
+                            <div key={i} className="flex items-center justify-between p-6 bg-white border-4 border-zinc-900 group hover:bg-zinc-50 transition-colors">
+                              <div className="pr-6">
+                                <p className="font-black uppercase tracking-widest text-sm text-zinc-900 mb-2 leading-none">{item.label}</p>
+                                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest italic">{item.desc}</p>
+                              </div>
+                              <div className="relative inline-block w-16 h-8 transition duration-200 ease-in">
+                                <input type="checkbox" id={`toggle-${i}`} className="opacity-0 w-0 h-0 peer" defaultChecked />
+                                <label htmlFor={`toggle-${i}`} className="absolute cursor-pointer inset-0 bg-zinc-200 border-4 border-zinc-900 peer-checked:bg-emerald-400 transition-all shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+                                  <span className="absolute left-1.5 top-1.5 w-3 h-3 bg-zinc-900 transition-transform peer-checked:translate-x-8"></span>
+                                </label>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      <div className="p-10 border-4 border-zinc-900 bg-zinc-900 text-white shadow-[10px_10px_0px_0px_rgba(52,211,153,1)] relative overflow-hidden group">
+                        <div className="absolute top-0 left-0 w-full h-full opacity-10 bg-[url('/noise.png')] pointer-events-none" />
+                        <h4 className="font-black uppercase tracking-[0.3em] text-base mb-4 text-emerald-400 italic flex items-center gap-3">
+                          <Smartphone className="w-6 h-6" /> MODO ESTUDIO INTENSO
+                        </h4>
+                        <p className="text-sm font-bold text-zinc-400 mb-8 leading-relaxed max-w-xl">
+                          ¿NECESITAS CONCENTRACIÓN TOTAL? SILENCIA TODAS LAS ALERTAS DEL SISTEMA POR UN TIEMPO DETERMINADO. TUS NOTIFICACIONES SE ACUMULARÁN PARA CUANDO TERMINES.
+                        </p>
+                        <button className="neo-btn px-8 py-4 bg-white text-zinc-900 hover:bg-emerald-400 hover:text-zinc-900 transition-all font-black uppercase tracking-widest text-xs border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(255,255,255,0.2)] hover:shadow-[8px_8px_0px_0px_rgba(52,211,153,1)]">
+                          PAUSAR TODO POR 24 HORAS
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
-              <Shield className="w-4 h-4 text-[#8BAA91]" />
             </div>
-            {!isEmailProvider && (
-              <div className="bg-[#F5F0EA] p-3 rounded-xl border border-[#EDE6DD]">
-                <p className="text-[12px] text-[#7A6E62] leading-relaxed">
-                  Iniciaste sesión con <strong>Google</strong>. El email y la contraseña se administran desde tu cuenta de Google.
-                </p>
-              </div>
-            )}
           </div>
         </div>
+      </main>
 
-        {/* Sección: Progreso académico */}
-        <div className="bg-white border border-[#EDE6DD] rounded-2xl overflow-hidden shadow-sm">
-          <div className="px-6 py-4 bg-[#FAFAF8] border-b border-[#EDE6DD]">
-            <div className="flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-[#8BAA91]" />
-              <h2 className="text-sm font-bold uppercase tracking-widest text-[#A0A0A0]">Progreso académico</h2>
-            </div>
-          </div>
-          <div className="p-6 space-y-5">
-            {/* Resumen del progreso */}
-            <div className="flex flex-wrap gap-3">
-              <div className="flex items-center gap-2 bg-[#E8F5E9] text-[#388E3C] px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm border border-[#388E3C]/20">
-                <CheckCircle2 className="w-4 h-4" />
-                {progressStats.aprobadas} aprobada{progressStats.aprobadas !== 1 ? "s" : ""}
-              </div>
-              <div className="flex items-center gap-2 bg-[#FFF3E0] text-[#E65100] px-4 py-2.5 rounded-xl text-sm font-bold shadow-sm border border-[#E65100]/20">
-                <AlertTriangle className="w-4 h-4" />
-                {progressStats.regulares} regularizada{progressStats.regulares !== 1 ? "s" : ""}
-              </div>
-            </div>
-
-            <div className="h-[1px] bg-[#EDE6DD]" />
-
-            {/* Borrar aprobadas */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-bold text-[#3D3229]">Borrar aprobadas</p>
-                <p className="text-[12px] text-[#A89F95]">Elimina solo las materias marcadas como aprobadas.</p>
-              </div>
-              <button
-                onClick={() => setShowConfirmDialog("aprobadas")}
-                disabled={progressStats.aprobadas === 0}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-[#E57A7A] bg-[#FEF5F5] border border-[#F5E5E5] hover:bg-[#FCECEC] transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Borrar aprobadas
-              </button>
-            </div>
-
-            <div className="h-[1px] bg-[#EDE6DD]" />
-
-            {/* Borrar regulares */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <div>
-                <p className="text-sm font-bold text-[#3D3229]">Borrar regularizadas</p>
-                <p className="text-[12px] text-[#A89F95]">Elimina solo las materias marcadas como regularizadas.</p>
-              </div>
-              <button
-                onClick={() => setShowConfirmDialog("regulares")}
-                disabled={progressStats.regulares === 0}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-[#E57A7A] bg-[#FEF5F5] border border-[#F5E5E5] hover:bg-[#FCECEC] transition-all active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Borrar regularizadas
-              </button>
-            </div>
-
-            <div className="h-[1px] bg-[#EDE6DD]" />
-
-            {/* Borrar todo el progreso */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[#FFF5F5] border border-[#F5E5E5] transition-all hover:border-[#F2D5D5] group">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Trash2 className="w-4 h-4 text-[#C55A5A]" />
-                  <h4 className="text-[14px] font-bold text-[#C55A5A]">Reiniciar todo el progreso</h4>
-                </div>
-                <p className="text-[12px] text-[#D4856A]">Borra tanto aprobadas como regularizadas. Esta acción no se puede deshacer.</p>
-              </div>
-              <button
-                onClick={() => setShowConfirmDialog("todo")}
-                disabled={progressStats.aprobadas === 0 && progressStats.regulares === 0}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white bg-[#E57A7A] hover:bg-[#D46A6A] border border-[#C55A5A] transition-all active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Borrar todo el progreso
-              </button>
-            </div>
-
-            {/* Borrar Calificaciones */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[#FFF8F5] border border-[#FFEBE5] transition-all hover:border-[#FFD5CC] group">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-[#D4856A]" />
-                  <h4 className="text-[14px] font-bold text-[#3D3229]">Borrar calificaciones</h4>
-                </div>
-                <p className="text-[12px] text-[#D4856A]">Elimina las {ratingsCount} materias que calificaste. Los promedios globales no se verán afectados.</p>
-              </div>
-              <button
-                onClick={() => setShowConfirmDialog("ratings")}
-                disabled={ratingsCount === 0}
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white bg-[#E57A7A] hover:bg-[#D46A6A] border border-[#C55A5A] transition-all active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-                Borrar {ratingsCount} {ratingsCount === 1 ? 'calificación' : 'calificaciones'}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Diálogo de confirmación */}
-      {showConfirmDialog && (
+      {/* Confirmation Dialogs - Neo-Brutalist Extreme Version */}
+      {showConfirmDialog && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <div
-            className="fixed inset-0 bg-black/30 transition-opacity"
+            className="fixed inset-0 bg-zinc-900/80 backdrop-blur-md transition-opacity animate-fade-in"
             onClick={() => !isProcessing && setShowConfirmDialog(null)}
           />
-          <div className="relative bg-white rounded-2xl border border-[#EDE6DD] shadow-2xl max-w-sm w-full p-6 animate-fade-in-up z-10">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="w-10 h-10 rounded-xl bg-[#FEF5F5] flex items-center justify-center">
-                <AlertTriangle className="w-5 h-5 text-[#E57A7A]" />
+          <div className="relative bg-white border-4 border-zinc-900 shadow-[16px_16px_0px_0px_rgba(0,0,0,1)] max-w-lg w-full p-10 animate-fade-in-scale z-10">
+            {/* Header decor */}
+            <div className="absolute -top-6 -left-6 w-12 h-12 bg-rose-500 border-4 border-zinc-900 rotate-12" />
+            
+            <div className="flex items-center gap-6 mb-8">
+              <div className="w-20 h-20 bg-rose-500 border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center text-zinc-900 transform -rotate-6">
+                <AlertTriangle className="w-12 h-12" strokeWidth={3} />
               </div>
-              <h3 className="text-lg font-bold text-[#3D3229]">¿Estás seguro?</h3>
+              <div>
+                <h3 className="text-4xl font-black uppercase italic text-zinc-900 leading-[0.8] mb-2 tracking-tighter">¡ALERTA!</h3>
+                <p className="text-[12px] font-black uppercase tracking-[0.3em] text-rose-500">ACCESOS RESTRINGIDOS REQUERIDOS</p>
+              </div>
             </div>
 
-            <p className="text-sm text-[#7A6E62] mb-6 leading-relaxed">
-              {showConfirmDialog === "aprobadas" && (
-                <>Vas a eliminar todas las materias marcadas como <strong className="text-[#388E3C]">aprobadas</strong>. Esta acción no se puede deshacer.</>
-              )}
-              {showConfirmDialog === "regulares" && (
-                <>Vas a eliminar todas las materias marcadas como <strong className="text-[#E65100]">regularizadas</strong>. Esta acción no se puede deshacer.</>
-              )}
-              {showConfirmDialog === "todo" && (
-                <>Vas a <strong className="text-[#C55A5A]">reiniciar todo tu progreso</strong> (aprobadas y regularizadas). Esta acción no se puede deshacer.</>
-              )}
-              {showConfirmDialog === "ratings" && (
-                <>Vas a eliminar las <strong className="text-[#D4856A]">{ratingsCount} calificaciones</strong> que hiciste en las materias. Esta acción no se puede deshacer.</>
-              )}
-            </p>
+            <div className="p-6 bg-zinc-900 text-white border-4 border-zinc-900 mb-10 transform rotate-1 shadow-[4px_4px_0px_0px_rgba(225,29,72,1)]">
+              <p className="text-base font-black leading-relaxed italic uppercase tracking-tighter">
+                {showConfirmDialog === "aprobadas" && (
+                  <>VAS A ELIMINAR TODAS LAS MATERIAS MARCADAS COMO <span className="bg-emerald-400 text-zinc-900 px-2 py-0.5 ml-1">APROBADAS</span>.</>
+                )}
+                {showConfirmDialog === "regulares" && (
+                  <>VAS A ELIMINAR TODAS LAS MATERIAS MARCADAS COMO <span className="bg-yellow-400 text-zinc-900 px-2 py-0.5 ml-1">REGULARES</span>.</>
+                )}
+                {showConfirmDialog === "todo" && (
+                  <>VAS A <span className="bg-rose-500 text-white px-2 py-0.5 ml-1">WIPEAR</span> TODO TU PROGRESO ACADÉMICO DEL SISTEMA.</>
+                )}
+                {showConfirmDialog === "ratings" && (
+                  <>VAS A ELIMINAR LAS <span className="bg-coral text-zinc-900 px-2 py-0.5 mx-1">{ratingsCount} CALIFICACIONES</span> REALIZADAS.</>
+                )}
+              </p>
+            </div>
 
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-6">
               <button
                 onClick={() => setShowConfirmDialog(null)}
                 disabled={isProcessing}
-                className="flex-1 px-4 py-2.5 rounded-xl text-sm font-bold text-[#7A6E62] border border-[#EDE6DD] hover:bg-[#F5F0EA] transition-all disabled:opacity-50"
+                className="flex-1 neo-btn px-8 py-5 bg-white hover:bg-zinc-50 border-4 border-zinc-900 font-black uppercase tracking-widest text-xs shadow-[6px_6px_0px_0px_rgba(0,0,0,0.1)] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,0.2)] transition-all disabled:opacity-50"
               >
-                Cancelar
+                ABORTAR ACCIÓN
               </button>
               <button
                 onClick={() => {
@@ -848,21 +682,23 @@ export default function ConfiguracionPage() {
                   else if (showConfirmDialog === "ratings") handleClearRatings();
                 }}
                 disabled={isProcessing}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-[#E57A7A] hover:bg-[#D46A6A] transition-all disabled:opacity-70 shadow-sm"
+                className="flex-1 neo-btn px-8 py-5 bg-rose-600 text-white hover:bg-rose-500 border-4 border-zinc-900 font-black uppercase tracking-widest text-xs shadow-[6px_6px_0px_0px_rgba(24,24,27,1)] hover:shadow-[10px_10px_0px_0px_rgba(24,24,27,1)] transition-all disabled:opacity-70"
               >
                 {isProcessing ? (
-                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <RefreshCw className="w-6 h-6 animate-spin mx-auto" strokeWidth={3} />
                 ) : (
-                  <>
-                    <Trash2 className="w-3.5 h-3.5" />
-                    Confirmar
-                  </>
+                  <div className="flex items-center justify-center gap-3">
+                    <Trash2 className="w-5 h-5" strokeWidth={3} />
+                    CONFIRMAR BORRADO
+                  </div>
                 )}
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
+
   );
 }

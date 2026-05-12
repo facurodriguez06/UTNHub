@@ -112,19 +112,19 @@ export function BulkDownloadButton({ notes, label = "Descargar todo", compact = 
       onClick={handleDownload}
       disabled={downloading}
       title={label}
-      className={`inline-flex items-center justify-center transition-all duration-300 active:scale-95 rounded-lg border group/btn
-        ${compact ? "px-2.5 py-1.5 text-[11px] font-bold gap-1.5" : "px-3 py-2 text-sm font-semibold gap-2"}
+      className={`inline-flex items-center justify-center transition-all duration-200 active:scale-95 group/btn
+        ${compact ? "px-2.5 py-1.5 text-[11px] font-black gap-1.5 border-2" : "px-4 py-2.5 text-sm font-black gap-2 border-[3px] uppercase tracking-wider"}
         ${downloading
-          ? "bg-[var(--sage-light)] text-[var(--sage-text)] border-[var(--sage-light)] opacity-70 cursor-not-allowed"
+          ? "bg-emerald-100 text-emerald-700 border-emerald-600 opacity-70 cursor-not-allowed"
           : (compact && customHex)
-            ? "text-[color:var(--dynamic-color)] bg-[color:var(--dynamic-bg)] border-[color:var(--dynamic-border)] hover:bg-[color:var(--dynamic-hover)] hover:border-[color:var(--dynamic-color)] hover:-translate-y-0.5 hover:shadow-[0_4px_12px_rgba(0,0,0,0.08)]"
-            : "bg-gradient-to-b from-[var(--bg-card)] to-[var(--bg-warm)] shadow-sm text-[var(--text-secondary)] border-[var(--border-soft)] hover:from-[var(--bg-cream)] hover:to-[var(--bg-warm)] hover:border-[var(--text-muted)] hover:text-[var(--text-primary)] hover:-translate-y-0.5 hover:shadow-md"}
+            ? "text-[color:var(--dynamic-color)] bg-[color:var(--dynamic-bg)] border-[color:var(--dynamic-border)] hover:bg-[color:var(--dynamic-hover)] hover:border-[color:var(--dynamic-color)] hover:-translate-y-0.5 shadow-[2px_2px_0px_0px_rgba(24,24,27,1)] hover:shadow-[3px_3px_0px_0px_rgba(16,185,129,1)]"
+            : "bg-white text-zinc-900 border-zinc-900 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_rgba(16,185,129,1)]"}
       `}
       style={compact && customHex && !downloading ? {
         "--dynamic-color": customHex,
-        "--dynamic-bg": `${customHex}` + "1A", // 10% opacity in hex
-        "--dynamic-border": `${customHex}` + "40", // 25% opacity
-        "--dynamic-hover": `${customHex}` + "26" // 15% opacity
+        "--dynamic-bg": `${customHex}` + "1A",
+        "--dynamic-border": `${customHex}` + "40",
+        "--dynamic-hover": `${customHex}` + "26"
       } as React.CSSProperties : undefined}
     >
       <Download className={`${compact ? "w-3.5 h-3.5" : "w-4 h-4"} ${downloading ? "animate-pulse" : "group-hover/btn:scale-110 transition-transform"}`} />     

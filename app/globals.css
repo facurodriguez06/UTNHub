@@ -1,19 +1,18 @@
 @import "tailwindcss";
 
 :root {
-  --bg-warm: #FFFBF7;
+  --bg-warm: #F7F5F0;
   --bg-card: #FFFFFF;
-  --bg-cream: #F5F0EA;
-  --sage-text: #4A7A52;
-  --text-primary: #3D3229;
-  --text-secondary: #7A6E62;
-  --text-muted: #A89F95;
-  --font-geist-sans: "Segoe UI";
-  --font-geist-mono: "Consolas";
-  --border-soft: #EDE6DD;
-  --sage: #8BAA91;
-  --sage-light: #E8F0EA;
-  --sage-dark: #6B8A72;
+  --bg-cream: #F0EEE7;
+  --text-primary: #18181B;
+  --text-secondary: #52525B;
+  --text-muted: #A1A1AA;
+  --font-sans-var: var(--font-jakarta);
+  --font-serif-var: var(--font-playfair);
+  --border-soft: #E4E4E7;
+  --sage: #10B981;
+  --sage-light: #D1FAE5;
+  --sage-dark: #059669;
   --coral: #D4856A;
   --coral-light: #FAEAE4;
   --lavender: #9B8BBF;
@@ -33,34 +32,57 @@
 @theme inline {
   --color-background: var(--bg-warm);
   --color-foreground: var(--text-primary);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-sans-var), system-ui, sans-serif;
+  --font-serif: var(--font-serif-var), Georgia, serif;
+  
+  /* Neo-Brutalist Shadow Tokens */
+  --shadow-neo: 4px 4px 0px 0px #18181B;
+  --shadow-neo-xl: 8px 8px 0px 0px #18181B;
 }
 
-/* Custom cursors */
+/* Base Texture Optimized */
+.bg-texture-grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='1' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.08'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+  transform: translateZ(0);
+  will-change: transform;
+}
 
+/* Global resets for Neo-Brutalism */
 html {
   scroll-behavior: smooth;
+  cursor: none; /* We will use a custom React cursor for max interactivity */
 }
 
 body {
   position: relative;
   background: var(--bg-warm);
   color: var(--text-primary);
-  font-family: var(--font-sans), 'Segoe UI', system-ui, sans-serif;
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 16 16'%3E%3Ccircle cx='8' cy='8' r='6' fill='none' stroke='%238BAA91' stroke-width='1.5' opacity='0.7'/%3E%3Ccircle cx='8' cy='8' r='2' fill='%238BAA91' opacity='0.9'/%3E%3C/svg%3E") 8 8, default !important;
+  font-family: var(--font-sans-var), system-ui, sans-serif;
+  overflow-x: hidden;
 }
 
-a, button, [role="button"], input[type="submit"], select, label[for], .cursor-pointer,
-a *, button *, [role="button"] *, .cursor-pointer * {
-  cursor: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 20 20'%3E%3Ccircle cx='10' cy='10' r='8' fill='%238BAA91' fill-opacity='0.15' stroke='%238BAA91' stroke-width='1.5'/%3E%3Ccircle cx='10' cy='10' r='2.5' fill='%234A7A52'/%3E%3C/svg%3E") 10 10, default !important;
+/* Scrollbar - Extreme Neo-Brutalist Green */
+::-webkit-scrollbar { 
+  width: 14px; 
+  height: 14px; 
+}
+::-webkit-scrollbar-track { 
+  background: #18181b; 
+  border-left: 2px solid #18181b; 
+}
+::-webkit-scrollbar-thumb { 
+  background: #10B981; 
+  border: 3px solid #18181b; 
+  box-shadow: inset -2px -2px 0px 0px rgba(0,0,0,0.3);
+}
+::-webkit-scrollbar-thumb:hover { 
+  background: #34d399; /* Lighter emerald */
+}
+::-webkit-scrollbar-corner {
+  background: #18181b;
 }
 
-/* Scrollbar */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { background: var(--bg-warm); }
-::-webkit-scrollbar-thumb { background: var(--sage); border-radius: 10px; border: 2px solid var(--bg-warm); }
-::-webkit-scrollbar-thumb:hover { background: var(--sage-dark); }
 .no-scrollbar::-webkit-scrollbar { display: none; }
 .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
@@ -140,49 +162,19 @@ a *, button *, [role="button"] *, .cursor-pointer * {
   100% { transform: scale(1) rotate(-12deg); opacity: 1; }
 }
 
-.animate-stamp {
-  animation: stamp 0.5s cubic-bezier(0.22, 0.68, 0.36, 1.2) both;
+@keyframes marquee {
+  0% { transform: translateX(0%); }
+  100% { transform: translateX(-50%); }
 }
 
-.animate-fade-in-up {
-  animation: fadeInUp 0.45s ease-out both;
+@keyframes star-pulse {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 1; }
+  50% { transform: scale(1.2) rotate(45deg); opacity: 0.7; }
 }
 
-.animate-fade-in-scale {
-  animation: fadeInScale 0.35s ease-out both;
-}
-
-.animate-slide-down {
-  animation: slideDown 0.3s ease-out both;
-}
-
-.animate-float {
-  animation: float 6s ease-in-out infinite;
-}
-
-.animate-float-slow {
-  animation: floatSlow 8s ease-in-out infinite;
-}
-
-.animate-blob {
-  animation: blob 8s ease-in-out infinite;
-}
-
-.animate-pulse-soft {
-  animation: pulse-soft 3s ease-in-out infinite;
-}
-
-.animate-wiggle {
-  animation: wiggle 0.4s ease-in-out;
-}
-
-.animate-checkmark {
-  animation: checkmark 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both;
-}
-
-.animate-gradient {
-  background-size: 200% 200%;
-  animation: gradientShift 4s ease infinite;
+@keyframes scanline {
+  0% { transform: translateY(-100%); }
+  100% { transform: translateY(100%); }
 }
 
 @keyframes celebrate {
@@ -201,16 +193,48 @@ a *, button *, [role="button"] *, .cursor-pointer * {
   to { opacity: 1; }
 }
 
-.animate-celebrate {
-  animation: celebrate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+/* ---- CLASSES ---- */
+
+.animate-float { animation: float 6s ease-in-out infinite; }
+.animate-float-slow { animation: floatSlow 8s ease-in-out infinite; }
+.animate-blob { animation: blob 8s ease-in-out infinite; }
+.animate-pulse-soft { animation: pulse-soft 3s ease-in-out infinite; }
+.animate-wiggle { animation: wiggle 0.4s ease-in-out; }
+.animate-checkmark { animation: checkmark 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) both; }
+.animate-star-pulse { animation: star-pulse 2s ease-in-out infinite; }
+.animate-celebrate { animation: celebrate 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+.animate-bounce-subtle { animation: bounceSubtle 2s ease-in-out infinite; }
+.animate-fade-in { animation: fadeIn 0.4s ease-out both; }
+.animate-stamp { animation: stamp 0.5s cubic-bezier(0.22, 0.68, 0.36, 1.2) both; }
+.animate-marquee { animation: marquee 30s linear infinite; }
+.animate-fade-in-up { animation: fadeInUp 0.45s ease-out both; }
+.animate-fade-in-scale { animation: fadeInScale 0.35s ease-out both; }
+.animate-slide-down { animation: slideDown 0.3s ease-out both; }
+
+.animate-gradient {
+  background-size: 200% 200%;
+  animation: gradientShift 4s ease infinite;
 }
 
-.animate-bounce-subtle {
-  animation: bounceSubtle 2s ease-in-out infinite;
-}
+/* Custom Neo-Brutalist Shadow Classes */
+.neo-shadow { box-shadow: 4px 4px 0px 0px #18181B; }
+.neo-shadow-lg { box-shadow: 8px 8px 0px 0px #18181B; }
+.neo-shadow-xl { box-shadow: 12px 12px 0px 0px #18181B; }
 
-.animate-fade-in {
-  animation: fadeIn 0.4s ease-out both;
+/* Scanline Effect */
+.scanline::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 50%,
+    rgba(16, 185, 129, 0.05) 50%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+  z-index: 50;
+  animation: scanline 10s linear infinite;
 }
 
 /* Staggered children */
@@ -250,13 +274,27 @@ a *, button *, [role="button"] *, .cursor-pointer * {
 .tag-guia { background: #E5EFF5; color: #4A6E82; }
 
 @layer utilities {
-  .scrollbar-hide::-webkit-scrollbar {
-    display: none;
-  }
-  .scrollbar-hide {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-  }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .perspective-1000 { perspective: 1000px; }
+  .animation-delay-2000 { animation-delay: 2s; }
+  .animation-delay-4000 { animation-delay: 4s; }
+}
+
+@utility neo-btn {
+  @apply relative inline-flex items-center justify-center gap-2 px-6 py-3 font-black uppercase tracking-widest text-sm border-4 border-zinc-900 shadow-neo transition-all duration-200 hover:-translate-y-1 hover:shadow-neo-xl active:translate-y-1 active:shadow-none italic;
+}
+
+@utility neo-btn-primary {
+  @apply neo-btn bg-emerald-400 text-zinc-900 hover:bg-emerald-300;
+}
+
+@utility neo-btn-secondary {
+  @apply neo-btn bg-yellow-400 text-zinc-900 hover:bg-yellow-300;
+}
+
+@utility neo-btn-outline {
+  @apply neo-btn bg-white text-zinc-900 hover:bg-zinc-50;
 }
 
 :root[class~="dark"] {

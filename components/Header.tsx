@@ -86,68 +86,64 @@ export function Header() {
     <header
       ref={headerRef}
       className={cn(
-        "sticky top-0 z-50 w-full transition-all duration-300 py-3 border-b",
+        "sticky top-0 z-50 w-full transition-all duration-300 py-3",
         scrolled 
-          ? "bg-white shadow-sm border-[#EDE6DD]"
-          : "bg-transparent border-transparent"
+          ? "bg-white border-b-4 border-zinc-900 shadow-[0_4px_0px_0px_rgba(24,24,27,1)]"
+          : "bg-transparent border-b-4 border-transparent"
       )}
     >
-      <div className="max-w-6xl mx-auto px-4 sm:px-6">
-        <div className="flex justify-between items-center h-12">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex justify-between items-center h-14">
           
           {/* Logo Section */}
-          <Link href="/" className="flex items-center gap-3.5 group" onClick={() => setMenuOpen(false)}>
-            <div className="relative flex items-center justify-center w-11 h-11 transition-all duration-300 group-hover:scale-105 group-active:scale-95">
+          <Link href="/" className="flex items-center gap-3 group" onClick={() => setMenuOpen(false)}>
+            <div className="w-10 h-10 bg-white border-4 border-zinc-900 flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] group-hover:shadow-none group-hover:translate-x-[1px] group-hover:translate-y-[1px] transition-all">
               <Image 
                 src="/icon-optimized.webp" 
                 alt="Logo UTNHub" 
-                width={44}
-                height={44}
-                className="w-full h-full object-contain drop-shadow-sm"
+                width={24}
+                height={24}
+                className="w-6 h-6 object-contain"
               />
             </div>
-            
-            <div className="flex flex-col -gap-0.5">
-              <span className="font-extrabold text-[22px] tracking-tight text-[#3D3229] leading-none">
-                UTN<span className="text-[#8BAA91]">Hub</span>
+            <div className="flex flex-col">
+              <span className="font-black text-xl tracking-tighter text-zinc-900 leading-none uppercase italic">
+                UTN<span className="text-emerald-500">Hub</span>
               </span>
-              <span className="text-[9px] font-bold text-[#A89F95] tracking-[0.22em] leading-normal group-hover:text-[#7A6E62] transition-colors uppercase pt-0.5">
-                Subi tu apunte!
+              <span className="text-[8px] font-black text-zinc-400 tracking-[0.25em] uppercase leading-tight">
+                Subí tu apunte!
               </span>
             </div>
           </Link>
           
           {/* Desktop Navigation */}
-          <nav className="hidden sm:flex items-center gap-2 p-1.5 bg-white/60 shadow-sm rounded-2xl border border-[#EDE6DD]/80 shadow-sm shadow-[#EDE6DD]/30">
+          <nav className="hidden sm:flex items-center gap-1.5 bg-white border-4 border-zinc-900 px-3 py-1.5 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
             <Link 
               href="/#carreras" 
               onClick={handleExploreClick}
-              className="relative text-[13px] font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-2 rounded-xl transition-all duration-300 group hover:bg-[#F5F0EA]/50"
+              className="text-[11px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 px-3 py-2 hover:bg-emerald-400 hover:border-2 hover:border-zinc-900 transition-all"
             >
               Explorar
-              <span className="absolute bottom-1.5 left-4 right-4 h-[2px] bg-[#8BAA91] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center rounded-full opacity-60" />
             </Link>
             <Link 
               href="/planes" 
-              className="relative text-[13px] font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-2 rounded-xl transition-all duration-300 group hover:bg-[#F5F0EA]/50"
+              className="text-[11px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 px-3 py-2 hover:bg-emerald-400 hover:border-2 hover:border-zinc-900 transition-all"
             >
-              Planes de Estudio
-              <span className="absolute bottom-1.5 left-4 right-4 h-[2px] bg-[#8BAA91] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center rounded-full opacity-60" />
+              Planes
             </Link>
             <button 
               onClick={() => setShowDonationModal(true)}
-              className="relative flex items-center gap-1.5 text-[12px] font-bold text-[#8B7355] hover:text-[#3D3229] px-3 py-2 rounded-xl transition-all duration-300 group hover:bg-[#F5EFE5]/50"
+              className="text-[11px] font-black uppercase tracking-widest text-zinc-500 hover:text-zinc-900 px-3 py-2 hover:bg-yellow-400 hover:border-2 hover:border-zinc-900 transition-all flex items-center gap-1.5"
             >
-              <Heart className="w-3.5 h-3.5 opacity-70 group-hover:scale-110 group-hover:text-red-400 transition-all duration-300" />
+              <Heart className="w-3.5 h-3.5" strokeWidth={3} />
               Apoyar
-              <span className="absolute bottom-1.5 left-3 right-3 h-[2px] bg-[#8B7355] scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-center rounded-full opacity-40" />
             </button>
             <Link 
               href="/upload" 
-              className="group relative flex items-center gap-2 text-[13px] font-bold text-white bg-[#8BAA91] hover:bg-[#6A8F70] shadow-sm border border-[#597A5E] px-4 py-2 rounded-xl overflow-hidden active:scale-[0.97] transition-all duration-300"
+              className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-white bg-zinc-900 border-4 border-zinc-900 px-4 py-2 shadow-[3px_3px_0px_0px_rgba(16,185,129,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all"
             >
-              <Upload className="w-3.5 h-3.5" strokeWidth={2.5} />
-              <span>Subir apunte</span>
+              <Upload className="w-3.5 h-3.5" strokeWidth={3} />
+              Subir
             </Link>
             
             {/* Auth: Dropdown del usuario o botón de Ingresar */}
@@ -155,67 +151,65 @@ export function Header() {
               <div className="relative" ref={userMenuRef}>
                 <button
                   onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className={`relative flex items-center gap-2 text-[12px] font-bold text-[#3D3229] hover:bg-[#F5F0EA] px-3 py-2 rounded-xl transition-all duration-300 border bg-white group ${isAdmin ? 'border-[#D4AF37] shadow-[0_0_8px_rgba(212,175,55,0.4)]' : 'border-[#EDE6DD]'}`}
+                  className={`flex items-center gap-2 text-[11px] font-black uppercase tracking-widest px-3 py-2 border-4 border-zinc-900 bg-white hover:bg-zinc-100 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all ${isAdmin ? 'bg-yellow-400 hover:bg-yellow-300' : ''}`}
                   id="user-menu-button"
                 >
-                  <div className={`w-6 h-6 rounded-full flex items-center justify-center text-white text-[10px] font-black uppercase shadow-sm ${isAdmin ? 'bg-gradient-to-br from-[#D4AF37] to-[#AA8C2C]' : 'bg-gradient-to-br from-[#8BAA91] to-[#6A8F70]'}`}>
+                  <div className={`w-6 h-6 border-2 border-zinc-900 flex items-center justify-center text-zinc-900 text-[10px] font-black uppercase ${isAdmin ? 'bg-white' : 'bg-emerald-400'}`}>
                     {displayName.charAt(0)}
                   </div>
-                  <span className="hidden sm:block text-[11px] truncate max-w-[160px]">{displayName}</span>
-                  <svg className={`w-3 h-3 text-[#A89F95] transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                  <span className="hidden sm:block truncate max-w-[200px]">{displayName}</span>
+                  <svg className={`w-3 h-3 text-zinc-500 transition-transform duration-200 ${userMenuOpen ? 'rotate-180' : ''}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
                 </button>
 
                 {/* Dropdown del usuario */}
                 {userMenuOpen && (
-                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border border-[#EDE6DD] rounded-2xl shadow-xl shadow-black/8 animate-fade-in-up overflow-hidden z-[60]">
+                  <div className="absolute right-0 top-full mt-2 w-56 bg-white border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(24,24,27,1)] animate-fade-in-up overflow-hidden z-[60]">
                     {/* Info del usuario */}
-                    <div className="px-4 py-3 border-b border-[#EDE6DD] bg-[#FAFAF8]">
-                      <p className="text-[13px] font-bold text-[#3D3229] truncate">{displayName}</p>
+                    <div className="px-4 py-3 border-b-4 border-zinc-900 bg-emerald-400">
+                      <p className="text-sm font-black text-zinc-900 uppercase tracking-widest truncate">{displayName}</p>
                       {user.email && (
-                        <p className="text-[11px] text-[#A89F95] font-medium truncate mt-0.5">{user.email}</p>
+                        <p className="text-[11px] font-bold text-zinc-700 truncate mt-0.5">{user.email}</p>
                       )}
                     </div>
 
                     {/* Opciones del menú */}
-                    <div className="p-1.5">
+                    <div className="flex flex-col">
                       {isAdmin && (
                         <Link
                           href="/admin"
                           onClick={() => setUserMenuOpen(false)}
-                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-bold text-[#D4AF37] hover:text-[#AA8C2C] hover:bg-[#FCF9F0] transition-all group"
+                          className="flex items-center gap-3 px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-900 bg-yellow-400 border-b-4 border-zinc-900 hover:bg-yellow-300 transition-all"
                         >
-                          <ShieldCheck className="w-4 h-4 text-[#D4AF37] group-hover:text-[#AA8C2C] transition-all duration-300" />
-                          Panel de Moderación
+                          <ShieldCheck className="w-4 h-4" strokeWidth={3} />
+                          Moderación
                         </Link>
                       )}
                       <Link
                         href="/configuracion"
                         onClick={() => setUserMenuOpen(false)}
-                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-bold text-[#7A6E62] hover:text-[#3D3229] hover:bg-[#F5F0EA] transition-all group"
-                        id="user-menu-settings"
+                        className="flex items-center gap-3 px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-900 hover:bg-zinc-200 transition-all border-b-4 border-zinc-900"
                       >
-                        <Settings className="w-4 h-4 text-[#A89F95] group-hover:text-[#8BAA91] group-hover:rotate-45 transition-all duration-300" />
-                        Configuración
+                        <Settings className="w-4 h-4" strokeWidth={3} />
+                        Ajustes
                       </Link>
                       <button
                         onClick={() => {
                           setUserMenuOpen(false);
                           logout();
                         }}
-                        className="flex w-full items-center gap-3 px-3 py-2.5 rounded-xl text-[13px] font-bold text-[#E57A7A] hover:text-[#C55A5A] hover:bg-[#FEF5F5] transition-all group"
-                        id="user-menu-logout"
+                        className="flex w-full items-center gap-3 px-4 py-3 text-xs font-black uppercase tracking-widest text-zinc-900 bg-red-400 hover:bg-red-500 transition-all"
                       >
-                        <LogOut className="w-4 h-4 group-hover:translate-x-0.5 transition-transform duration-200" />
-                        Cerrar sesión
+                        <LogOut className="w-4 h-4" strokeWidth={3} />
+                        Salir
                       </button>
                     </div>
                   </div>
                 )}
               </div>
             ) : (
-               <Link href="/auth" className="relative flex items-center justify-center gap-1.5 text-[12px] font-bold text-[#3D3229] hover:bg-[#F5F0EA] px-4 py-2 rounded-xl transition-all duration-300 border border-[#EDE6DD] bg-white group">
-                  <svg className="w-4 h-4 text-[#8BAA91]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"></path><polyline points="10 17 15 12 10 7"></polyline><line x1="15" y1="12" x2="3" y2="12"></line></svg>
-                  <span>Ingresar</span>
+               <Link href="/auth" className="flex items-center gap-2 text-[11px] font-black uppercase tracking-widest text-zinc-900 bg-emerald-400 border-4 border-zinc-900 px-4 py-2 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all">
+                  <User className="w-4 h-4" strokeWidth={3} />
+                  Ingresar
                </Link>
             )}
           </nav>
@@ -223,113 +217,113 @@ export function Header() {
           {/* Mobile Menu Toggle */}
           <button 
             aria-label={menuOpen ? "Cerrar menú" : "Abrir menú"}
-            className="flex sm:hidden text-[#7A6E62] bg-white border border-[#EDE6DD] hover:text-[#3D3229] p-2 rounded-xl shadow-sm hover:bg-[#F5F0EA] transition-all active:scale-95"
+            className="flex sm:hidden text-zinc-600 bg-white border-4 border-zinc-900 p-2 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all active:bg-zinc-100"
             onClick={() => setMenuOpen(!menuOpen)}
           >
-            {menuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            {menuOpen ? <X className="w-5 h-5" strokeWidth={4} /> : <Menu className="w-5 h-5" strokeWidth={4} />}
           </button>
         </div>
 
         {/* Mobile Dropdown */}
         {menuOpen && (
-          <div className="sm:hidden absolute top-full left-0 w-full px-4 pt-2 pb-4 mt-2 bg-white/95 shadow-sm border-b border-[#EDE6DD] shadow-xl shadow-black/5 animate-fade-in-up">
-            <div className="flex flex-col gap-2 bg-[#FFFBF7] p-2 rounded-2xl border border-[#EDE6DD]">
+          <div className="sm:hidden absolute top-full left-0 w-full px-4 pt-2 pb-4 mt-2 animate-fade-in-up">
+            <div className="flex flex-col gap-1.5 bg-white border-4 border-zinc-900 p-2 shadow-[8px_8px_0px_0px_rgba(24,24,27,1)]">
               <Link 
                 href="/#carreras" 
-                className="flex items-center justify-between text-sm font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-3 rounded-xl hover:bg-white transition-all"
+                className="flex items-center justify-between text-xs font-black uppercase tracking-widest text-zinc-600 hover:text-zinc-900 px-4 py-3 border-2 border-transparent hover:border-zinc-900 hover:bg-emerald-400 transition-all"
                 onClick={handleExploreClick}
               >
-                Explorar materias <ChevronRight className="w-4 h-4 opacity-50" />
+                Explorar materias <ChevronRight className="w-4 h-4" strokeWidth={3} />
               </Link>
               <Link 
                 href="/planes" 
-                className="flex items-center justify-between text-sm font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-3 rounded-xl hover:bg-white transition-all"
+                className="flex items-center justify-between text-xs font-black uppercase tracking-widest text-zinc-600 hover:text-zinc-900 px-4 py-3 border-2 border-transparent hover:border-zinc-900 hover:bg-emerald-400 transition-all"
                 onClick={() => setMenuOpen(false)}
               >
-                Planes de Estudio <ChevronRight className="w-4 h-4 opacity-50" />
+                Planes de Estudio <ChevronRight className="w-4 h-4" strokeWidth={3} />
               </Link>
               <Link 
                 href="/upload" 
-                className="flex items-center justify-between text-sm font-bold text-[#4A7A52] bg-[#E8F0EA] px-4 py-3 rounded-xl transition-all"
+                className="flex items-center justify-between text-xs font-black uppercase tracking-widest text-zinc-900 bg-emerald-400 border-4 border-zinc-900 px-4 py-3 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
                 onClick={() => setMenuOpen(false)}
               >
                 <div className="flex items-center gap-2">
-                  <Upload className="w-4 h-4" /> Subir nuevo apunte
+                  <Upload className="w-4 h-4" strokeWidth={3} /> Subir apunte
                 </div>
-                <ChevronRight className="w-4 h-4 opacity-50" />
+                <ChevronRight className="w-4 h-4" strokeWidth={3} />
               </Link>
               <button 
                 onClick={() => {
                   setMenuOpen(false);
                   setShowDonationModal(true);
                 }}
-                className="flex w-full items-center justify-between text-sm font-bold text-[#8B7355] bg-[#F5EFE5]/50 px-4 py-3 rounded-xl transition-all"
+                className="flex w-full items-center justify-between text-xs font-black uppercase tracking-widest text-zinc-600 hover:text-zinc-900 px-4 py-3 border-2 border-transparent hover:border-zinc-900 hover:bg-yellow-400 transition-all"
               >
                 <div className="flex items-center gap-2">
-                  <Heart className="w-4 h-4" /> Apoyar proyecto
+                  <Heart className="w-4 h-4" strokeWidth={3} /> Apoyar proyecto
                 </div>
-                <ChevronRight className="w-4 h-4 opacity-30" />
+                <ChevronRight className="w-4 h-4" strokeWidth={3} />
               </button>
 
               {/* Sección de usuario en mobile */}
               {user ? (
                 <>
-                  <div className="h-[1px] bg-[#EDE6DD] mx-2 my-1" />
-                  <div className={`flex items-center gap-3 px-4 py-2 rounded-xl ${isAdmin ? 'bg-[#FCF9F0] border border-[#F2E5C2] mx-2 my-1' : ''}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black uppercase shadow-sm ${isAdmin ? 'bg-gradient-to-br from-[#D4AF37] to-[#AA8C2C]' : 'bg-gradient-to-br from-[#8BAA91] to-[#6A8F70]'}`}>
+                  <div className="border-t-4 border-zinc-900 my-1" />
+                  <div className={`flex items-center gap-3 px-4 py-3 border-4 border-zinc-900 bg-zinc-50 ${isAdmin ? 'bg-yellow-100' : ''}`}>
+                    <div className={`w-8 h-8 border-2 border-zinc-900 flex items-center justify-center text-zinc-900 text-xs font-black uppercase ${isAdmin ? 'bg-white' : 'bg-emerald-400'}`}>
                       {displayName.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[#3D3229] truncate">{displayName}</p>
-                      {user.email && <p className={`text-[11px] truncate ${isAdmin ? 'text-[#D4AF37] font-bold' : 'text-[#A89F95]'}`}>{user.email}</p>}
+                      <p className="text-sm font-black text-zinc-900 uppercase tracking-widest truncate">{displayName}</p>
+                      {user.email && <p className={`text-[10px] font-bold truncate ${isAdmin ? 'text-yellow-700' : 'text-zinc-500'}`}>{user.email}</p>}
                     </div>
                   </div>
                   {isAdmin && (
                     <Link
                       href="/admin"
-                      className="flex items-center justify-between text-sm font-bold text-[#D4AF37] hover:text-[#AA8C2C] px-4 py-3 rounded-xl hover:bg-[#FCF9F0] transition-all"
+                      className="flex items-center justify-between text-xs font-black uppercase tracking-widest text-zinc-900 bg-yellow-400 border-4 border-zinc-900 px-4 py-3 hover:bg-yellow-300 transition-all"
                       onClick={() => setMenuOpen(false)}
                     >
                       <div className="flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4" /> Panel de Moderación
+                        <ShieldCheck className="w-4 h-4" strokeWidth={3} /> Moderación
                       </div>
-                      <ChevronRight className="w-4 h-4 opacity-50" />
+                      <ChevronRight className="w-4 h-4" strokeWidth={3} />
                     </Link>
                   )}
                   <Link
                     href="/configuracion"
-                    className="flex items-center justify-between text-sm font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-3 rounded-xl hover:bg-white transition-all"
+                    className="flex items-center justify-between text-xs font-black uppercase tracking-widest text-zinc-600 hover:text-zinc-900 px-4 py-3 border-2 border-transparent hover:border-zinc-900 hover:bg-zinc-200 transition-all"
                     onClick={() => setMenuOpen(false)}
                   >
                     <div className="flex items-center gap-2">
-                      <Settings className="w-4 h-4" /> Configuración
+                      <Settings className="w-4 h-4" strokeWidth={3} /> Configuración
                     </div>
-                    <ChevronRight className="w-4 h-4 opacity-50" />
+                    <ChevronRight className="w-4 h-4" strokeWidth={3} />
                   </Link>
                   <button
                     onClick={() => {
                       setMenuOpen(false);
                       logout();
                     }}
-                    className="flex w-full items-center justify-between text-sm font-bold text-[#E57A7A] bg-[#FEF5F5] px-4 py-3 rounded-xl transition-all"
+                    className="flex w-full items-center justify-between text-xs font-black uppercase tracking-widest text-white bg-red-500 border-4 border-zinc-900 px-4 py-3 hover:bg-red-600 transition-all shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] active:shadow-none active:translate-x-[1px] active:translate-y-[1px]"
                   >
                     <div className="flex items-center gap-2">
-                      <LogOut className="w-4 h-4" /> Cerrar sesión
+                      <LogOut className="w-4 h-4" strokeWidth={3} /> Cerrar sesión
                     </div>
                   </button>
                 </>
               ) : (
                 <>
-                  <div className="h-[1px] bg-[#EDE6DD] mx-2 my-1" />
+                  <div className="border-t-4 border-zinc-900 my-1" />
                   <Link
                     href="/auth"
-                    className="flex items-center justify-between text-sm font-bold text-[#3D3229] bg-white px-4 py-3 rounded-xl border border-[#EDE6DD] transition-all"
+                    className="flex items-center justify-between text-xs font-black uppercase tracking-widest text-zinc-900 bg-emerald-400 border-4 border-zinc-900 px-4 py-3 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
                     onClick={() => setMenuOpen(false)}
                   >
                     <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-[#8BAA91]" /> Ingresar
+                      <User className="w-4 h-4" strokeWidth={3} /> Ingresar
                     </div>
-                    <ChevronRight className="w-4 h-4 opacity-50" />
+                    <ChevronRight className="w-4 h-4" strokeWidth={3} />
                   </Link>
                 </>
               )}

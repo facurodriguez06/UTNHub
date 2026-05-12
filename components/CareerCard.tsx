@@ -13,18 +13,18 @@ export function CareerCard({ career }: { career: Career }) {
   const content = (
     <div 
       className={cn(
-        "group relative flex flex-col h-full w-full rounded-[24px] box-border border overflow-hidden",
-        "transition-all duration-150 ease-out will-change-transform",
+        "group relative flex flex-col h-full w-full rounded-2xl box-border border-4 overflow-hidden",
+        "transition-all duration-200 ease-out will-change-transform",
         career.implemented
-          ? "bg-white border-[#EAE4DB] shadow-sm hover:translate-y-[-4px] hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:border-[#DED5CA] "
-          : "bg-[#FCFBFA] border-[#E8E2D9] opacity-70 cursor-not-allowed"
+          ? "bg-white border-zinc-900 shadow-[6px_6px_0px_0px_rgba(24,24,27,1)] hover:-translate-y-1 hover:shadow-[10px_10px_0px_0px_rgba(16,185,129,1)] active:translate-y-0 active:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)]"
+          : "bg-zinc-100 border-zinc-300 shadow-[6px_6px_0px_0px_rgba(212,212,216,1)] opacity-80 cursor-not-allowed"
       )}
     >
       
       {/* Background gentle color fill on hover */}
       {career.implemented && (
         <div className={cn(
-          "absolute inset-0 opacity-0 group-hover:opacity-[0.02] transition-opacity duration-200 pointer-events-none",
+          "absolute inset-0 opacity-0 group-hover:opacity-[0.05] transition-opacity duration-200 pointer-events-none",
           career.pastelBg
         )} />
       )}
@@ -36,48 +36,47 @@ export function CareerCard({ career }: { career: Career }) {
           
           {/* App-like rounded squircle for icon */}
           <div className={cn(
-            "w-[52px] h-[52px] rounded-[15px] flex items-center justify-center transition-all duration-200 relative overflow-hidden",
-            career.implemented ? "bg-white border border-[#EAE4DB] group-hover:shadow-[0_8px_16px_-6px_rgba(0,0,0,0.06)] group-hover:border-transparent" : "bg-transparent border border-[#E8E2D9] grayscale"
+            "w-[56px] h-[56px] rounded-xl flex items-center justify-center transition-all duration-200 relative overflow-hidden border-2",
+            career.implemented ? "bg-white border-zinc-900 shadow-[2px_2px_0px_0px_rgba(24,24,27,1)] group-hover:shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] group-hover:border-emerald-400 group-hover:-translate-y-0.5" : "bg-zinc-200 border-zinc-400 grayscale"
           )}>
             <div className={cn("absolute inset-0 opacity-[0.15] transition-opacity duration-200 group-hover:opacity-[0.25]", career.pastelBg)} />
-            {IconComponent && <IconComponent className={cn("w-6 h-6 relative z-10 transition-transform duration-200 group-hover:scale-105", career.implemented ? career.pastelText : "text-[#B3A89D]")} strokeWidth={1.75} />}
+            {IconComponent && <IconComponent className={cn("w-7 h-7 relative z-10 transition-transform duration-200 group-hover:scale-110", career.implemented ? "text-zinc-900" : "text-zinc-500")} strokeWidth={2.5} />}
           </div>
 
           {!career.implemented && (
-            <span className="inline-flex items-center rounded-full bg-white px-3 py-1.5 text-[9px] font-bold tracking-[0.15em] text-[#9E9387] uppercase border border-[#EAE4DB] shadow-sm">    
-              Próximamente
+            <span className="inline-flex items-center bg-zinc-200 px-3 py-1 text-[10px] font-black tracking-widest text-zinc-600 uppercase border-2 border-zinc-400 shadow-[2px_2px_0px_0px_rgba(161,161,170,1)]">    
+              PRÓXIMAMENTE
             </span>
           )}
 
           {/* Minimalist Top Right 'Open' symbol */}
           {career.implemented && (
             <div className={cn(
-              "w-9 h-9 rounded-full flex items-center justify-center border transition-all duration-200 relative overflow-hidden",
-              "bg-[#FAFAF9] border-[#EAE4DB] text-[#9E9387]",
-              "group-hover:bg-white group-hover:shadow-[0_8px_16px_-6px_rgba(0,0,0,0.06)] group-hover:border-transparent group-hover:-translate-y-0.5 group-hover:translate-x-0.5"
+              "w-10 h-10 rounded-full flex items-center justify-center border-2 transition-all duration-200 relative overflow-hidden",
+              "bg-white border-zinc-900 text-zinc-900 shadow-[2px_2px_0px_0px_rgba(24,24,27,1)]",
+              "group-hover:bg-emerald-400 group-hover:border-zinc-900 group-hover:shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] group-hover:-translate-y-1 group-hover:translate-x-1"
             )}>
-              <span className={cn("absolute inset-0 opacity-0 group-hover:opacity-10 transition-opacity duration-200", career.pastelBg)} />
               <div className="absolute inset-0 flex items-center justify-center opacity-100 group-hover:opacity-0 transition-all duration-150">
-                <ArrowUpRight className="w-[18px] h-[18px]" strokeWidth={2} />
+                <ArrowUpRight className="w-5 h-5" strokeWidth={2.5} />
               </div>
-              <div className={cn("absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:scale-110 transition-all duration-150", career.pastelText)}>
-                <ArrowUpRight className="w-[18px] h-[18px]" strokeWidth={2.5} />
+              <div className={cn("absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 group-hover:scale-110 transition-all duration-150", "text-zinc-900")}>
+                <ArrowUpRight className="w-5 h-5" strokeWidth={3} />
               </div>
             </div>
           )}
         </div>
 
         {/* Text area is pushed to the bottom logically since mb-auto on header wrapper */}
-        <div className="mt-16 flex-1">
+        <div className="mt-12 flex-1">
           <h3 className={cn(
-            "text-xl font-bold tracking-tight mb-2.5 transition-colors duration-150",
-            career.implemented ? "text-[#2C2825]" : "text-[#9E9387]"
+            "text-2xl font-black uppercase tracking-tight mb-3 transition-colors duration-150 font-serif",
+            career.implemented ? "text-zinc-900" : "text-zinc-600"
           )}>
             {career.shortName}
           </h3>
           <p className={cn(
-            "text-[14px] leading-relaxed font-medium",
-            career.implemented ? "text-[#7A6E62]" : "text-[#B3A89D]"
+            "text-sm leading-relaxed font-semibold",
+            career.implemented ? "text-zinc-700" : "text-zinc-500"
           )}>       
             {career.description}
           </p>
@@ -88,8 +87,7 @@ export function CareerCard({ career }: { career: Career }) {
       {career.implemented && (
         <div className="px-7 sm:px-8 pb-7 relative mt-1 flex">
           <div className={cn(
-            "h-1.5 w-12 rounded-full transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:w-full opacity-70 group-hover:opacity-100",
-            career.pastelAccent
+            "h-2 w-12 rounded-sm transition-all duration-300 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:w-full opacity-100 bg-emerald-400 border-2 border-zinc-900 shadow-[2px_2px_0px_0px_rgba(24,24,27,1)]"
           )} />
         </div>
       )}
@@ -97,5 +95,6 @@ export function CareerCard({ career }: { career: Career }) {
   );
 
   if (!career.implemented) return <div className="h-full w-full">{content}</div>;
-  return <Link href={`/carreras/${career.id}`} className="h-full w-full block outline-none">{content}</Link>;
+  return <Link href={`/carreras/${career.id}`} className="h-full w-full block outline-none focus-visible:ring-4 focus-visible:ring-emerald-400 rounded-2xl">{content}</Link>;
 }
+

@@ -14,9 +14,10 @@ interface CustomSelectProps {
   options: Option[];
   placeholder?: string;
   disabled?: boolean;
+  className?: string;
 }
 
-export function CustomSelect({ value, onChange, options, placeholder = "Seleccionar...", disabled = false }: CustomSelectProps) {
+export function CustomSelect({ value, onChange, options, placeholder = "SELECCIONAR...", disabled = false, className = "" }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -33,26 +34,26 @@ export function CustomSelect({ value, onChange, options, placeholder = "Seleccio
   const selectedOption = options.find((opt) => opt.value === String(value));
 
   return (
-    <div className="relative w-full" ref={containerRef}>
+    <div className={`relative w-full ${className}`} ref={containerRef}>
       <button
         type="button"
         disabled={disabled}
         onClick={() => setIsOpen(!isOpen)}
-        className={`w-full flex items-center justify-between rounded-xl border border-[#EDE6DD] px-3.5 py-2.5 text-sm transition-all focus:border-[#8BAA91] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]/20 bg-white ${
-          disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-[#8BAA91]/50 shadow-sm"
+        className={`w-full flex items-center justify-between border-4 border-zinc-900 px-4 py-3 text-sm font-black transition-all bg-white shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] uppercase tracking-tight ${
+          disabled ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-zinc-50 active:translate-x-[2px] active:translate-y-[2px] active:shadow-none"
         }`}
       >
-        <span className={`block truncate pr-2 ${selectedOption ? "text-[#3D3229]" : "text-[#A89F95]"}`}>
+        <span className={`block truncate pr-2 ${selectedOption ? "text-zinc-900" : "text-zinc-400"}`}>
           {selectedOption ? selectedOption.label : placeholder}
         </span>
-        <ChevronDown className={`w-4 h-4 shrink-0 text-[#A89F95] transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} />
+        <ChevronDown className={`w-5 h-5 shrink-0 text-zinc-900 transition-transform duration-200 ${isOpen ? "rotate-180" : ""}`} strokeWidth={3} />
       </button>
 
       {isOpen && !disabled && (
-        <div className="absolute z-[60] w-full bottom-full mb-1.5 bg-white border border-[#EDE6DD] rounded-xl shadow-xl overflow-hidden py-1.5 animate-in fade-in zoom-in-95 duration-100">
-          <ul className="max-h-56 overflow-y-auto scroll-smooth">
+        <div className="absolute z-[60] w-full mt-2 bg-white border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden animate-fade-in">
+          <ul className="max-h-60 overflow-y-auto scroll-smooth custom-scrollbar">
             {options.length === 0 ? (
-              <li className="px-3.5 py-2.5 text-sm text-center text-[#A89F95] italic">No hay opciones</li>
+              <li className="px-4 py-3 text-xs text-center text-zinc-400 font-black uppercase tracking-widest italic">No hay opciones</li>
             ) : (
               options.map((option) => (
                 <li
@@ -61,12 +62,14 @@ export function CustomSelect({ value, onChange, options, placeholder = "Seleccio
                     onChange(option.value);
                     setIsOpen(false);
                   }}
-                  className={`flex items-center justify-between px-3.5 py-2.5 text-sm cursor-pointer transition-colors ${
-                    String(value) === String(option.value) ? "bg-[#E8F0EA] text-[#4A7A52] font-semibold" : "text-[#3D3229] hover:bg-[#FFFBF7]"
+                  className={`flex items-center justify-between px-4 py-3 text-xs cursor-pointer transition-colors border-b-2 border-zinc-100 last:border-b-0 ${
+                    String(value) === String(option.value) 
+                      ? "bg-zinc-900 text-white font-black" 
+                      : "text-zinc-900 font-black hover:bg-zinc-100 uppercase tracking-tighter"
                   }`}
                 >
                   <span className="truncate pr-2">{option.label}</span>
-                  {String(value) === String(option.value) && <Check className="w-4 h-4 shrink-0 text-[#4A7A52]" />}
+                  {String(value) === String(option.value) && <Check className="w-4 h-4 shrink-0 text-emerald-400" strokeWidth={4} />}
                 </li>
               ))
             )}

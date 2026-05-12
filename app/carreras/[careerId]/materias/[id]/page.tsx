@@ -141,20 +141,20 @@ function FolderItem({
   if (isCreatorFolder) buttonHex = "#D4AF37";
   else if (customStyleFolder) buttonHex = customStyleFolder.color;
 
-  let wrapperClass = "border-[#EDE6DD] bg-[#FCFAF8] open:bg-white";
-  let textClass = "text-[#4A433C]";
-  let iconClass = "text-[#8BAA91]";
-  let badgeClass = `${yc.bg} ${yc.text}`;
-  let chevronClass = "text-[#A89F95]";
-  let innerBorderClass = "border-[#EDE6DD]";
+  let wrapperClass = "border-[3px] border-zinc-900 bg-white shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] open:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)]";
+  let textClass = "text-zinc-900";
+  let iconClass = "text-emerald-600";
+  let badgeClass = "bg-emerald-400 text-zinc-900 border-2 border-zinc-900";
+  let chevronClass = "text-zinc-600";
+  let innerBorderClass = "border-zinc-300";
 
   if (isCreatorFolder) {
-    wrapperClass = "border-[#E2C15F] bg-gradient-to-r from-[#FFF8E1] to-[#FFF4CC] open:bg-[#FFFDF5]";
-    textClass = "text-[#7A5A0A]";
-    iconClass = "text-[#D4AF37]";
-    badgeClass = "bg-[#D4AF37] text-white";
-    chevronClass = "text-[#B78D28]";
-    innerBorderClass = "border-[#E7D39A]";
+    wrapperClass = "border-[3px] border-amber-500 bg-amber-50 shadow-[4px_4px_0px_0px_rgba(245,158,11,1)] open:shadow-[6px_6px_0px_0px_rgba(245,158,11,1)]";
+    textClass = "text-amber-900";
+    iconClass = "text-amber-600";
+    badgeClass = "bg-amber-500 text-white border-2 border-amber-700";
+    chevronClass = "text-amber-600";
+    innerBorderClass = "border-amber-300";
   } else if (customStyleFolder) {
     wrapperClass = "border-transparent bg-white"; 
     badgeClass = "text-white";
@@ -163,7 +163,7 @@ function FolderItem({
   return (
     <details
       open={openFoldersByDefault}
-      className={`animate-fade-in-up rounded-2xl border transition-all hover:shadow-md group/folder z-10 relative ${wrapperClass}`}
+      className={`animate-fade-in-up rounded-xl transition-all hover:-translate-y-0.5 group/folder z-10 relative ${wrapperClass}`}
       style={{ 
         animationDelay: `${itemIndex * 50}ms`,
         ...(customStyleFolder && !isCreatorFolder ? {
@@ -276,37 +276,38 @@ export default async function SubjectProfile({ params }: { params: Promise<{ car
   const openFoldersByDefault = displayList.length === 1 && displayList[0].type === "folder";
 
   return (
-    <div className="relative flex-1 flex flex-col">
-      <div className="blob w-72 h-72 top-10 -right-20 animate-blob" style={{ backgroundColor: yc.accent }} />
+    <div className="relative flex-1 flex flex-col bg-[#F7F5F0] selection:bg-emerald-200 selection:text-emerald-900">
+      {/* Neo-Brutalist Grid Background */}
+      <div className="fixed inset-0 z-0 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#d4d4d8 1px, transparent 0)', backgroundSize: '40px 40px' }}></div>
 
       <div className="relative z-10 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6">
         <div className="mb-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center text-sm text-[#A89F95] gap-1.5 flex-wrap">
-            <Link href="/" className="hover:text-[#4A7A52] transition-colors">Inicio</Link>
+          <div className="flex items-center text-sm text-zinc-500 gap-1.5 flex-wrap font-bold">
+            <Link href="/" className="hover:text-emerald-600 transition-colors">Inicio</Link>
             <ChevronRight className="w-3.5 h-3.5" />
-            <Link href={`/carreras/${career.id}`} className="hover:text-[#4A7A52] transition-colors">{career.shortName}</Link>
+            <Link href={`/carreras/${career.id}`} className="hover:text-emerald-600 transition-colors">{career.shortName}</Link>
             <ChevronRight className="w-3.5 h-3.5" />
-            <span className="text-[#3D3229] font-semibold">{subject.name}</span>
+            <span className="text-zinc-900 font-black uppercase">{subject.name}</span>
           </div>
-          <Link href={`/carreras/${career.id}`} className="inline-flex items-center text-sm font-semibold text-[#7A6E62] hover:text-[#4A7A52] transition-colors group">
-            <ArrowLeft className="w-3.5 h-3.5 mr-1 group-hover:-translate-x-0.5 transition-transform" /> Volver
+          <Link href={`/carreras/${career.id}`} className="inline-flex items-center text-sm font-black text-zinc-700 hover:text-emerald-600 transition-colors group uppercase tracking-wider">
+            <ArrowLeft className="w-3.5 h-3.5 mr-1 group-hover:-translate-x-1 transition-transform" /> Volver
           </Link>
         </div>
 
-        <div className="bg-white/80 shadow-sm rounded-3xl border border-[#EDE6DD] overflow-hidden mb-8 shadow-[0_8px_30px_rgba(61,50,41,0.04)] z-10 relative">
-          <div className="h-1.5 w-full" style={{ background: `linear-gradient(to right, ${yc.accent}, ${yc.accent}88)` }} />
+        <div className="bg-white rounded-xl border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(24,24,27,1)] overflow-hidden mb-8 z-10 relative">
+          <div className="h-2 w-full bg-emerald-400" />
           <div className="p-5 sm:p-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
               <div className="flex items-start gap-3">
-                <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${yc.bg}`}>
-                  {YearIcon && <YearIcon className={`w-5 h-5 ${yc.text}`} />}
+                <div className="w-12 h-12 rounded-xl border-[3px] border-zinc-900 bg-emerald-100 shadow-[2px_2px_0px_0px_rgba(24,24,27,1)] flex items-center justify-center">
+                  {YearIcon && <YearIcon className="w-6 h-6 text-zinc-900" />}
                 </div>
                 <div>
-                  <h1 className="text-xl sm:text-2xl font-extrabold text-[#3D3229] mb-1">{subject.name}</h1>
-                  <p className="text-sm text-[#A89F95]">{career.shortName} · Material compartido por la comunidad</p>
+                  <h1 className="text-xl sm:text-2xl font-black text-zinc-900 mb-1 uppercase tracking-tight">{subject.name}</h1>
+                  <p className="text-sm text-zinc-600 font-semibold">{career.shortName} · Material compartido por la comunidad</p>
                 </div>
               </div>
-              <span className={`shrink-0 text-xs font-bold px-3 py-1.5 rounded-full ${yc.bg} ${yc.text} self-start`}>
+              <span className="shrink-0 text-xs font-black px-3 py-1.5 bg-zinc-900 text-emerald-400 border-2 border-zinc-900 uppercase tracking-wider self-start">
                 {yc.label}
               </span>
             </div>
@@ -314,19 +315,19 @@ export default async function SubjectProfile({ params }: { params: Promise<{ car
         </div>
 
         <div className="mb-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <h2 className="text-base font-extrabold text-[var(--text-primary)] flex items-center gap-2">
-            <FileText className="w-4 h-4 text-[var(--sage)]" />
+          <h2 className="text-lg font-black text-zinc-900 flex items-center gap-2 uppercase tracking-tight">
+            <FileText className="w-5 h-5 text-emerald-600" />
             Apuntes
-            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full ${yc.bg} ${yc.text}`}>{notesCount}</span>
+            <span className="text-xs font-black px-2.5 py-1 bg-emerald-400 text-zinc-900 border-2 border-zinc-900 shadow-[2px_2px_0px_0px_rgba(24,24,27,1)]">{notesCount}</span>
           </h2>
 
           <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto">
             {realNotes.length > 0 && <BulkDownloadButton notes={realNotes} label="Descargar todos" />}
             <Link
               href={`/upload?carrera=${career.id}&materia=${subject.id}&anio=${subject.year}`}
-              className="inline-flex items-center justify-center gap-1.5 px-3 py-2 text-sm font-semibold text-[var(--sage-text)] bg-gradient-to-b from-[var(--bg-card)] to-[var(--bg-warm)] shadow-sm border border-[var(--border-soft)] hover:border-[var(--text-muted)] hover:text-[var(--text-primary)] rounded-lg hover:from-[var(--bg-cream)] hover:to-[var(--bg-warm)] hover:shadow-md transition-all duration-300 active:scale-95 group/btn hover:-translate-y-0.5"
+              className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 text-sm font-black text-zinc-900 uppercase tracking-wider bg-white border-[3px] border-zinc-900 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] hover:-translate-y-0.5 hover:shadow-[5px_5px_0px_0px_rgba(16,185,129,1)] active:translate-y-0 active:shadow-[1px_1px_0px_0px_rgba(24,24,27,1)] transition-all duration-200"
             >
-              <Plus className="w-4 h-4 group-hover/btn:scale-110 transition-transform" /> Subir nuevo
+              <Plus className="w-4 h-4" /> Subir nuevo
             </Link>
           </div>
         </div>
@@ -343,10 +344,10 @@ export default async function SubjectProfile({ params }: { params: Promise<{ car
                 <Fragment key={item.type === "note" ? item.note.id : item.key}>
                   {showSeparator && (
                     <div className={`flex items-center gap-3 w-full mb-1 ${itemIndex === 0 ? "mt-0" : "mt-4"}`}>
-                      <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-[#A89F95] px-3 py-1.5 bg-[#F5F0EA]/80 shadow-[0_0_10px_rgba(0,0,0,0.02)] rounded-lg border border-[#EDE6DD]">
+                      <span className="text-[10px] sm:text-[11px] font-black uppercase tracking-widest text-zinc-900 px-3 py-1.5 bg-emerald-100 border-2 border-zinc-900 shadow-[2px_2px_0px_0px_rgba(24,24,27,1)]">
                         {currentType}
                       </span>
-                      <div className="h-[1px] flex-1 bg-gradient-to-r from-[#EDE6DD] to-transparent" />
+                      <div className="h-[2px] flex-1 bg-zinc-300" />
                     </div>
                   )}
                   <div className="animate-fade-in-up" style={{ animationDelay: `${(itemIndex % 10) * 40 + 100}ms` }}>

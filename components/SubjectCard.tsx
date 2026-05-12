@@ -39,42 +39,36 @@ export function SubjectCard({ subject }: { subject: Subject; careerId?: string }
     <Link
       href={`/carreras/${subject.careerId}/materias/${subject.id}`}
       className={cn(
-        "group flex flex-col justify-between h-full w-full flex-1 rounded-xl border border-[#E3DCD2] bg-white p-4 relative overflow-hidden",
-        "transition-all duration-300 ease-out will-change-transform",
-        "hover:-translate-y-1 hover:border-[#B2C7B6] hover:shadow-[0_12px_30px_rgba(139,170,145,0.15)] ring-1 ring-transparent hover:ring-[#8BAA91]/20 scale-100 hover:scale-[1.02]"
+        "group flex flex-col justify-between h-full w-full flex-1 rounded-xl border-[3px] border-zinc-900 bg-white p-4 relative overflow-hidden",
+        "transition-all duration-200 ease-out will-change-transform",
+        "shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] hover:-translate-y-1 hover:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)] active:translate-y-0 active:shadow-[2px_2px_0px_0px_rgba(16,185,129,1)]"
       )}
     >
-      <div 
-        className="absolute top-0 right-0 w-16 h-16 rounded-bl-[40px] opacity-[0.12] transition-opacity duration-300 group-hover:opacity-[0.25] z-0" 
-        style={{ backgroundColor: yc.accent }}
-      />
-      
       {/* Decorative Blob & Icon */}
-      <div className="absolute -bottom-6 -right-6 w-32 h-32 opacity-[0.03] transition-transform duration-700 ease-[cubic-bezier(0.23,1,0.32,1)] group-hover:scale-[2] group-hover:opacity-[0.05] group-hover:-rotate-6 pointer-events-none z-0" style={{ color: yc.accent }}>
+      <div className="absolute -bottom-6 -right-6 w-32 h-32 opacity-[0.04] transition-transform duration-500 ease-out group-hover:scale-[2] group-hover:opacity-[0.08] pointer-events-none z-0 text-emerald-500">
         {getSubjectIcon(subject.name, "w-full h-full")}
       </div>
 
       <div className="flex-1 flex flex-col relative z-10 w-full mb-3">
         <div className="flex items-start justify-between gap-3 mb-3">
-          <h3 className="font-bold text-[#3D3229] text-[15px] leading-snug group-hover:text-[#4A7A52] transition-colors duration-200">
+          <h3 className="font-black text-zinc-900 text-[15px] leading-snug group-hover:text-emerald-600 transition-colors duration-200">
             {subject.name}
           </h3>
           <div 
-            className="shrink-0 p-2 rounded-xl transition-all duration-500 ease-out group-hover:scale-110 group-hover:-rotate-12 bg-[#F5F0EA] border border-white/50 shadow-sm" 
-            style={{ color: yc.accent, backgroundColor: `${yc.accent}12` }}
+            className="shrink-0 p-2 rounded-lg transition-all duration-300 ease-out group-hover:scale-110 group-hover:-rotate-6 bg-white border-2 border-zinc-900 shadow-[2px_2px_0px_0px_rgba(24,24,27,1)] group-hover:shadow-[3px_3px_0px_0px_rgba(16,185,129,1)] text-zinc-900" 
           >
             {getSubjectIcon(subject.name, "w-4 h-4")}
           </div>
         </div>
           {subject.isElective && (
-            <span className="inline-block mt-0 mb-3 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-purple-700 bg-purple-100 rounded-md border border-purple-200">
+            <span className="inline-block mt-0 mb-3 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-purple-900 bg-purple-200 border-2 border-purple-400 shadow-[2px_2px_0px_0px_rgba(168,85,247,0.5)]">
               Electiva
             </span>
           )}
-        <div className={`inline-flex w-fit items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold ${
+        <div className={`inline-flex w-fit items-center gap-1.5 px-2.5 py-1 text-xs font-black border-2 ${
           hasNotes 
-            ? `${yc.bg} ${yc.text} shadow-sm border border-${yc.text}/10` 
-            : 'bg-[#F5F0EA] text-[#A89F95]'
+            ? 'bg-emerald-100 text-emerald-800 border-emerald-600 shadow-[2px_2px_0px_0px_rgba(5,150,105,0.4)]' 
+            : 'bg-zinc-100 text-zinc-500 border-zinc-300'
         }`}>
           {hasNotes 
             ? <><FileText className="w-3 h-3" /> {subject.notesCount} apuntes</>
@@ -83,14 +77,10 @@ export function SubjectCard({ subject }: { subject: Subject; careerId?: string }
         </div>
       </div>
       
-      <div className="flex items-center justify-between text-[13px] font-semibold text-[#8BAA91] mt-4 group-hover:text-[#4A7A52] relative z-10 w-full pt-4 border-t border-[#F5F0EA]/50">
+      <div className="flex items-center justify-between text-[13px] font-black text-emerald-600 mt-4 group-hover:text-emerald-700 relative z-10 w-full pt-4 border-t-2 border-zinc-200 uppercase tracking-wide">
         <span className="transition-colors duration-300">Ver material</span>
-        <div className="relative flex items-center justify-center w-6 h-6 rounded-full transition-all duration-500 bg-[#F5F0EA] text-[#A89F95] group-hover:shadow-sm group-hover:-translate-y-[2px] group-hover:translate-x-[2px] group-hover:text-white">
-          <div 
-            className="absolute inset-0 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-            style={{ backgroundColor: yc.accent }}
-          />
-          <ChevronRight className="w-3.5 h-3.5 relative z-10 transition-transform duration-300 group-hover:scale-110" strokeWidth={2.5} />
+        <div className="relative flex items-center justify-center w-7 h-7 rounded-lg transition-all duration-300 bg-white border-2 border-zinc-900 shadow-[2px_2px_0px_0px_rgba(24,24,27,1)] group-hover:bg-emerald-400 group-hover:shadow-[3px_3px_0px_0px_rgba(24,24,27,1)] group-hover:-translate-y-0.5">
+          <ChevronRight className="w-3.5 h-3.5 relative z-10 transition-transform duration-300 group-hover:scale-110 text-zinc-900" strokeWidth={3} />
         </div>
       </div>
     </Link>

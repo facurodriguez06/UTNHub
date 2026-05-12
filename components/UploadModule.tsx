@@ -10,6 +10,8 @@ import {
   FileText,
   Pencil,
   Building2,
+  User,
+  RefreshCw,
 } from "lucide-react";
 import { useRef, useState, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
@@ -86,12 +88,11 @@ export function UploadModule() {
 
     if (validFiles.length > 0) {
       setFiles((prev) => [...prev, ...validFiles]);
-      // Si suben múltiples archivos y no había título
       if (!title && validFiles.length > 0) {
         if (validFiles.length === 1) {
           setTitle(validFiles[0].name.split(".").slice(0, -1).join("."));
         } else {
-          setTitle(""); // Dejarlo vacío para que se usen los nombres originales de los archivos en la subida
+          setTitle("");
         }
       }
     }
@@ -117,15 +118,12 @@ export function UploadModule() {
 
     const cleanTitle = sanitize(title);
     const cleanAuthor = sanitize(author) || "Anonimo";
+    const isTitleInvalid = files.length === 1 && !cleanTitle;
 
-      // Si sube un solo archivo y el titulo limpiado queda vacío, es error.
-      // Si sube varios archivos, el título es opcional.
-      const isTitleInvalid = files.length === 1 && !cleanTitle;
-
-      if (files.length === 0 || isTitleInvalid || !carrera || (carrera !== "basicas" && !anio) || !materia || !tipo) {
-        setError("Completa todos los campos obligatorios antes de subir.");
-        return;
-      }
+    if (files.length === 0 || isTitleInvalid || !carrera || (carrera !== "basicas" && !anio) || !materia || !tipo) {
+      setError("Completa todos los campos obligatorios antes de subir.");
+      return;
+    }
 
     setIsUploading(true);
 
@@ -135,66 +133,58 @@ export function UploadModule() {
       
       for (let i = 0; i < files.length; i++) {
         const file = files[i];
-        const uploadFormData = new FormData();
-        uploadFormData.append("file", file);
-          
-          // Si el usuario introdujo un título manual general, le agregamos "Parte X". 
-          // Si no, o si prefiere el nombre original, cae a usar el nombre del archivo sin extensión.
-          let fileTitle = file.name.split(".").slice(0, -1).join(".");
-          if (cleanTitle && cleanTitle !== "Lote de Apuntes de Materia" && cleanTitle !== fileTitle) {
-            fileTitle = files.length > 1 ? `${cleanTitle} (Parte ${i + 1})` : cleanTitle;
-          }
+        let fileTitle = file.name.split(".").slice(0, -1).join(".");
+        if (cleanTitle && cleanTitle !== "Lote de Apuntes de Materia" && cleanTitle !== fileTitle) {
+          fileTitle = files.length > 1 ? `${cleanTitle} (Parte ${i + 1})` : cleanTitle;
+        }
 
-          // 1. Solicitar URL firmada al servidor
-          const presignRes = await fetch('/api/upload/presign', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              folder: 'notes',
-              title: fileTitle,
-              fileName: file.name,
-              contentType: file.type || 'application/octet-stream'
-            })
+        const presignRes = await fetch('/api/upload/presign', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            folder: 'notes',
+            title: fileTitle,
+            fileName: file.name,
+            contentType: file.type || 'application/octet-stream'
+          })
+        });
+
+        if (!presignRes.ok) {
+          const errText = await presignRes.text();
+          throw new Error(`Error obteniendo permisos de subida: ${errText}`);
+        }
+
+        const presignData = await presignRes.json();
+        if (!presignData?.url) {
+          throw new Error('El servidor no devolvió una URL válida para subir el archivo.');
+        }
+
+        let uploadRes;
+        try {
+          uploadRes = await fetch(presignData.url, {
+            method: 'PUT',
+            headers: { 'Content-Type': file.type || 'application/octet-stream' },
+            body: file
           });
-
-          if (!presignRes.ok) {
-            const errText = await presignRes.text();
-            throw new Error(`Error obteniendo permisos de subida: ${errText}`);
+        } catch (fetchError: unknown) {
+          console.error("Fetch error completo:", fetchError);
+          if (fetchError instanceof Error && fetchError.message === 'Failed to fetch') {
+            throw new Error("El navegador bloqueó la subida (Error de CORS).");
           }
+          throw fetchError;
+        }
 
-          const presignData = await presignRes.json();
-          if (!presignData?.url) {
-            throw new Error('El servidor no devolvió una URL válida para subir el archivo.');
-          }
+        if (!uploadRes.ok) {
+          const errText = await uploadRes.text();
+          throw new Error(`Error al transferir el archivo ${file.name}.`);
+        }
 
-          // 2. Subir directamente el archivo a Cloudflare R2
-          let uploadRes;
-          try {
-            uploadRes = await fetch(presignData.url, {
-              method: 'PUT',
-              headers: { 'Content-Type': file.type || 'application/octet-stream' },
-              body: file
-            });
-          } catch (fetchError: unknown) {
-            console.error("Fetch error completo:", fetchError);
-            if (fetchError instanceof Error && fetchError.message === 'Failed to fetch') {
-              throw new Error("El navegador bloqueó la subida (Error de CORS). Por favor, asegurate de haber configurado las políticas CORS en tu bucket de Cloudflare R2 como te indicó el asistente.");
-            }
-            throw fetchError;
-          }
-
-          if (!uploadRes.ok) {
-            const errText = await uploadRes.text();
-            throw new Error(`Error al transferir el archivo ${file.name} al almacenamiento externo. Estado: ${uploadRes.status}. Detalle: ${errText}`);
-          }
-
-          // 3. Resultado simulado idéntico a la API anterior
-          const uploadResult = {
-            url: presignData.path,
-            path: presignData.path,
-            secure_url: presignData.path,
-            provider: 'r2'
-          };
+        const uploadResult = {
+          url: presignData.path,
+          path: presignData.path,
+          secure_url: presignData.path,
+          provider: 'r2'
+        };
 
         const fileExt = file.name.split(".").pop()?.toUpperCase() || "PDF";
 
@@ -214,12 +204,12 @@ export function UploadModule() {
           fileType: fileExt === "DOC" ? "DOCX" : fileExt,
           fileUrl: uploadResult.path || uploadResult.url || uploadResult.secure_url,
           status: "pending",
-            careerId: availableSubjects.find((s) => s.id === materia)?.careerId || carrera,
+          careerId: availableSubjects.find((s) => s.id === materia)?.careerId || carrera,
           subjectId: materia,
-            year: availableSubjects.find((s) => s.id === materia)?.year || parseInt(anio, 10) || 1,          };
+          year: availableSubjects.find((s) => s.id === materia)?.year || parseInt(anio, 10) || 1,
+        };
         await addDoc(collection(db, "notes"), newNote);
         
-        // Notificar a Discord (no bloqueante para no romper la subida)
         try {
           const subjectName = availableSubjects.find((s) => s.id === materia)?.name || materia;
           fetch('/api/notify', {
@@ -256,7 +246,7 @@ export function UploadModule() {
     }
   };
 
-const isValid = files.length > 0 && (files.length > 1 ? true : sanitize(title) !== "") && carrera && (carrera === "basicas" ? true : anio) && materia && tipo;
+  const isValid = files.length > 0 && (files.length > 1 ? true : sanitize(title) !== "") && carrera && (carrera === "basicas" ? true : anio) && materia && tipo;
 
   const selectedCareer = careersData.find((career) => career.id === carrera);
   const availableYears = selectedCareer
@@ -287,17 +277,16 @@ const isValid = files.length > 0 && (files.length > 1 ? true : sanitize(title) !
 
   if (submitted) {
     return (
-      <div className="w-full max-w-lg mx-auto bg-white rounded-2xl border border-[#C5DBC9] overflow-hidden animate-fade-in-scale shadow-lg shadow-[#8BAA91]/10">
-        <div className="h-1.5 bg-gradient-to-r from-[#8BAA91] to-[#7CC2A8]" />
-        <div className="flex flex-col items-center justify-center p-12 text-center">
-          <div className="w-14 h-14 rounded-2xl bg-[#E8F0EA] flex items-center justify-center mb-4">
-            <Check className="w-7 h-7 text-[#4A7A52] animate-checkmark" />
+      <div className="w-full max-w-lg mx-auto bg-white border-4 border-zinc-900 overflow-hidden animate-fade-in-scale shadow-[12px_12px_0px_0px_rgba(16,185,129,1)]">
+        <div className="h-4 bg-emerald-400 border-b-4 border-zinc-900" />
+        <div className="flex flex-col items-center justify-center p-16 text-center">
+          <div className="w-20 h-20 border-4 border-zinc-900 bg-emerald-100 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center mb-8 transform -rotate-3">
+            <Check className="w-10 h-10 text-emerald-700 animate-checkmark" strokeWidth={3} />
           </div>
-          <h2 className="text-xl font-extrabold text-[#3D3229] mb-2">Gracias por colaborar</h2>
-          <p className="text-sm text-[#7A6E62] leading-relaxed">
-            Tu apunte fue subido con exito.
-            <br />
-            Tus companeros te lo van a agradecer.
+          <h2 className="text-3xl font-black text-zinc-900 mb-4 uppercase italic tracking-tighter">¡SUBIDA EXITOSA!</h2>
+          <p className="text-sm text-zinc-600 leading-relaxed font-black uppercase tracking-widest border-l-4 border-emerald-400 pl-4 py-2 text-left">
+            GRACIAS POR COLABORAR. <br />
+            TUS COMPAÑEROS TE LO AGRADECERÁN.
           </p>
         </div>
       </div>
@@ -305,32 +294,34 @@ const isValid = files.length > 0 && (files.length > 1 ? true : sanitize(title) !
   }
 
   return (
-    <div className="relative w-full max-w-lg mx-auto">
-      <div className="blob w-52 h-52 bg-[#C5DBC9] -top-16 -left-16 animate-blob" />
-      <div className="blob w-40 h-40 bg-[#D5CCE5] -bottom-16 -right-16 animate-blob" style={{ animationDelay: "3s" }} />
+    <div className="relative w-full max-w-lg mx-auto group">
+      <div className="absolute -inset-4 bg-zinc-900/5 border-4 border-dashed border-zinc-200 -z-10 transform rotate-1 group-hover:rotate-0 transition-transform" />
 
-      <div className="relative bg-white/95 shadow-[0_0_10px_rgba(0,0,0,0.02)] rounded-2xl border border-[#E3DCD2] shadow-[0_8px_30px_rgb(0,0,0,0.04)] z-10">
-        <div className="h-1.5 rounded-t-[15px] bg-gradient-to-r from-[#8BAA91] via-[#7CC2A8] to-[#7BA7C2]" />
+      <div className="relative bg-white border-4 border-zinc-900 shadow-[10px_10px_0px_0px_rgba(0,0,0,1)] z-10 overflow-hidden">
+        <div className="h-3 bg-emerald-400 border-b-4 border-zinc-900" />
 
-        <div className="p-5 border-b border-[#EDE6DD]">
-          <div className="flex items-center gap-2.5">
-            <div className="group/icon w-8 h-8 rounded-lg bg-[#E8F0EA] flex items-center justify-center shadow-sm shadow-[#8BAA91]/10 hover:shadow-md transition-all duration-300">
-              <Upload className="w-4 h-4 text-[#4A7A52] group-hover/icon:-translate-y-1 transition-transform duration-300" />
+        <div className="p-8 border-b-4 border-zinc-900 bg-zinc-50">
+          <div className="flex items-center gap-5">
+            <div className="w-12 h-12 border-4 border-zinc-900 bg-emerald-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center transform -rotate-2">
+              <Upload className="w-6 h-6 text-zinc-900" strokeWidth={3} />
             </div>
             <div>
-              <h2 className="text-lg font-extrabold text-[#3D3229]">Subir apunte</h2>
-              <p className="text-xs text-[#A89F95]">Comparti tu material y ayuda a la cursada.</p>
+              <h2 className="text-2xl font-black text-zinc-900 uppercase italic tracking-tighter leading-none mb-1">SUBIR APUNTE</h2>
+              <div className="flex items-center gap-2">
+                <span className="w-2 h-2 bg-emerald-400 border border-zinc-900" />
+                <p className="text-[10px] text-zinc-500 font-black uppercase tracking-[0.2em]">SISTEMA DE COLABORACIÓN ABIERTA</p>
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="p-5 space-y-5">
+        <div className="p-8 space-y-8">
           {files.length === 0 ? (
             <div
-              className={`relative flex flex-col items-center justify-center w-full py-10 px-4 border-2 border-dashed rounded-2xl transition-all duration-300 cursor-pointer group/drop ${
+              className={`relative flex flex-col items-center justify-center w-full py-16 px-6 border-4 border-dashed transition-all duration-300 cursor-pointer group/drop ${
                 isDragging
-                  ? "border-[#8BAA91] bg-[#E8F0EA] scale-[1.01] shadow-lg shadow-[#8BAA91]/20"
-                  : "border-[#EDE6DD] bg-[#FFFBF7] hover:bg-[#F5F0EA] hover:border-[#8BAA91]/50 hover:shadow-md hover:-translate-y-0.5"
+                  ? "border-emerald-500 bg-emerald-50 shadow-[8px_8px_0px_0px_rgba(16,185,129,1)] -translate-y-2"
+                  : "border-zinc-300 bg-zinc-50/50 hover:bg-emerald-50/50 hover:border-emerald-500 hover:shadow-[8px_8px_0px_0px_rgba(16,185,129,0.1)]"
               }`}
               onDragOver={(event) => {
                 event.preventDefault();
@@ -344,10 +335,16 @@ const isValid = files.length > 0 && (files.length > 1 ? true : sanitize(title) !
               }}
               onClick={() => fileInputRef.current?.click()}
             >
-              <UploadCloud className="w-10 h-10 text-[#A89F95] mb-3 group-hover/drop:text-[#8BAA91] group-hover/drop:scale-110 group-hover/drop:-translate-y-1 transition-all duration-300" />
-              <p className="text-sm text-[#7A6E62] font-semibold mb-1">Arrastra archivos o hace click</p>
-              <p className="text-xs text-[#A89F95] mb-2">PDF, DOCX, XLSX, ZIP, RAR, JPG o PNG (Max. 50MB)</p>
-              <p className="text-[10px] text-[#4A7A52] font-bold bg-[#E8F0EA] px-2 py-1 rounded-md group-hover/drop:bg-[#D6E5D8] transition-colors duration-300">¡Podés seleccionar varios a la vez!</p>
+              <div className="w-20 h-20 bg-white border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] flex items-center justify-center mb-6 transform transition-transform group-hover/drop:rotate-6 group-hover/drop:scale-110">
+                <UploadCloud className="w-10 h-10 text-zinc-900" strokeWidth={3} />
+              </div>
+              <p className="text-lg text-zinc-900 font-black uppercase italic tracking-tighter mb-2">ARRASTRA TUS ARCHIVOS</p>
+              <p className="text-[10px] text-zinc-500 font-black uppercase tracking-widest mb-6 text-center leading-relaxed">
+                PDF, DOCX, XLSX, ZIP, RAR, JPG O PNG <br/> (LÍMITE: 50MB POR ARCHIVO)
+              </p>
+              <div className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-100 border-4 border-emerald-500 text-[10px] text-emerald-700 font-black uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(16,185,129,0.3)]">
+                ¡MÚLTIPLE SELECCIÓN SOPORTADA!
+              </div>
               <input
                 ref={fileInputRef}
                 type="file"
@@ -358,14 +355,19 @@ const isValid = files.length > 0 && (files.length > 1 ? true : sanitize(title) !
               />
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center px-1 mb-1">
-                 <span className="text-sm font-bold text-[#3D3229]">{files.length} archivo{files.length > 1 ? 's' : ''} seleccionado{files.length > 1 ? 's' : ''}</span>
+            <div className="space-y-6">
+              <div className="flex justify-between items-end border-b-4 border-zinc-100 pb-4">
+                <div>
+                  <p className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-400 mb-1">COLA DE SUBIDA</p>
+                  <span className="text-xl font-black text-zinc-900 italic uppercase tracking-tighter">
+                    {files.length} ARCHIVO{files.length > 1 ? 'S' : ''} LISTO{files.length > 1 ? 'S' : ''}
+                  </span>
+                </div>
                  <button 
                   onClick={() => fileInputRef.current?.click()}
-                  className="text-xs font-bold text-[#8BAA91] hover:text-[#4A7A52] hover:underline"
+                  className="flex items-center gap-2 px-4 py-2 bg-zinc-900 text-white text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500 hover:text-zinc-900 transition-all shadow-[4px_4px_0px_0px_rgba(52,211,153,1)]"
                  >
-                   + Agregar más
+                   <Upload className="w-4 h-4" /> AGREGAR MÁS
                  </button>
                  <input
                     ref={fileInputRef}
@@ -377,22 +379,24 @@ const isValid = files.length > 0 && (files.length > 1 ? true : sanitize(title) !
                   />
               </div>
               
-              <div className="max-h-[160px] overflow-y-auto pr-1 flex flex-col gap-2 no-scrollbar">
+              <div className="max-h-[220px] overflow-y-auto pr-2 flex flex-col gap-4 no-scrollbar custom-scrollbar">
                 {files.map((selectedFile, index) => (
-                  <div key={`${selectedFile.name}-${index}`} className="flex items-center gap-3 px-4 py-3 rounded-xl bg-[#E8F0EA] border border-[#C5DBC9] animate-fade-in-scale shrink-0">
-                    <FileText className="w-5 h-5 text-[#4A7A52]" />
+                  <div key={`${selectedFile.name}-${index}`} className="flex items-center gap-4 p-4 bg-zinc-50 border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.05)] animate-fade-in-scale group/item hover:bg-white transition-colors">
+                    <div className="w-10 h-10 bg-white border-2 border-zinc-900 flex items-center justify-center shrink-0 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] group-hover/item:bg-emerald-400 transition-colors">
+                      <FileText className="w-5 h-5 text-zinc-900" strokeWidth={3} />
+                    </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-[#3D3229] truncate">{selectedFile.name}</p>
-                      <p className="text-xs text-[#4A7A52]">{(selectedFile.size / 1024 / 1024).toFixed(1)} MB</p>
+                      <p className="text-xs font-black text-zinc-900 truncate uppercase tracking-tight">{selectedFile.name}</p>
+                      <p className="text-[10px] text-zinc-400 font-black uppercase tracking-widest italic">{(selectedFile.size / 1024 / 1024).toFixed(1)} MB</p>
                     </div>
                     <button
                       onClick={(event) => {
                         event.stopPropagation();
                         removeFile(index);
                       }}
-                      className="p-1.5 rounded-lg hover:bg-[#C5DBC9] text-[#4A7A52] transition-all active:scale-90"
+                      className="p-2 bg-white hover:bg-rose-600 text-zinc-400 hover:text-white border-2 border-zinc-900 transition-all active:scale-90 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-0.5 hover:translate-y-0.5"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4 h-4" strokeWidth={3} />
                     </button>
                   </div>
                 ))}
@@ -400,115 +404,133 @@ const isValid = files.length > 0 && (files.length > 1 ? true : sanitize(title) !
             </div>
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="flex items-center gap-1.5 text-sm font-bold text-[#3D3229] mb-1.5">
-                  <Pencil className="w-3.5 h-3.5 text-[#A89F95]" /> Título {files.length > 1 ? "(Opcional)" : ""}
-                </label>
+          <div className="grid grid-cols-1 gap-8">
+            <div className="space-y-3">
+              <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900">
+                <span className="w-2 h-2 bg-zinc-900" /> TÍTULO {files.length > 1 ? "( OPCIONAL )" : ""}
+              </label>
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-zinc-300 group-focus-within:text-emerald-500 transition-colors">
+                  <Pencil className="w-5 h-5" strokeWidth={3} />
+                </div>
                 <input
                   type="text"
                   value={title}
                   onChange={(event) => setTitle(event.target.value)}
-                  placeholder="Ej. Resumen completo primer parcial"
-                  className="w-full rounded-xl border border-[#EDE6DD] px-3.5 py-2.5 text-sm text-[#3D3229] placeholder:text-[#A89F95] focus:border-[#8BAA91] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]/20 bg-white transition-all"
-                />
-                {files.length > 1 && (
-                  <p className="mt-1.5 text-xs text-[#7A6E62]">
-                    Dejalo vacío para mantener el nombre original de cada archivo.
-                  </p>
-                )}
-            </div>
-
-            <div>
-              <label htmlFor="author" className="flex items-center gap-1.5 text-sm font-bold text-[#3D3229] mb-1.5">
-                <Pencil className="w-3.5 h-3.5 text-[#A89F95]" /> Tu nombre (opcional)
-              </label>
-              <input
-                id="author"
-                name="author"
-                type="text"
-                autoComplete="name"
-                value={author}
-                onChange={(event) => setAuthor(event.target.value)}
-                placeholder="Ej. Juan Perez"
-                maxLength={50}
-                className="w-full rounded-xl border border-[#EDE6DD] px-3.5 py-2.5 text-sm text-[#3D3229] placeholder:text-[#A89F95] focus:border-[#8BAA91] focus:outline-none focus:ring-2 focus:ring-[#8BAA91]/20 bg-white transition-all"
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="flex items-center gap-1.5 text-sm font-bold text-[#3D3229] mb-1.5">
-                <Building2 className="w-3.5 h-3.5 text-[#A89F95]" /> Carrera
-              </label>
-              <CustomSelect
-                value={carrera}
-                onChange={handleCarreraChange}
-                options={careersData.map((career) => ({ value: career.id, label: career.shortName }))}
-                placeholder="Seleccionar..."
-              />
-            </div>
-
-            {carrera !== "basicas" && (
-              <div>
-                <label className="flex items-center gap-1.5 text-sm font-bold text-[#3D3229] mb-1.5">
-                  <BookOpen className="w-3.5 h-3.5 text-[#A89F95]" /> Año
-                </label>
-                <CustomSelect
-                  value={anio}
-                  onChange={handleAnioChange}
-                  disabled={!carrera}
-                  options={availableYears.map((year) => ({ value: String(year), label: yearConfig[year]?.label || `Año ${year}` }))}
-                  placeholder="Seleccionar..."
+                  placeholder="EJ. RESUMEN COMPLETO PRIMER PARCIAL"
+                  className="w-full pl-14 pr-6 py-4 bg-white border-4 border-zinc-900 text-sm text-zinc-900 font-black uppercase tracking-widest placeholder:text-zinc-200 focus:outline-none focus:bg-zinc-50 focus:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)] transition-all"
                 />
               </div>
-            )}
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="flex items-center gap-1.5 text-sm font-bold text-[#3D3229] mb-1.5">
-                <BookOpen className="w-3.5 h-3.5 text-[#A89F95]" /> Materia
-              </label>
-              <CustomSelect
-                value={materia}
-                onChange={setMateria}
-                disabled={!carrera || !anio}
-                options={availableSubjects.map((subject) => ({ value: subject.id, label: subject.name }))}
-                placeholder="Seleccionar..."
-              />
+              {files.length > 1 && (
+                <p className="text-[9px] text-zinc-400 font-black uppercase tracking-widest italic">
+                  * SI SE DEJA VACÍO SE USARÁ EL NOMBRE ORIGINAL DE CADA ARCHIVO.
+                </p>
+              )}
             </div>
 
-            <div>
-              <label className="flex items-center gap-1.5 text-sm font-bold text-[#3D3229] mb-1.5">
-                <FileType className="w-3.5 h-3.5 text-[#A89F95]" /> Tipo
+            <div className="space-y-3">
+              <label htmlFor="author" className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900">
+                <span className="w-2 h-2 bg-zinc-900" /> AUTOR ( OPCIONAL )
               </label>
-              <CustomSelect
-                value={tipo}
-                onChange={setTipo}
-                options={[
-                  { value: "resumen", label: "Resumen" },
-                  { value: "examen", label: "Examen" },
-                  { value: "tp", label: "Trabajo Práctico" },
-                  { value: "guia", label: "Guía de Ejercicios" },
-                ]}
-                placeholder="Seleccionar..."
-              />
+              <div className="relative group">
+                <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-zinc-300 group-focus-within:text-emerald-500 transition-colors">
+                  <User className="w-5 h-5" strokeWidth={3} />
+                </div>
+                <input
+                  id="author"
+                  name="author"
+                  type="text"
+                  autoComplete="name"
+                  value={author}
+                  onChange={(event) => setAuthor(event.target.value)}
+                  placeholder="TU NOMBRE O ALIAS"
+                  maxLength={50}
+                  className="w-full pl-14 pr-6 py-4 bg-white border-4 border-zinc-900 text-sm text-zinc-900 font-black uppercase tracking-widest placeholder:text-zinc-200 focus:outline-none focus:bg-zinc-50 focus:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)] transition-all"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-8 pt-4 border-t-4 border-zinc-100">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900">
+                  <span className="w-2 h-2 bg-zinc-900" /> CARRERA
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-5 flex items-center pointer-events-none text-zinc-400">
+                    <Building2 className="w-5 h-5" strokeWidth={3} />
+                  </div>
+                  <CustomSelect
+                    value={carrera}
+                    onChange={handleCarreraChange}
+                    options={careersData.map((career) => ({ value: career.id, label: career.shortName }))}
+                    placeholder="ELEGIR..."
+                    className="pl-14"
+                  />
+                </div>
+              </div>
+
+              {carrera !== "basicas" && (
+                <div className="space-y-3">
+                  <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900">
+                    <span className="w-2 h-2 bg-zinc-900" /> AÑO
+                  </label>
+                  <CustomSelect
+                    value={anio}
+                    onChange={handleAnioChange}
+                    disabled={!carrera}
+                    options={availableYears.map((year) => ({ value: String(year), label: yearConfig[year]?.label || `Año ${year}` }))}
+                    placeholder="ELEGIR..."
+                  />
+                </div>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900">
+                  <span className="w-2 h-2 bg-zinc-900" /> MATERIA
+                </label>
+                <CustomSelect
+                  value={materia}
+                  onChange={setMateria}
+                  disabled={!carrera || !anio}
+                  options={availableSubjects.map((subject) => ({ value: subject.id, label: subject.name }))}
+                  placeholder="BUSCAR MATERIA..."
+                />
+              </div>
+
+              <div className="space-y-3">
+                <label className="flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900">
+                  <span className="w-2 h-2 bg-zinc-900" /> CATEGORÍA
+                </label>
+                <CustomSelect
+                  value={tipo}
+                  onChange={setTipo}
+                  options={[
+                    { value: "resumen", label: "RESUMEN" },
+                    { value: "examen", label: "EXAMEN" },
+                    { value: "tp", label: "TRABAJO PRÁCTICO" },
+                    { value: "guia", label: "GUÍA DE EJERCICIOS" },
+                  ]}
+                  placeholder="ELEGIR..."
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        <div className="px-5 py-4 flex flex-col gap-3 border-t border-[#EDE6DD] bg-[#FFFBF7] rounded-b-[15px]">
+        <div className="p-8 border-t-4 border-zinc-900 bg-zinc-50">
           {isUploading && (
-            <div className="w-full space-y-1.5 animate-fade-in">
-              <div className="flex justify-between text-[11px] font-bold text-[#4A7A52]">
-                <span>Subiendo archivo...</span>
-                <span>{Math.round(uploadProgress)}%</span>
+            <div className="w-full mb-8 animate-fade-in">
+              <div className="flex justify-between items-end mb-3">
+                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-[0.3em] italic animate-pulse">TRANSMITIENDO DATOS...</span>
+                <span className="text-xl font-black text-zinc-900 italic tracking-tighter">{Math.round(uploadProgress)}%</span>
               </div>
-              <div className="w-full h-1.5 bg-[#E8F0EA] rounded-full overflow-hidden">
+              <div className="w-full h-6 bg-white border-4 border-zinc-900 overflow-hidden shadow-inner p-1">
                 <div
-                  className="h-full bg-gradient-to-r from-[#8BAA91] to-[#7CC2A8] transition-all duration-300"
+                  className="h-full bg-emerald-400 border-r-4 border-zinc-900 transition-all duration-300"
                   style={{ width: `${uploadProgress}%` }}
                 />
               </div>
@@ -516,35 +538,40 @@ const isValid = files.length > 0 && (files.length > 1 ? true : sanitize(title) !
           )}
 
           {error && (
-            <div className="text-xs font-semibold text-[#8E5A5A] bg-[#F5E8E8] px-3 py-2 rounded-xl border border-[#E2CECE] animate-shake">
-              {error}
+            <div className="flex items-center gap-4 p-5 mb-8 bg-rose-50 border-4 border-rose-600 text-rose-600 font-black uppercase tracking-widest text-xs animate-shake shadow-[6px_6px_0px_0px_rgba(225,29,72,0.1)]">
+              <div className="w-10 h-10 bg-rose-600 border-2 border-zinc-900 flex items-center justify-center shrink-0 text-white">
+                <X className="w-6 h-6" strokeWidth={3} />
+              </div>
+              <p className="leading-tight">{error}</p>
             </div>
           )}
 
-          <div className="flex items-center justify-end gap-3">
+          <div className="flex flex-col sm:flex-row items-center gap-6">
             <button
               onClick={resetForm}
               disabled={isUploading}
-              className="px-4 py-2 text-sm font-semibold text-[#7A6E62] hover:text-[#3D3229] rounded-xl hover:bg-[#F5F0EA] transition-all duration-300 active:scale-95 disabled:opacity-50"
+              className="w-full sm:w-auto px-10 py-5 bg-white border-4 border-zinc-900 text-[10px] font-black uppercase tracking-widest hover:bg-zinc-100 transition-all active:scale-95 disabled:opacity-50 shadow-[6px_6px_0px_0px_rgba(0,0,0,0.1)] hover:shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)]"
             >
-              Limpiar
+              LIMPIAR FORMULARIO
             </button>
             <button
               onClick={handleSubmit}
               disabled={!isValid || isUploading}
-              className={`group/btn inline-flex items-center gap-1.5 px-6 py-2.5 text-sm font-bold rounded-xl transition-all duration-300 active:scale-95 ${
+              className={`w-full flex-1 group/btn flex items-center justify-center gap-4 py-5 text-sm font-black transition-all border-4 uppercase tracking-widest ${
                 isValid && !isUploading
-                  ? "bg-gradient-to-r from-[#8BAA91] to-[#6A8F70] text-white shadow-sm shadow-[#8BAA91]/20 hover:shadow-md hover:shadow-[#8BAA91]/30 hover:-translate-y-0.5 border border-[#597A5E]"
-                  : "bg-[#EAE4DB] text-[#A89F95] cursor-not-allowed border border-[#DED5C7]"
+                  ? "bg-emerald-400 text-zinc-900 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1 hover:shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] active:translate-y-1 active:shadow-none"
+                  : "bg-zinc-100 text-zinc-300 border-zinc-200 cursor-not-allowed"
               }`}
             >
               {isUploading ? (
                 <>
-                  <UploadCloud className="w-4 h-4 animate-bounce" /> Subiendo...
+                  <RefreshCw className="w-6 h-6 animate-spin" strokeWidth={3} /> PROCESANDO...
                 </>
               ) : (
                 <>
-                  Subir Apunte <UploadCloud className="w-4 h-4 group-hover/btn:-translate-y-0.5 group-hover/btn:translate-x-0.5 transition-transform" />
+                  <div className="flex items-center gap-3">
+                    INICIAR SUBIDA <UploadCloud className="w-6 h-6 group-hover/btn:-translate-y-1 transition-transform" strokeWidth={3} />
+                  </div>
                 </>
               )}
             </button>

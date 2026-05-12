@@ -6,8 +6,9 @@ import {
   Calculator, Atom, BookOpen, Binary, Cpu, Network, Database, 
   Building2, FlaskConical, Zap, ArrowLeft, FileText, Calendar, Star, LogIn, ShieldAlert,
   CheckCircle2, AlertTriangle, Unlock, Info, Layers, Sparkles, X,
-  Code2, LineChart, Briefcase, ShieldCheck, GraduationCap, Lock, Trophy, Rocket
+  Code2, LineChart, Briefcase, ShieldCheck, GraduationCap, Lock, Trophy, Rocket, Layout
 } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import { planesData } from './data';
 import Link from 'next/link';
@@ -19,6 +20,7 @@ import SubjectRatingModal from '@/components/SubjectRatingModal';
 import { useRouter } from 'next/navigation';
 import type { User } from 'firebase/auth';
 import { useToast } from '@/context/ToastContext';
+import { cn } from "@/lib/utils";
 
 type SubjectId = string | number;
 type UserProgress = { aprobadas: SubjectId[]; regulares: SubjectId[] };
@@ -69,25 +71,23 @@ const SubjectStatusRibbon = ({
 }) => {
   const toneClasses =
     tone === 'approved'
-      ? 'bg-gradient-to-r from-[#6B8A72] via-[#8BAA91] to-[#4A7A52] shadow-[0_16px_32px_-18px_rgba(74,122,82,0.85)]'
-      : 'bg-gradient-to-r from-[#C4A87D] via-[#D4856A] to-[#A9634C] shadow-[0_16px_32px_-18px_rgba(180,111,86,0.85)]';
+      ? 'bg-emerald-400 border-4 border-zinc-900 shadow-neo text-zinc-900'
+      : 'bg-yellow-400 border-4 border-zinc-900 shadow-neo text-zinc-900';
 
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none transition-opacity duration-300 opacity-100 group-hover:opacity-0 drop-shadow-[0_14px_18px_rgba(61,50,41,0.12)] overflow-hidden">
+    <div className="absolute inset-0 z-30 flex items-center justify-center pointer-events-none transition-opacity duration-300 opacity-100 group-hover:opacity-0 overflow-hidden">
       <div
-        className="absolute left-1/2 top-1/2 flex w-[146%] -translate-x-1/2 -translate-y-1/2 items-center justify-center select-none animate-stamp"
+        className="absolute left-1/2 top-1/2 flex w-[146%] -translate-x-1/2 -translate-y-1/2 items-center justify-center select-none"
       >
         <div
-          className={`relative flex w-full items-center justify-center overflow-hidden rounded-[1.35rem] border-t-2 border-b-4 border-white/75 px-4 text-center font-black uppercase whitespace-nowrap text-[#FFFBF7] ring-1 ring-white/45 ${toneClasses}`}
+          className={`relative flex w-full items-center justify-center overflow-hidden border-zinc-900 px-4 text-center font-black uppercase whitespace-nowrap ${toneClasses}`}
           style={{
             fontSize: 'clamp(0.72rem, 5.6cqw, 1.75rem)',
             paddingTop: 'clamp(0.35rem, 1cqw, 0.6rem)',
             paddingBottom: 'clamp(0.35rem, 1cqw, 0.6rem)',
-            letterSpacing: '0',
-            textShadow: '0 2px 10px rgba(61,50,41,0.28)',
+            letterSpacing: '0.1em',
           }}
         >
-          <span className="absolute inset-0 bg-[linear-gradient(100deg,rgba(255,255,255,0.26)_0%,rgba(255,255,255,0.08)_44%,rgba(255,255,255,0)_100%)]" />
           <span className="relative z-10">{label}</span>
         </div>
       </div>
@@ -126,41 +126,41 @@ const InteractiveProgressButtons = ({
   };
 
   return (
-    <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm flex flex-col gap-3">
+    <div className="bg-white p-5 border-4 border-zinc-900 shadow-neo flex flex-col gap-3">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <h4 className="text-xs font-bold uppercase text-[#A0A0A0]">Mi Progreso</h4>
+          <h4 className="text-xs font-black uppercase text-zinc-900 tracking-widest">Mi Progreso</h4>
           {!isApproved && !isRegular && (
             canTake 
-              ? <span className="text-[10px] font-bold px-2 py-0.5 rounded text-[#388E3C] bg-[#E8F5E9] border border-[#388E3C]/20">Puedes cursarla</span>
-              : <span className="text-[10px] font-bold px-2 py-0.5 rounded text-[#D4856A] bg-[#FFF9F2] border border-[#D4856A]/20">Aún no podés cursarla</span>
+              ? <span className="text-[10px] font-black px-2 py-0.5 border-2 border-zinc-900 text-zinc-900 bg-emerald-400 uppercase tracking-tighter">Disponible</span>
+              : <span className="text-[10px] font-black px-2 py-0.5 border-2 border-zinc-900 text-zinc-900 bg-yellow-400 uppercase tracking-tighter">Bloqueada</span>
           )}
         </div>
         {(isApproved || isRegular) && user && (
           <button
             onClick={() => handleAction(isApproved ? 'aprobadas' : 'regulares')}
-            className="text-[10px] sm:text-xs font-bold text-[#D4856A] hover:bg-[#FFF9F2] px-2 py-1 flex items-center gap-1 rounded-md transition-colors"       
+            className="text-[10px] sm:text-xs font-black text-red-500 hover:text-white hover:bg-red-500 px-2 py-1 flex items-center gap-1 transition-all border-2 border-transparent hover:border-zinc-900 uppercase tracking-widest italic"       
           >
-            <X className="w-3 h-3" /> Desmarcar
+            <X className="w-3 h-3" strokeWidth={3} /> Desmarcar
           </button>
         )}
       </div>
       <div className="flex gap-2 w-full">
         <button
           onClick={() => handleAction('aprobadas')}
-          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition-all
-            ${isApproved ? 'bg-[#E8F5E9] text-[#388E3C] ring-1 ring-[#388E3C]/50 shadow-sm' : 'bg-[#FAFAFA] text-[#7A6E62] hover:bg-[#F5F0EA]'}
+          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-black transition-all border-4 border-zinc-900 uppercase tracking-widest italic
+            ${isApproved ? 'bg-emerald-400 text-zinc-900 shadow-none translate-x-1 translate-y-1' : 'bg-white text-zinc-900 shadow-neo hover:-translate-y-1 hover:bg-emerald-50 active:translate-y-1 active:shadow-none'}
           `}
         >
-          <CheckCircle2 className="w-4 h-4" /> Aprobada
+          <CheckCircle2 className="w-4 h-4" strokeWidth={3} /> {isApproved ? 'Aprobada!' : 'Aprobar'}
         </button>
         <button
           onClick={() => handleAction('regulares')}
-          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-sm font-bold transition-all
-            ${isRegular ? 'bg-[#FFF3E0] text-[#E65100] ring-1 ring-[#E65100]/50 shadow-sm' : 'bg-[#FAFAFA] text-[#7A6E62] hover:bg-[#F5F0EA]'}
+          className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-black transition-all border-4 border-zinc-900 uppercase tracking-widest italic
+            ${isRegular ? 'bg-yellow-400 text-zinc-900 shadow-none translate-x-1 translate-y-1' : 'bg-white text-zinc-900 shadow-neo hover:-translate-y-1 hover:bg-yellow-50 active:translate-y-1 active:shadow-none'}
           `}
         >
-          <AlertTriangle className="w-4 h-4" /> Regular
+          <AlertTriangle className="w-4 h-4" strokeWidth={3} /> {isRegular ? 'Regular!' : 'Regularizar'}
         </button>
       </div>
     </div>
@@ -177,7 +177,10 @@ export default function PlanesPage() {
   const [globalRatings, setGlobalRatings] = useState<Record<string, RatingAggregate>>({});
   const [ratingModalSubject, setRatingModalSubject] = useState<RatingModalSubject | null>(null);
   const [ratingModalCareer, setRatingModalCareer] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const { user } = useAuth();
+  const [userProgress, setUserProgress] = useState<UserProgress>({ aprobadas: [], regulares: [] });
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -240,72 +243,86 @@ export default function PlanesPage() {
   };
 
   return (
-    <div className="flex flex-col min-h-screen relative overflow-hidden text-[#3D3229] w-full">
-      {/* Dynamic Background Effect */}
-      <div 
-        ref={bgRef}
-        className="fixed inset-0 opacity-[0.25] pointer-events-none transition-opacity duration-300 z-0"
-        style={{
-          background: `radial-gradient(circle 100vh at 50% 0%, ${activeCareer.name === 'Ingeniería en Sistemas' ? 'rgba(139, 170, 145, 0.4)' : activeCareer.name === 'Ingeniería Civil' ? 'rgba(212, 133, 106, 0.3)' : activeCareer.name === 'Ingeniería Química' ? 'rgba(124, 194, 168, 0.3)' : 'rgba(160, 160, 160, 0.3)'}, transparent)`
-        }}
-      />
-      
+    <React.Fragment>
       {/* Soft Grid Pattern */}
-      <div className="fixed inset-0 bg-[url('/grid.svg')] bg-center opacity-[0.4]  pointer-events-none z-0"></div>
+      <div className="fixed inset-0 bg-[url('/grid.svg')] bg-center opacity-[0.4] pointer-events-none z-0" />
 
       {/* Main Content */}
       <div ref={containerRef} className="flex-grow flex flex-col pt-12 relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
-        {/* Header Section */}
-        <div className="flex flex-col gap-8 mb-12">
-          <div className="space-y-4 max-w-2xl">
-            <Link href="/" className="inline-flex items-center gap-2 text-sm text-[#8BAA91] hover:text-[#7CC2A8] font-medium transition-colors mb-2">
-              <ArrowLeft className="w-4 h-4" />
+        <div className="flex flex-col gap-8 mb-16">
+          <div className="space-y-6 max-w-3xl">
+            <Link href="/" className="neo-btn-outline">
+              <ArrowLeft className="w-4 h-4" strokeWidth={3} />
               Volver al inicio
             </Link>
-            <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-[#1A1A1A]">
-              Planes de <span className={`text-transparent bg-clip-text bg-gradient-to-r ${activeCareer.color}`}>Estudio Interactivos</span>
-            </h1>
-            <p className="text-lg text-[#5C5C5C] leading-relaxed">
-              Explorá la currícula de tu carrera, su estructura por años y el diagrama de correlatividades habilitantes.
-            </p>
+            <div>
+              <h1 className="text-5xl sm:text-7xl font-black text-zinc-900 uppercase tracking-tighter leading-none mb-4 italic">
+                Planes de <span className="text-emerald-400">Estudio</span>
+              </h1>
+              <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest max-w-xl border-l-4 border-zinc-900 pl-4">
+                Visualizá tu progreso académico, consultá correlativas y planificá tu semestre con el sistema de trazado interactivo de UTNHUB.
+              </p>
+            </div>
+          </div>
+
+
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12">
+          <div className="lg:col-span-8 bg-white border-4 border-zinc-900 shadow-neo-xl p-6 flex flex-col sm:flex-row items-center gap-6">
+            <div className="relative flex-grow w-full">
+              <Info className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={3} />
+              <input
+                type="text"
+                placeholder="BUSCAR MATERIA (EJ: ANÁLISIS I)..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-zinc-50 border-4 border-zinc-900 pl-12 pr-4 py-4 text-sm font-black uppercase tracking-widest focus:bg-white focus:outline-none focus:ring-0 transition-colors"
+              />
+            </div>
+            <div className="flex gap-4 shrink-0 w-full sm:w-auto">
+              <div className="flex-1 sm:flex-none flex flex-col items-center justify-center px-6 py-2 bg-zinc-900 text-white border-4 border-zinc-900">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Materias</span>
+                <span className="text-xl font-black">{activeCareer.curriculum.length}</span>
+              </div>
+              <div className="flex-1 sm:flex-none flex flex-col items-center justify-center px-6 py-2 bg-emerald-400 text-zinc-900 border-4 border-zinc-900 shadow-neo">
+                <span className="text-[10px] font-black uppercase tracking-[0.2em]">Aprobadas</span>
+                <span className="text-xl font-black">
+                  {user ? activeCareer.curriculum.filter(s => userProgress.aprobadas.includes(s.id)).length : 0}
+                </span>
+              </div>
+            </div>
           </div>
           
-          {/* Career Selector */}
-          <div className="flex bg-[#FCFBFA] p-2 rounded-2xl flex-wrap justify-start items-center border border-[#E8F0EA] shadow-sm w-fit gap-2 relative z-20">
-            {careerOptions.map((career) => {
-              const isActive = activeCareer.id === career.id;
-              return (
-                <button
-                  key={career.id}
-                  onClick={() => setActiveCareer(career)}
-                  className={`
-                    relative px-4 py-2.5 rounded-xl text-sm font-bold transition-all duration-150 flex items-center gap-2.5 active:scale-95
-                    ${isActive 
-                      ? 'bg-white text-[#3D3229] shadow-md shadow-[#8BAA91]/10 ring-1 ring-[#8BAA91]/40 z-10 scale-[1.02]' 
-                      : 'text-[#7A6E62] hover:text-[#3D3229] hover:bg-white/60 hover:-translate-y-0.5'
-                    }
-                  `}
-                >
-                  <div className={`flex items-center justify-center p-1.5 rounded-lg transition-colors ${isActive ? `bg-gradient-to-r ${career.color} text-white shadow-sm` : 'bg-[#F5F0EA] text-[#8BAA91]'}`}>
-                     {React.cloneElement(career.icon as React.ReactElement<{ className?: string }>, { className: "w-4 h-4" })}
-                  </div>
-                  {career.shortName}
-                </button>
-              );
-            })}
+          <div className="lg:col-span-4 flex bg-white p-2 flex-wrap justify-start items-center border-4 border-zinc-900 w-full gap-2 relative z-20 shadow-neo-xl">
+            {careerOptions.map((career) => (
+              <button
+                key={career.id}
+                onClick={() => setActiveCareer(career)}
+                className={cn(
+                  "flex-1 min-w-[120px] px-4 py-3 font-black uppercase tracking-widest text-xs border-4 transition-all active:translate-y-1 active:shadow-none italic",
+                  activeCareer.id === career.id 
+                    ? "bg-emerald-400 text-zinc-900 border-zinc-900 shadow-none translate-y-1" 
+                    : "bg-white text-zinc-600 border-transparent hover:border-zinc-900 hover:text-zinc-900 hover:-translate-y-1 hover:shadow-neo"
+                )}
+              >
+                {career.shortName}
+              </button>
+            ))}
           </div>
         </div>
 
         {/* Curriculum Viewer Container */}
         <div className="flex-grow relative flex flex-col min-h-[600px] mb-8">
-          <div className="absolute inset-0 bg-white border-b shadow-sm rounded-3xl border border-[#E8F0EA] shadow-xl pointer-events-none z-0" />
-          <div className="relative z-10 flex-grow flex flex-col min-h-[600px] rounded-3xl overflow-hidden">
+          <div className="absolute inset-0 bg-white border-b   border-[3px] border-zinc-900  pointer-events-none z-0" />
+          <div className="relative z-10 flex-grow flex flex-col min-h-[600px]  overflow-hidden">
             <CurriculumViewer
               career={activeCareer}
               globalRatings={globalRatings}
               openRatingModal={openRatingModal}
               setShowLoginPrompt={setShowLoginPrompt}
+              setSearchTerm={setSearchTerm}
             />
           </div>
         </div>
@@ -328,24 +345,24 @@ export default function PlanesPage() {
             className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
             onClick={() => setShowLoginPrompt(false)}
           />
-          <div className="relative bg-white rounded-3xl border border-[#EDE6DD] shadow-2xl max-w-sm w-full outline-none transform transition-all overflow-hidden animate-fade-in-scale p-6 text-center mx-4">
-            <div className="w-14 h-14 bg-[#F5F0EA] rounded-2xl flex items-center justify-center mb-6 shadow-inner text-[#D4856A] mx-auto">
+          <div className="relative bg-white  border-[3px] border-zinc-900  max-w-sm w-full outline-none transform transition-all overflow-hidden animate-fade-in-scale p-6 text-center mx-4">
+            <div className="w-14 h-14 bg-zinc-100  flex items-center justify-center mb-6  text-amber-600 mx-auto">
               <LogIn className="w-7 h-7" />
             </div>
-            <h3 className="text-xl font-extrabold text-[#3D3229] mb-2 tracking-tight">Iniciá sesión</h3>
-            <p className="text-sm font-medium text-[#7A6E62] mb-6">
+            <h3 className="text-xl font-black text-zinc-900 mb-2 tracking-tight">Iniciá sesión</h3>
+            <p className="text-sm font-medium text-zinc-600 mb-6">
               Para calificar materias y ayudar a otros estudiantes, necesitas tener una cuenta. ¡Es gratis y rápido!
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowLoginPrompt(false)}
-                className="flex-1 px-4 py-3 rounded-xl text-sm font-bold text-[#7A6E62] border border-[#EDE6DD] hover:bg-[#FAFAF8] transition-all"
+                className="neo-btn-outline flex-1 py-3 text-xs"
               >
                 Cancelar
               </button>
               <button
                 onClick={() => router.push('/auth')}
-                className="flex-1 px-4 py-3 rounded-xl text-sm font-bold text-white bg-[#1A1A1A] hover:bg-[#3D3229] transition-all shadow-lg active:scale-95"
+                className="neo-btn-primary flex-1 py-3 text-xs"
               >
                 Ingresar
               </button>
@@ -354,8 +371,8 @@ export default function PlanesPage() {
         </div>,
         document.body
       )}
-    </div>
-  );
+  </React.Fragment>
+);
 }
 
 // ----------------------------------------------------------------------
@@ -391,6 +408,7 @@ type CurriculumViewerProps = {
   globalRatings: Record<string, RatingAggregate>;
   openRatingModal: (subject: Pick<Subject, 'id' | 'name'>) => void;
   setShowLoginPrompt: (show: boolean) => void;
+  setSearchTerm: (term: string) => void;
 };
 
 const CurriculumViewer = ({
@@ -398,6 +416,7 @@ const CurriculumViewer = ({
   globalRatings,
   openRatingModal,
   setShowLoginPrompt,
+  setSearchTerm,
 }: CurriculumViewerProps) => {
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -560,16 +579,66 @@ const CurriculumViewer = ({
   const providerLabel = profileSummary.providerId === 'google.com' ? 'Google' : profileSummary.providerId === 'password' ? 'Email/Contraseña' : 'No detectado';
   const roleLabel = profileSummary.role === 'admin' ? 'Administrador' : profileSummary.role === 'moderator' ? 'Moderador' : 'Usuario';
 
+  const YearCelebrationModal = ({ 
+    isOpen, 
+    onClose, 
+    userName, 
+    year 
+  }: { 
+    isOpen: boolean; 
+    onClose: () => void; 
+    userName: string; 
+    year: number | string 
+  }) => {
+    if (!isOpen) return null;
+
+    return createPortal(
+      <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4">
+        <div 
+          className="fixed inset-0 bg-zinc-900/60 backdrop-blur-md" 
+          onClick={onClose}
+        />
+        <div className="relative bg-white border-8 border-zinc-900 shadow-[16px_16px_0px_0px_rgba(16,185,129,1)] max-w-md w-full p-10 text-center overflow-hidden">
+          {/* Brutalist Decor */}
+          <div className="absolute top-0 left-0 w-full h-2 bg-emerald-400" />
+          <div className="absolute top-0 right-0 w-16 h-16 bg-yellow-400 border-l-4 border-b-4 border-zinc-900 -rotate-12 translate-x-4 -translate-y-4" />
+          
+          <div className="relative z-10">
+            <div className="w-24 h-24 bg-white border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(24,24,27,1)] flex items-center justify-center mb-8 mx-auto rotate-3">
+              <Trophy className="w-12 h-12 text-emerald-500" strokeWidth={3} />
+            </div>
+
+            <h2 className="text-4xl font-black text-zinc-900 mb-4 uppercase tracking-tighter italic">
+              ¡Año {year} <span className="text-emerald-500 underline decoration-8">Completado</span>!
+            </h2>
+            
+            <p className="text-sm font-bold text-zinc-500 mb-8 uppercase tracking-widest leading-relaxed">
+              Felicitaciones <span className="text-zinc-900 underline decoration-zinc-900 underline-offset-4">{userName}</span>. Cada vez estás más cerca de tu objetivo académico. Seguí así, ¡el esfuerzo vale la pena! 
+            </p>
+
+            <button
+              onClick={onClose}
+              className="w-full bg-zinc-900 text-white font-black uppercase tracking-widest text-lg px-8 py-5 border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(16,185,129,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
+            >
+              ¡VAMOS POR MÁS!
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    );
+  };
+
     return (
       <div className="flex flex-col lg:flex-row h-full w-full relative">
       {/* Main Grid View */}
       <div className="flex-grow overflow-x-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
         
         {/* Simple header inside viewer */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-6 lg:mb-8 pb-6 border-b border-[#E8F0EA] gap-4">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-6 lg:mb-8 pb-6 border-b border-zinc-300 gap-4">
           <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 lg:w-12 lg:h-12 rounded-2xl bg-[#F5F0EA] flex items-center justify-center text-[#8BAA91] shadow-inner shrink-0">
+              <div className="w-10 h-10 lg:w-12 lg:h-12  bg-zinc-100 flex items-center justify-center text-emerald-500  shrink-0">
                 <GraduationCap className="w-5 h-5 lg:w-6 lg:h-6" />
               </div>
               <div>
@@ -581,7 +650,7 @@ const CurriculumViewer = ({
                   
                   {user ? (
                     <>
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#E8F0EA] hidden sm:block"></div>
+                      <div className="w-1.5 h-1.5  bg-emerald-100 hidden sm:block"></div>
                       {(() => {
                         const coreSubjects = career.curriculum.filter(s => !s.isElectiva);
                         const electiveSubjects = career.curriculum.filter(s => s.isElectiva);
@@ -596,10 +665,10 @@ const CurriculumViewer = ({
                             
                           return (
                             <div className="flex flex-wrap items-center gap-2">
-                               <span className="text-[11px] lg:text-xs font-bold text-[#388E3C] bg-[#E8F5E9] px-2 py-1 rounded-md flex items-center gap-1 shadow-sm border border-[#388E3C]/20"><CheckCircle2 className="w-3.5 h-3.5" /> Troncales: {approvedCore} / {coreSubjects.length}</span>
-                               {remainingCore > 0 && <span className="text-[11px] lg:text-xs font-bold text-[#D4856A] bg-[#FFF9F2] px-2 py-1 rounded-md flex items-center gap-1 shadow-sm border border-[#D4856A]/20"><AlertTriangle className="w-3.5 h-3.5" /> {remainingCore} restantes</span>}
+                               <span className="text-[11px] lg:text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1  flex items-center gap-1  border border-[#388E3C]/20"><CheckCircle2 className="w-3.5 h-3.5" /> Troncales: {approvedCore} / {coreSubjects.length}</span>
+                               {remainingCore > 0 && <span className="text-[11px] lg:text-xs font-bold text-amber-600 bg-[#FFF9F2] px-2 py-1  flex items-center gap-1  border border-[#D4856A]/20"><AlertTriangle className="w-3.5 h-3.5" /> {remainingCore} restantes</span>}
                                
-                               <span className="text-[11px] lg:text-xs font-bold text-[#8BAA91] bg-[#F5F9F6] px-2 py-1 rounded-md flex items-center gap-1 shadow-sm border border-[#8BAA91]/20"><Atom className="w-3.5 h-3.5" /> Electivas: {approvedHs} / {career.requiredElectiveHours} hs</span>
+                               <span className="text-[11px] lg:text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1  flex items-center gap-1  border border-emerald-500/20"><Atom className="w-3.5 h-3.5" /> Electivas: {approvedHs} / {career.requiredElectiveHours} hs</span>
                             </div>
                           );
                         } else {
@@ -609,8 +678,8 @@ const CurriculumViewer = ({
                           
                           return (
                             <div className="flex flex-wrap items-center gap-2">
-                               <span className="text-[11px] lg:text-xs font-bold text-[#388E3C] bg-[#E8F5E9] px-2 py-1 rounded-md flex items-center gap-1 shadow-sm border border-[#388E3C]/20"><CheckCircle2 className="w-3.5 h-3.5" /> {approvedInCareer} aprobadas</span>
-                               {remaining > 0 && <span className="text-[11px] lg:text-xs font-bold text-[#D4856A] bg-[#FFF9F2] px-2 py-1 rounded-md flex items-center gap-1 shadow-sm border border-[#D4856A]/20"><AlertTriangle className="w-3.5 h-3.5" /> {remaining} restantes</span>}
+                               <span className="text-[11px] lg:text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1  flex items-center gap-1  border border-[#388E3C]/20"><CheckCircle2 className="w-3.5 h-3.5" /> {approvedInCareer} aprobadas</span>
+                               {remaining > 0 && <span className="text-[11px] lg:text-xs font-bold text-amber-600 bg-[#FFF9F2] px-2 py-1  flex items-center gap-1  border border-[#D4856A]/20"><AlertTriangle className="w-3.5 h-3.5" /> {remaining} restantes</span>}
                             </div>
                           );
                         }
@@ -618,8 +687,8 @@ const CurriculumViewer = ({
                     </>
                   ) : (
                     <>
-                      <div className="w-1.5 h-1.5 rounded-full bg-[#E8F0EA] hidden sm:block"></div>
-                      <span className="text-[11px] lg:text-xs font-bold text-[#A0A0A0] bg-[#FAFAFA] px-2 py-1 rounded-md flex items-center gap-1 shadow-sm border border-[#E8F0EA] border-dashed"><LogIn className="w-3.5 h-3.5" /> Logueate para llevar tu progreso y horas electivas</span>
+                      <div className="w-1.5 h-1.5  bg-emerald-100 hidden sm:block"></div>
+                      <span className="text-[11px] lg:text-xs font-bold text-zinc-400 bg-zinc-100 px-2 py-1  flex items-center gap-1  border-[3px] border-zinc-900 border-dashed"><LogIn className="w-3.5 h-3.5" /> Logueate para llevar tu progreso y horas electivas</span>
                     </>
                   )}
                 </div>
@@ -643,34 +712,32 @@ const CurriculumViewer = ({
                     <p style="font-size:16px;font-weight:600;">Generando plan de estudio...</p>
                   </body>
                 `);
-                previewWindow.document.close();
-
-                import('@/lib/pdfGenerator').then(async (mod) => {
-                  const pdfUrl = await mod.generateStudyPlanPDF(career, career.curriculum.filter(s => !s.isElectiva));
-                  previewWindow.location.href = pdfUrl;
-                }).catch((error) => {
+                import('@/lib/pdfGenerator').then(({ generateStudyPlanPDF }) => {
+                  generateStudyPlanPDF(career, career.curriculum).then(url => {
+                    previewWindow.location.href = url;
+                  });
+                }).catch(error => {
                   console.error('Error generando el PDF', error);
                   previewWindow.close();
                 });
               }}
-              className="flex items-center justify-center gap-2 bg-[#1A1A1A] hover:bg-[#3D3229] text-white px-4 py-2.5 rounded-xl text-sm font-bold shadow-lg shadow-[#1A1A1A]/20 transition-all duration-150 hover:-translate-y-1 group w-full sm:w-auto"
+              className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 border-4 border-zinc-900 text-sm font-black uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] hover:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)] transition-all hover:-translate-y-1 active:translate-y-0 active:shadow-none group w-full sm:w-auto"
             >
-              <FileText className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              <FileText className="w-5 h-5 group-hover:scale-110 transition-transform" strokeWidth={3} />
               <span>Descargar Plan</span>
             </button>
           </div>
 
-          {/* Year Selector */}
-          <div className="flex bg-[#F5F0EA]/50 p-1 rounded-xl overflow-x-auto custom-scrollbar w-full xl:w-auto mt-2 xl:mt-0">
+          <div className="flex bg-white border-4 border-zinc-900 p-1 overflow-x-auto custom-scrollbar w-full xl:w-auto mt-2 xl:mt-0 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
             {yearsOptions.map(year => (
               <button
                 key={year}
                 onClick={() => setSelectedYear(year as number | 'electivas')}
                 className={`
-                  relative px-4 sm:px-5 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all duration-150 whitespace-nowrap active:scale-95 flex-1 xl:flex-none text-center
+                  relative px-4 sm:px-5 py-2 text-xs sm:text-sm font-black uppercase tracking-widest transition-all duration-150 whitespace-nowrap active:translate-y-1 active:shadow-none flex-1 xl:flex-none text-center
                   ${selectedYear === year 
-                    ? 'bg-white text-[#3D3229] shadow-md shadow-[#8BAA91]/10 ring-1 ring-[#8BAA91]/30 z-10 scale-105 xl:scale-[1.05]' 
-                    : 'text-[#7A6E62] hover:text-[#3D3229] hover:bg-white'
+                    ? 'bg-emerald-400 text-zinc-900 shadow-none z-10' 
+                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
                   }
                 `}
               >
@@ -681,21 +748,20 @@ const CurriculumViewer = ({
         </div>
 
 
-        {/* Status References */}
-        <div className="flex flex-wrap items-center gap-3 sm:gap-6 mb-8 px-5 py-3.5 bg-gradient-to-r from-[#F4FBFA]/90 to-[#FFF5F5]/90 rounded-2xl border border-[#E8F0EA] shadow-sm w-fit border-l-4 border-l-[#8BAA91]">
-          <span className="text-[10px] font-black text-[#8BAA91] uppercase tracking-[0.15em] mr-2">Referencias</span>
+        <div className="flex flex-wrap items-center gap-3 sm:gap-6 mb-8 px-6 py-4 bg-white border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] w-fit">
+          <span className="text-xs font-black text-zinc-900 uppercase tracking-[0.15em] mr-2">Sistema de Control</span>
           <div className="flex items-center gap-2.5">
-            <div className="w-5 h-5 rounded-md bg-[#F4FBFA] border-2 border-[#8BAA91] shadow-inner flex items-center justify-center">
-              <CheckCircle2 className="w-3.5 h-3.5 text-[#8BAA91]" />
+            <div className="w-5 h-5 bg-emerald-400 border-2 border-zinc-900 flex items-center justify-center">
+              <CheckCircle2 className="w-4 h-4 text-zinc-900" strokeWidth={3} />
             </div>
-            <span className="text-xs sm:text-sm font-bold text-[#3D3229]">Puedes Cursar</span>
+            <span className="text-xs sm:text-sm font-black uppercase tracking-widest text-zinc-900">Puedes Cursar</span>
           </div>
-          <div className="w-1.5 h-1.5 rounded-full bg-[#D4856A]/20 hidden sm:block"></div>
+          <div className="w-1.5 h-1.5 bg-zinc-900 hidden sm:block"></div>
           <div className="flex items-center gap-2.5">
-            <div className="w-5 h-5 rounded-md bg-[#FFF5F5] border-2 border-[#D4856A] shadow-inner flex items-center justify-center">
-              <Lock className="w-3.5 h-3.5 text-[#D4856A]" />
+            <div className="w-5 h-5 bg-yellow-400 border-2 border-zinc-900 flex items-center justify-center">
+              <Lock className="w-4 h-4 text-zinc-900" strokeWidth={3} />
             </div>
-            <span className="text-xs sm:text-sm font-bold text-[#3D3229]">Bloqueada</span>
+            <span className="text-xs sm:text-sm font-black uppercase tracking-widest text-zinc-900">Bloqueada</span>
           </div>
         </div>
 
@@ -711,51 +777,43 @@ const CurriculumViewer = ({
                 {subjects.map((subject, index) => {
                   const isSelected = selectedSubject?.id === subject.id;
 
-                  // Highlight logic much faster O(1)
-                  const isReqOfHovered = hoveredSubject ? hoveredRegulares.has(subject.id) || hoveredAprobadas.has(subject.id) : false;
-                  const unlocksHovered = hoveredSubject ? subject.regulares.includes(hoveredSubject) || subject.aprobadas.includes(hoveredSubject) : false;
-                  let cardStyle = "bg-white border-[#E8F0EA] hover:border-[#8BAA91]/40 hover:shadow-xl hover:shadow-[#8BAA91]/10 hover:-translate-y-1";
-                  let iconColor = "text-[#A0A0A0]";
-                  let spanClass = "";
+                  const isApproved = userProgress.aprobadas.includes(subject.id);
+                  const isRegular = userProgress.regulares.includes(subject.id);
+                  const isReqOfHovered = hoveredData ? hoveredRegulares.has(subject.id) : false;
+                  const unlocksHovered = hoveredData ? hoveredAprobadas.has(subject.id) : false;
 
-                    const isApproved = userProgress.aprobadas.includes(subject.id);
-                    const isRegular = userProgress.regulares.includes(subject.id);
-
-                    let canTake = false;
-                    if (user && !isApproved && !isRegular && subject.name !== "Materias Electivas") {
-                      const missingAprobadas = subject.aprobadas.some((id: string | number) => !userProgress.aprobadas.includes(id));
-                      const missingRegulares = subject.regulares.some((id: string | number) => !userProgress.aprobadas.includes(id) && !userProgress.regulares.includes(id));
-                      canTake = !missingAprobadas && !missingRegulares;
-                    }
-
-                    if (isApproved) {
-                      cardStyle = "bg-[#F4FBFA] border-[#8BAA91]/55 shadow-sm relative overflow-hidden opacity-75 hover:opacity-100 transition-opacity";
-                      iconColor = "text-[#6B8A72]";
-                    } else if (isRegular) {
-                      cardStyle = "bg-[#FFF9F2] border-[#D4856A]/40 shadow-sm relative overflow-hidden opacity-75 hover:opacity-100 transition-opacity";
-                      iconColor = "text-[#A9634C]";
-                    } else if (user && subject.name !== "Materias Electivas") {
-                      if (canTake) {
-                        cardStyle = "bg-[#F4FBFA] border-[#8BAA91] border-2 shadow-md hover:-translate-y-1 transition-all relative overflow-hidden";
-                        iconColor = "text-[#8BAA91]";
-                      } else {
-                        cardStyle = "bg-[#FFF5F5] border-[#D4856A] border-2 shadow-sm hover:-translate-y-1 transition-all relative overflow-hidden opacity-90";
-                        iconColor = "text-[#D4856A]";
-                      }
-                    }
-
-                  if (subject.name === "Materias Electivas") {
-                    spanClass = "col-span-full bg-[#F5F0EA]/30 border-dashed border-2";
+                  let canTake = false;
+                  if (user && !isApproved && !isRegular && subject.name !== "Materias Electivas") {
+                    const missingAprobadas = subject.aprobadas.some((id: string | number) => !userProgress.aprobadas.includes(id));
+                    const missingRegulares = subject.regulares.some((id: string | number) => !userProgress.aprobadas.includes(id) && !userProgress.regulares.includes(id));
+                    canTake = !missingAprobadas && !missingRegulares;
                   }
 
-                  if (isReqOfHovered) {
-                    cardStyle = "bg-[#FFF9F2] ring-2 ring-[#D4856A] ring-offset-2 scale-[1.02] transition-all z-10 will-change-transform shadow-lg border-[#D4856A]/50";
-                    iconColor = "text-[#D4856A]";
-                  } else if (unlocksHovered) {
-                    cardStyle = "bg-[#F4FBFA] ring-2 ring-[#8BAA91] ring-offset-2 scale-[1.02] transition-all z-10 will-change-transform shadow-lg border-[#8BAA91]/50";
-                    iconColor = "text-[#8BAA91]";
-                  } else if (isSelected) {
-                    cardStyle += " ring-2 ring-[#8BAA91] ring-offset-2 scale-[1.02] z-10 shadow-lg";
+                  let cardStyle = "bg-white border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]";
+                  let iconColor = "text-zinc-900";
+                  let spanClass = "";
+
+                  if (isApproved) {
+                    cardStyle = "bg-emerald-400 border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] opacity-90 grayscale-[0.3]";
+                  } else if (isRegular) {
+                    cardStyle = "bg-yellow-400 border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] opacity-90";
+                  } else if (user && subject.name !== "Materias Electivas") {
+                    if (canTake) {
+                      cardStyle = "bg-white border-4 border-emerald-500 shadow-[4px_4px_0px_0px_rgba(16,185,129,1)]";
+                      iconColor = "text-emerald-500";
+                    } else {
+                      cardStyle = "bg-white border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] grayscale-[0.8]";
+                      iconColor = "text-zinc-400";
+                    }
+                  }
+
+                  if (subject.name === "Materias Electivas") {
+                    spanClass = "col-span-full border-dashed border-4 border-zinc-400";
+                  }
+
+                  if (isReqOfHovered || unlocksHovered || isSelected) {
+                    cardStyle = cardStyle.replace('shadow-[4px_4px_0px_0px', 'shadow-[8px_8px_0px_0px');
+                    cardStyle += " -translate-y-1 z-10";
                   }
 
                   return (
@@ -765,55 +823,52 @@ const CurriculumViewer = ({
                       onMouseEnter={() => setHoveredSubject(subject.id)}
                       onMouseLeave={() => setHoveredSubject(null)}
                       onClick={() => setSelectedSubject(subject)}
-                      style={{ animationDelay: `${index * 8}ms`, animationDuration: '250ms' }}
+                      style={{ animationDelay: `${index * 8}ms` }}
                       className={`
-                        relative p-4 rounded-2xl border transition-all duration-100 ease-out group min-h-[120px] flex flex-col overflow-hidden [container-type:inline-size]
-                        z-0 hover:z-20 animate-fade-in-up
+                        relative p-5 transition-all duration-200 group min-h-[140px] flex flex-col overflow-hidden animate-fade-in-up
+                        hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(24,24,27,1)] active:translate-y-0 active:shadow-none
                         ${cardStyle}
                         ${spanClass}
                       `}
                     >
-                      <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-current opacity-[0.03] rounded-full group-hover:scale-[2.5] transition-transform duration-150 ease-out z-0 pointer-events-none" />
-                      
                       {/* Watermark Labels */}
                       {isApproved && (
                         <SubjectStatusRibbon label="APROBADA" tone="approved" />
                       )}
 
                       {isRegular && !isApproved && (
-                        <SubjectStatusRibbon label="REGULARIZADA" tone="regular" />
+                        <SubjectStatusRibbon label="REGULAR" tone="regular" />
                       )}
 
-                      <div className="flex items-start justify-between mb-2 relative z-10 bg-white/40 backdrop-blur-[1px] p-1 -m-1 rounded-lg">
-                        <div className="flex items-center gap-1.5">
-                          <span className="relative z-10 text-xs font-mono font-medium text-[#A0A0A0] bg-[#F5F5F5] px-2 py-1 rounded-md block w-fit">
-                            Cod. {subject.id.toString().padStart(3, '0')}
+                      <div className="flex items-start justify-between mb-3 relative z-10">
+                        <div className="flex items-center gap-2">
+                          <span className="text-[10px] font-black font-mono text-zinc-900 bg-zinc-100 border-2 border-zinc-900 px-2 py-0.5">
+                            ID {subject.id.toString().padStart(3, '0')}
                           </span>
                           {subject.semester && subject.semester !== 'Electiva' && (
                             <span className={`
-                              relative z-10 text-[10px] font-bold px-2 py-1 rounded-md flex items-center gap-1 w-fit
+                              text-[10px] font-black uppercase tracking-widest px-2 py-0.5 border-2 border-zinc-900
                               ${subject.semester === 'Anual'
-                                ? 'bg-[#EDE9FE] text-[#7C3AED]'
+                                ? 'bg-purple-400 text-zinc-900'
                                 : subject.semester.includes('1')
-                                  ? 'bg-[#E8F5E9] text-[#388E3C]'
-                                  : 'bg-[#FFF3E0] text-[#E65100]'
+                                  ? 'bg-emerald-400 text-zinc-900'
+                                  : 'bg-yellow-400 text-zinc-900'
                               }
                             `}>
-                              <Calendar className="w-3 h-3" />
                               {subject.semester === 'Anual' ? 'Anual' : subject.semester.includes('1') ? '1C' : '2C'}
                             </span>
                           )}
                         </div>
-                        <div className="flex gap-2 items-center relative z-10 shrink-0">{getSubjectIcon(subject.name, `w-5 h-5 ${iconColor} group-hover:text-[#8BAA91] group-hover:scale-125 group-hover:-rotate-12 transition-all duration-100 ease-out`)}</div>
+                        <div className="shrink-0">{getSubjectIcon(subject.name, `w-6 h-6 ${iconColor} group-hover:scale-125 group-hover:-rotate-12 transition-all duration-200`)}</div>
                       </div>
 
-                      <div className="relative z-10 mt-auto flex flex-col gap-1.5">
-                        <h4 className="font-semibold text-sm leading-tight text-[#3D3229] transition-colors">
+                      <div className="relative z-10 flex flex-col gap-1">
+                        <h4 className="font-black text-sm uppercase tracking-tight leading-tight text-zinc-900">
                           {subject.name}
                         </h4>
                         {subject.note && (
-                          <p className="text-[9px] uppercase tracking-wide leading-tight text-[#8BAA91] font-bold">
-                            *{subject.note}
+                          <p className="text-[10px] uppercase tracking-widest font-black text-emerald-600">
+                            {subject.note}
                           </p>
                         )}
                       </div>
@@ -830,10 +885,10 @@ const CurriculumViewer = ({
                             }
                           }}
                           className={`
-                            flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-150 z-20 border
+                            flex items-center gap-1.5 px-2.5 py-1.5  text-[11px] font-bold transition-all duration-150 z-20 border
                             ${globalRatings[subject.id] 
-                              ? 'bg-[#FAFAF8] text-[#3D3229] border-[#EDE6DD] hover:bg-[#F5F0EA] hover:border-[#8BAA91]/50' 
-                              : 'bg-transparent text-[#A0A0A0] border-transparent hover:bg-[#FAFAF8] hover:text-[#8BAA91] hover:border-[#EDE6DD]'}
+                              ? 'bg-zinc-50 text-zinc-900 border-zinc-300 hover:bg-zinc-100 hover:border-emerald-500/50' 
+                              : 'bg-transparent text-zinc-400 border-transparent hover:bg-zinc-50 hover:text-emerald-500 hover:border-zinc-300'}
                           `}
                         >
                           {!globalRatings[subject.id] ? (
@@ -843,24 +898,24 @@ const CurriculumViewer = ({
                             </>
                           ) : (
                             <div className="flex items-center gap-2">
-                              <span className="flex items-center gap-1 text-[#D4856A]">
+                              <span className="flex items-center gap-1 text-amber-600">
                                 <ShieldAlert className="w-3.5 h-3.5" />
                                 {globalRatings[subject.id].diffAvg.toFixed(1)}
                               </span>
-                              <span className="w-1 h-1 rounded-full bg-[#E8F0EA]" />
-                              <span className="flex items-center gap-1 text-[#8BAA91]">
+                              <span className="w-1 h-1  bg-emerald-100" />
+                              <span className="flex items-center gap-1 text-emerald-500">
                                 <Sparkles className="w-3.5 h-3.5" />
                                 {globalRatings[subject.id].utilAvg.toFixed(1)}
                               </span>
-                              <span className="w-1 h-1 rounded-full bg-[#E8F0EA]" />
-                              <span className="text-[9px] font-bold text-[#A0A0A0] uppercase tracking-tighter">
+                              <span className="w-1 h-1  bg-emerald-100" />
+                              <span className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">
                                 {globalRatings[subject.id].count} {globalRatings[subject.id].count === 1 ? 'voto' : 'votos'}
                               </span>
                             </div>
                           )}
                         </button>
 
-                        <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-[#8BAA91] opacity-0 group-hover:opacity-100 transition-all duration-150 translate-y-2 group-hover:translate-y-0 text-shadow-sm pointer-events-none whitespace-nowrap overflow-hidden">
+                        <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-emerald-500 opacity-0 group-hover:opacity-100 transition-all duration-150 translate-y-2 group-hover:translate-y-0 text- pointer-events-none whitespace-nowrap overflow-hidden">
                           <Info className="w-3 h-3 flex-shrink-0" /> <span className="hidden @[220px]:inline">Ver correlativas</span>
                         </div>
                       </div>
@@ -871,18 +926,18 @@ const CurriculumViewer = ({
 
               {/* Bulk Actions for the year */}
               {yearStr !== 'electivas' && user && (
-                <div className="flex flex-wrap items-center gap-4 mt-6 px-4 py-3 bg-[#FCFBFA] rounded-2xl border border-[#EDE6DD] border-dashed">
+                <div className="flex flex-wrap items-center gap-4 mt-6 px-4 py-3 bg-zinc-50  border-[3px] border-zinc-900 border-dashed">
                   <p className="text-[11px] font-bold text-[#A89F95] uppercase tracking-wider">Acciones rápidas para el año:</p>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => handleBulkToggle(subjects, 'regulares')}
-                      className="text-[11px] font-bold text-[#D4856A] hover:text-[#A9634C] transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-[#FFF9F2] border border-transparent hover:border-[#D4856A]/20 active:scale-95"
+                      className="text-[11px] font-bold text-amber-600 hover:text-[#A9634C] transition-all flex items-center gap-1.5 px-3 py-1.5  hover:bg-[#FFF9F2] border border-transparent hover:border-[#D4856A]/20 active:scale-95"
                     >
                       <AlertTriangle className="w-3 h-3" /> Marcar todo el año regular
                     </button>
                     <button
                       onClick={() => handleBulkToggle(subjects, 'aprobadas')}
-                      className="text-[11px] font-bold text-[#8BAA91] hover:text-[#6B8A72] transition-all flex items-center gap-1.5 px-3 py-1.5 rounded-xl hover:bg-[#F4FBFA] border border-transparent hover:border-[#8BAA91]/20 active:scale-95"
+                      className="text-[11px] font-bold text-emerald-500 hover:text-[#6B8A72] transition-all flex items-center gap-1.5 px-3 py-1.5  hover:bg-emerald-50 border border-transparent hover:border-emerald-500/20 active:scale-95"
                     >
                       <CheckCircle2 className="w-3 h-3" /> Marcar todo el año aprobado
                     </button>
@@ -894,447 +949,186 @@ const CurriculumViewer = ({
         </div>
       </div>
 
-      {/* Sidebar Inspector Mobile (via Portal to escape container constraints) */}
-      {selectedSubject && mounted && typeof document !== 'undefined' && createPortal(
-        <div className="lg:hidden">
-          {/* Mobile Overlay */}
-          <div 
-            className="fixed inset-0 bg-black/5 z-[100] transition-opacity" 
-            onClick={() => setSelectedSubject(null)} 
-          />
-          
-          {/* Mobile Bottom Sheet */}
-          <div className="
-            fixed bottom-0 left-0 right-0 z-[101] rounded-t-3xl max-h-[85vh] overflow-y-auto scrollbar-hide
-            border-t border-[#E8F0EA] bg-[#FAFAFA] px-6 pt-6 pb-8
-            transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[0_-10px_30px_rgba(0,0,0,0.05)]
-          ">
-            <div className="w-12 h-1.5 bg-[#E8F0EA] rounded-full mx-auto mb-6" />
-
-            <div className="flex items-center justify-between mb-6">
-              <h3 className="text-sm font-bold uppercase tracking-widest text-[#A0A0A0]">Detalle de Correlativas</h3>
-              <button 
-                onClick={() => setSelectedSubject(null)}
-                className="p-2 hover:bg-[#E8F0EA] rounded-full text-[#5C5C5C] transition-colors"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <div className="space-y-6">
-              <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
-                <h2 className="text-xl font-bold leading-tight mb-2 pr-4">{selectedSubject.name}</h2>
-                <div className="flex flex-wrap gap-2 mb-4">
-                  <span className="text-xs font-mono font-medium text-[#A0A0A0] bg-[#F5F5F5] px-2 py-1 rounded-md">Cod. {selectedSubject.id.toString().padStart(3, '0')}</span>
-                  {selectedSubject.semester && selectedSubject.semester !== 'Electiva' ? (
-                    <span className="text-xs font-bold text-[#8BAA91] bg-[#F5F9F6] px-2 py-1 rounded-md">{selectedSubject.semester}</span>
-                  ) : null}
-                  {selectedSubject.isElectiva ? (
-                    <span className="text-xs font-bold text-[#A0A0A0] bg-[#F5F5F5] px-2 py-1 rounded-md">Electiva</span>
-                  ) : null}
-                </div>
-                
-                <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#F5F0EA]">
-                  {selectedSubject.weekly_hours ? (
-                    <div>
-                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Horas Semanales</h4>
-                      <p className="text-sm font-semibold">{selectedSubject.weekly_hours} hs</p>
-                    </div>
-                  ) : null}
-                  {selectedSubject.total_hours ? (
-                    <div>
-                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Horas Totales</h4>
-                      <p className="text-sm font-semibold">{selectedSubject.total_hours} hs</p>
-                    </div>
-                  ) : null}
-                </div>
-
-                {globalRatings[selectedSubject.id] && (
-                  <div className="mt-4 pt-4 border-t border-[#F5F0EA]">
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-3">Estadísticas de alumnos</h4>
-                    <div className="flex items-center gap-4">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-[#D4856A] uppercase tracking-tighter mb-1">Dificultad</span>
-                        <div className="flex items-center gap-1.5 text-[#D4856A]">
-                          <ShieldAlert className="w-3.5 h-3.5" />
-                          <span className="text-sm font-bold">{globalRatings[selectedSubject.id].diffAvg.toFixed(1)}/5</span>
-                        </div>
-                      </div>
-                      <div className="w-px h-8 bg-[#F5F0EA]" />
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold text-[#8BAA91] uppercase tracking-tighter mb-1">Utilidad</span>
-                        <div className="flex items-center gap-1.5 text-[#8BAA91]">
-                          <Sparkles className="w-3.5 h-3.5" />
-                          <span className="text-sm font-bold">{globalRatings[selectedSubject.id].utilAvg.toFixed(1)}/5</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              <InteractiveProgressButtons 
-                subject={selectedSubject} 
-                userProgress={userProgress} 
-                onToggle={handleToggleState} 
-                user={user}
-                setShowLoginPrompt={setShowLoginPrompt}
-              />
-
-              <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
-                <h4 className="text-xs font-bold uppercase text-[#A0A0A0] mb-4">Para cursarla necesitás:</h4>
-                {selectedSubject.regulares.length === 0 && selectedSubject.aprobadas.length === 0 ? (
-                  <div className="text-sm text-[#5C5C5C] flex items-center gap-2 bg-[#F9F9F9] p-3 rounded-lg border border-dashed border-[#E0E0E0]">
-                    <Unlock className="w-4 h-4 text-[#8BAA91]" /> Sin correlativas previas
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {selectedSubject.aprobadas.length > 0 && (
-                      <div>
-                        <span className="text-xs font-semibold text-[#8BAA91] mb-2 block">Tener APROBADAS:</span>
-                        <ul className="space-y-1">
-                          {selectedSubject.aprobadas.map((reqId) => {
-                            const reqSub = career.curriculum.find(s => s.id === reqId);
-                            return (
-                              <li key={reqId} className="flex items-start gap-2 text-sm text-[#3D3229] hover:text-[#8BAA91] p-1.5 -ml-1.5 rounded-lg transition-colors group cursor-pointer"
-                                  onClick={() => reqSub && setSelectedSubject(reqSub)}>
-                                <CheckCircle2 className="w-4 h-4 text-[#8BAA91] mt-0.5 shrink-0" />
-                                <span className="group-hover:underline">{reqSub?.name}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    )}
-                    {selectedSubject.regulares.length > 0 && (
-                      <div>
-                        <span className="text-xs font-semibold text-[#D4856A] mb-2 block">Tener REGULARES:</span>
-                        <ul className="space-y-1">
-                          {selectedSubject.regulares.map((reqId) => {
-                            const reqSub = career.curriculum.find(s => s.id === reqId);
-                            return (
-                              <li key={reqId} className="flex items-start gap-2 text-sm text-[#3D3229] hover:text-[#D4856A] p-1.5 -ml-1.5 rounded-lg transition-colors group cursor-pointer"
-                                  onClick={() => reqSub && setSelectedSubject(reqSub)}>
-                                <AlertTriangle className="w-4 h-4 text-[#D4856A] mt-0.5 shrink-0" />
-                                <span className="group-hover:underline">{reqSub?.name}</span>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-
-              <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
-                <h4 className="text-xs font-bold uppercase text-[#A0A0A0] mb-4">Esta materia te permite:</h4>
-                {(() => {
-                  const unlocksAsRegular = career.curriculum.filter(s => s.regulares.includes(selectedSubject.id));
-                  const unlocksAsApproved = career.curriculum.filter(s => s.aprobadas.includes(selectedSubject.id));
-                  if (unlocksAsRegular.length === 0 && unlocksAsApproved.length === 0) return <span className="text-sm text-[#A0A0A0] italic">No es correlativa de materias futuras.</span>;
-                  return (
-                    <div className="space-y-4">
-                      <div className="flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide">
-                        {unlocksAsRegular.length > 0 && (
-                          <span className="px-2.5 py-1 rounded-full bg-[#FFF9F2] text-[#D4856A] border border-[#D4856A]/20">
-                            Regularizar habilita {unlocksAsRegular.length}
-                          </span>
-                        )}
-                        {unlocksAsApproved.length > 0 && (
-                          <span className="px-2.5 py-1 rounded-full bg-[#F4FBFA] text-[#8BAA91] border border-[#8BAA91]/20">
-                            Aprobar habilita {unlocksAsApproved.length}
-                          </span>
-                        )}
-                      </div>
-                      {unlocksAsRegular.length > 0 && (
-                        <div>
-                          <span className="text-xs font-semibold text-[#D4856A] mb-2 block">Si la REGULARIZÁS:</span>
-                          <div className="flex flex-wrap gap-2">
-                            {unlocksAsRegular.map(unlockedSub => (
-                              <span key={unlockedSub.id} onClick={() => setSelectedSubject(unlockedSub)}
-                                    className="text-xs font-medium bg-[#FFF9F2] border border-[#E8F0EA] text-[#3D3229] px-2.5 py-1.5 rounded-lg hover:border-[#D4856A] cursor-pointer">
-                                {unlockedSub.name}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                      {unlocksAsApproved.length > 0 && (
-                        <div>
-                          <span className="text-xs font-semibold text-[#8BAA91] mb-2 block">Si la APROBÁS:</span>
-                          <div className="flex flex-wrap gap-2">
-                            {unlocksAsApproved.map(unlockedSub => (
-                              <span key={unlockedSub.id} onClick={() => setSelectedSubject(unlockedSub)}
-                                    className="text-xs font-medium bg-[#F4FBFA] border border-[#E8F0EA] text-[#3D3229] px-2.5 py-1.5 rounded-lg hover:border-[#8BAA91] cursor-pointer">
-                                {unlockedSub.name}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-              </div>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Sidebar Inspector Desktop (Inline) */}
-      {selectedSubject && (
-        <div className="
-          hidden lg:block w-[400px] border-l border-[#E8F0EA] bg-[#FAFAFA] p-6 
-          transition-all duration-200 ease-[cubic-bezier(0.23,1,0.32,1)] shadow-[-10px_0_30px_rgba(0,0,0,0.02)]
-          flex-shrink-0 h-auto overflow-y-auto custom-scrollbar
-        ">
-          <div className="flex items-center justify-between mb-8">
-            <h3 className="text-sm font-bold uppercase tracking-widest text-[#A0A0A0]">Detalle de Correlativas</h3>
-            <button 
+      {/* Subject Detail Sidebar - Neo-Brutalist Drawer */}
+      <AnimatePresence>
+        {selectedSubject && (
+          <>
+            {/* Overlay */}
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
               onClick={() => setSelectedSubject(null)}
-              className="p-2 hover:bg-[#E8F0EA] rounded-full text-[#5C5C5C] transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          <div className="space-y-6" key={selectedSubject.id}>
-            <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
-              <h2 className="text-xl font-bold leading-tight mb-2 pr-4">{selectedSubject.name}</h2>
-              <div className="flex flex-wrap gap-2 mb-4">
-                <span className="text-xs font-mono font-medium text-[#A0A0A0] bg-[#F5F5F5] px-2 py-1 rounded-md">Cod. {selectedSubject.id.toString().padStart(3, '0')}</span>
-                {selectedSubject.semester && selectedSubject.semester !== 'Electiva' ? (
-                  <span className="text-xs font-bold text-[#8BAA91] bg-[#F5F9F6] px-2 py-1 rounded-md">{selectedSubject.semester}</span>
-                ) : null}
-                {selectedSubject.isElectiva ? (
-                  <span className="text-xs font-bold text-[#A0A0A0] bg-[#F5F5F5] px-2 py-1 rounded-md">Electiva</span>
-                ) : null}
-              </div>
-              
-              {/* Information Grid Container */}
-              <div className="grid grid-cols-2 gap-3 pt-4 border-t border-[#F5F0EA]">
-                {selectedSubject.weekly_hours ? (
-                  <div>
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Horas Semanales</h4>
-                    <p className="text-sm font-semibold">{selectedSubject.weekly_hours} hs</p>
-                  </div>
-                ) : null}
-                {selectedSubject.total_hours ? (
-                  <div>
-                    <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Horas Totales</h4>
-                    <p className="text-sm font-semibold">{selectedSubject.total_hours} hs</p>
-                  </div>
-                ) : null}
-              </div>
-              
-              {(selectedSubject.docente || selectedSubject.horario) && (
-                <div className="grid grid-cols-1 gap-3 pt-3 mt-3 border-t border-[#F5F0EA]">
-                  {selectedSubject.docente && (
-                    <div>
-                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Cátedra / Docente</h4>
-                      <p className="text-sm font-semibold">{selectedSubject.docente}</p>
-                    </div>
-                  )}
-                  {selectedSubject.horario && (
-                    <div>
-                      <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-1">Régimen y Horarios</h4>
-                      <p className="text-sm font-semibold leading-relaxed">{selectedSubject.horario}</p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* Rating Section in Sidebar Desktop */}
-              {globalRatings[selectedSubject.id] && (
-                <div className="mt-4 pt-4 border-t border-[#F5F0EA]">
-                  <h4 className="text-[10px] font-bold uppercase tracking-wider text-[#A0A0A0] mb-3">Calificaciones de Estudiantes</h4>
-                  <div className="flex items-center gap-4">
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-[#D4856A] uppercase tracking-tighter mb-1">Dificultad</span>
-                      <div className="flex items-center gap-1.5">
-                        <div className="p-1 rounded-md bg-[#FFF9F2] text-[#D4856A]">
-                          <ShieldAlert className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="text-sm font-bold">{globalRatings[selectedSubject.id].diffAvg.toFixed(1)}/5</span>
-                      </div>
-                    </div>
-                    <div className="w-px h-8 bg-[#F5F0EA]" />
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-[#8BAA91] uppercase tracking-tighter mb-1">Utilidad</span>
-                      <div className="flex items-center gap-1.5">
-                        <div className="p-1 rounded-md bg-[#F4FBFA] text-[#8BAA91]">
-                          <Sparkles className="w-3.5 h-3.5" />
-                        </div>
-                        <span className="text-sm font-bold">{globalRatings[selectedSubject.id].utilAvg.toFixed(1)}/5</span>
-                      </div>
-                    </div>
-                    <div className="ml-auto flex flex-col items-end">
-                      <span className="text-[10px] font-bold text-[#A0A0A0] uppercase tracking-tighter mb-1">Muestra</span>
-                      <span className="text-xs font-bold text-[#7A6E62]">{globalRatings[selectedSubject.id].count} {globalRatings[selectedSubject.id].count === 1 ? 'estudiante' : 'estudiantes'}</span>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <InteractiveProgressButtons 
-              subject={selectedSubject} 
-              userProgress={userProgress} 
-              onToggle={handleToggleState} 
-              user={user}
-              setShowLoginPrompt={setShowLoginPrompt}
+              className="fixed inset-0 bg-zinc-900/40 backdrop-blur-sm z-[90]"
             />
-
-            {/* Requirements Section */}
-            <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
-              <h4 className="text-xs font-bold uppercase text-[#A0A0A0] mb-4">Para cursarla necesitás:</h4>
-              
-              {selectedSubject.regulares.length === 0 && selectedSubject.aprobadas.length === 0 ? (
-                <div className="text-sm text-[#5C5C5C] flex items-center gap-2 bg-[#F9F9F9] p-3 rounded-lg border border-dashed border-[#E0E0E0]">
-                  <Unlock className="w-4 h-4 text-[#8BAA91]" /> Sin correlativas previas
-                </div>
-              ) : (
-                <div className="space-y-4">
-                  {selectedSubject.aprobadas.length > 0 && (
-                    <div>
-                      <span className="text-xs font-semibold text-[#8BAA91] mb-2 block">Tener APROBADAS:</span>
-                      <ul className="space-y-1">
-                        {selectedSubject.aprobadas.map((reqId, index) => {
-                          const reqSub = career.curriculum.find(s => s.id === reqId);
-                          return (
-                            <li 
-                              key={reqId} 
-                              style={{ animationDelay: `${index * 50 + 100}ms` }}
-                              className="flex items-start gap-2 text-sm text-[#3D3229] hover:text-[#8BAA91] hover:bg-[#F4FBFA] p-1.5 -ml-1.5 rounded-lg transition-colors group"
-                              onClick={() => {
-                                if (reqSub) {
-                                  setSelectedSubject(reqSub);
-                                  setSelectedYear(reqSub.isElectiva ? 'electivas' : reqSub.year);
-                                }
-                              }}
-                            >
-                              <CheckCircle2 className="w-4 h-4 text-[#8BAA91] mt-0.5 shrink-0" />
-                              <span className="group-hover:underline underline-offset-2">{reqSub?.name}</span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
-
-                  {selectedSubject.regulares.length > 0 && (
-                    <div>
-                      <span className="text-xs font-semibold text-[#D4856A] mb-2 block">Tener REGULARES:</span>
-                      <ul className="space-y-1">
-                        {selectedSubject.regulares.map((reqId, index) => {
-                          const reqSub = career.curriculum.find(s => s.id === reqId);
-                          return (
-                            <li 
-                              key={reqId} 
-                              style={{ animationDelay: `${index * 50 + 200}ms` }}
-                              className="flex items-start gap-2 text-sm text-[#3D3229] hover:text-[#D4856A] hover:bg-[#FFF9F2] p-1.5 -ml-1.5 rounded-lg transition-colors group"
-                              onClick={() => {
-                                if (reqSub) {
-                                  setSelectedSubject(reqSub);
-                                  setSelectedYear(reqSub.isElectiva ? 'electivas' : reqSub.year);
-                                }
-                              }}
-                            >
-                              <AlertTriangle className="w-4 h-4 text-[#D4856A] mt-0.5 shrink-0" />
-                              <span className="group-hover:underline underline-offset-2">{reqSub?.name}</span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
-
-                  {selectedSubject.rendir && selectedSubject.rendir.length > 0 && (
-                    <div>
-                      <span className="text-xs font-semibold text-[#8B5CF6] mb-2 block mt-4">Para RENDIR (Aprobadas):</span>
-                      <ul className="space-y-1">
-                        {selectedSubject.rendir.map((reqId, index) => {
-                          const reqSub = career.curriculum.find(s => s.id === reqId);
-                          return (
-                            <li 
-                              key={reqId} 
-                              style={{ animationDelay: `${index * 50 + 300}ms` }}
-                              className="flex items-start gap-2 text-sm text-[#3D3229] hover:text-[#8B5CF6] hover:bg-[#F3E8FF] p-1.5 -ml-1.5 rounded-lg cursor-pointer transition-colors group"
-                              onClick={() => {
-                                if (reqSub) {
-                                  setSelectedSubject(reqSub);
-                                  setSelectedYear(reqSub.isElectiva ? 'electivas' : reqSub.year);
-                                }
-                              }}
-                            >
-                              <CheckCircle2 className="w-4 h-4 text-[#8B5CF6] mt-0.5 shrink-0" />
-                              <span className="group-hover:underline underline-offset-2">{reqSub?.name}</span>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
             
-            <div className="bg-white p-5 rounded-2xl border border-[#E8F0EA] shadow-sm">
-              <h4 className="text-xs font-bold uppercase text-[#A0A0A0] mb-4">Esta materia te permite:</h4>
-              {(() => {
-                const unlocksAsRegular = career.curriculum.filter(s => s.regulares.includes(selectedSubject.id));
-                const unlocksAsApproved = career.curriculum.filter(s => s.aprobadas.includes(selectedSubject.id));
-                if (unlocksAsRegular.length === 0 && unlocksAsApproved.length === 0) return <span className="text-sm text-[#A0A0A0] italic">No es correlativa de materias futuras.</span>;
-                return (
-                  <div className="space-y-4">
-                    <div className="flex flex-wrap gap-2 text-[11px] font-bold uppercase tracking-wide">
-                      {unlocksAsRegular.length > 0 && (
-                        <span className="px-2.5 py-1 rounded-full bg-[#FFF9F2] text-[#D4856A] border border-[#D4856A]/20">
-                          Regularizar habilita {unlocksAsRegular.length}
-                        </span>
-                      )}
-                      {unlocksAsApproved.length > 0 && (
-                        <span className="px-2.5 py-1 rounded-full bg-[#F4FBFA] text-[#8BAA91] border border-[#8BAA91]/20">
-                          Aprobar habilita {unlocksAsApproved.length}
-                        </span>
-                      )}
-                    </div>
-                    {unlocksAsRegular.length > 0 && (
-                      <div>
-                        <span className="text-xs font-semibold text-[#D4856A] mb-2 block">Si la REGULARIZÁS:</span>
-                        <div className="flex flex-wrap gap-2">
-                          {unlocksAsRegular.map(unlockedSub => (
-                            <span key={unlockedSub.id} onClick={() => setSelectedSubject(unlockedSub)}
-                                  className="text-xs font-medium bg-[#FFF9F2] border border-[#E8F0EA] text-[#3D3229] px-2.5 py-1.5 rounded-lg hover:border-[#D4856A] cursor-pointer">
-                              {unlockedSub.name}
-                            </span>
-                          ))}
-                        </div>
+            {/* Drawer Panel */}
+            <motion.div
+              initial={{ x: '100%' }}
+              animate={{ x: 0 }}
+              exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed right-0 top-0 h-full w-full max-w-xl bg-white border-l-8 border-zinc-900 z-[100] shadow-[-12px_0px_0px_0px_rgba(24,24,27,1)] flex flex-col"
+            >
+              {/* Header */}
+              <div className="p-8 border-b-4 border-zinc-900 bg-zinc-50 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400 rotate-45 translate-x-16 -translate-y-16 border-l-4 border-zinc-900 opacity-20" />
+                
+                <button 
+                  onClick={() => setSelectedSubject(null)}
+                  className="absolute top-6 right-6 p-2 bg-white border-4 border-zinc-900 hover:bg-red-400 transition-colors shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
+                >
+                  <X className="w-6 h-6" strokeWidth={3} />
+                </button>
+
+                <div className="space-y-4 pr-12">
+                  <div className="flex items-center gap-3">
+                    <span className="px-3 py-1 bg-zinc-900 text-white text-[10px] font-black uppercase tracking-widest">
+                      Nivel {selectedSubject.year}
+                    </span>
+                    <span className="px-3 py-1 bg-emerald-400 border-2 border-zinc-900 text-zinc-900 text-[10px] font-black uppercase tracking-widest">
+                      {selectedSubject.id}
+                    </span>
+                  </div>
+                  <h2 className="text-4xl font-black text-zinc-900 uppercase tracking-tighter leading-[0.9]">
+                    {selectedSubject.name}
+                  </h2>
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="flex-grow overflow-y-auto p-8 space-y-10 custom-scrollbar">
+                <InteractiveProgressButtons 
+                  subject={selectedSubject} 
+                  userProgress={userProgress} 
+                  onToggle={handleToggleState} 
+                  user={user}
+                  setShowLoginPrompt={setShowLoginPrompt}
+                />
+
+                {/* Information Grid */}
+                {(selectedSubject.weekly_hours || selectedSubject.total_hours) && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {selectedSubject.weekly_hours && (
+                      <div className="bg-zinc-50 border-4 border-zinc-900 p-4 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Horas Semanales</span>
+                        <span className="text-xl font-black text-zinc-900">{selectedSubject.weekly_hours}hs</span>
                       </div>
                     )}
-                    {unlocksAsApproved.length > 0 && (
-                      <div>
-                        <span className="text-xs font-semibold text-[#8BAA91] mb-2 block">Si la APROBÁS:</span>
-                        <div className="flex flex-wrap gap-2">
-                          {unlocksAsApproved.map(unlockedSub => (
-                            <span key={unlockedSub.id} onClick={() => setSelectedSubject(unlockedSub)}
-                                  className="text-xs font-medium bg-[#F4FBFA] border border-[#E8F0EA] text-[#3D3229] px-2.5 py-1.5 rounded-lg hover:border-[#8BAA91] cursor-pointer">
-                                {unlockedSub.name}
-                            </span>
-                          ))}
-                        </div>
+                    {selectedSubject.total_hours && (
+                      <div className="bg-zinc-50 border-4 border-zinc-900 p-4 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Horas Totales</span>
+                        <span className="text-xl font-black text-zinc-900">{selectedSubject.total_hours}hs</span>
                       </div>
                     )}
                   </div>
-                );
-              })()}
-            </div>
-          </div>
+                )}
 
-          </div>
-      )}
+                {/* Requirements */}
+                <div className="space-y-6">
+                  <h3 className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400 flex items-center gap-2">
+                    <Binary className="w-4 h-4" strokeWidth={3} /> CORRELATIVAS
+                  </h3>
+                  
+                  <div className="grid grid-cols-1 gap-4">
+                    <div className="bg-white border-4 border-zinc-900 p-5 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-amber-600 mb-4 block">Para cursar necesitás (Regulares):</span>
+                      {selectedSubject.regulares.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedSubject.regulares.map(id => {
+                            const s = career.curriculum.find(subj => subj.id === id);
+                            return s ? (
+                              <button key={id} onClick={() => setSelectedSubject(s)} className="px-3 py-1.5 bg-zinc-100 border-2 border-zinc-900 text-[10px] font-bold uppercase hover:bg-yellow-400 transition-colors">
+                                {s.name}
+                              </button>
+                            ) : null;
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] font-black uppercase text-zinc-300 italic">Sin requisitos previos</p>
+                      )}
+                    </div>
+
+                    <div className="bg-white border-4 border-zinc-900 p-5 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
+                      <span className="text-[10px] font-black uppercase tracking-widest text-emerald-600 mb-4 block">Para cursar necesitás (Aprobadas):</span>
+                      {selectedSubject.aprobadas.length > 0 ? (
+                        <div className="flex flex-wrap gap-2">
+                          {selectedSubject.aprobadas.map(id => {
+                            const s = career.curriculum.find(subj => subj.id === id);
+                            return s ? (
+                              <button key={id} onClick={() => setSelectedSubject(s)} className="px-3 py-1.5 bg-zinc-100 border-2 border-zinc-900 text-[10px] font-bold uppercase hover:bg-emerald-400 transition-colors">
+                                {s.name}
+                              </button>
+                            ) : null;
+                          })}
+                        </div>
+                      ) : (
+                        <p className="text-[10px] font-black uppercase text-zinc-300 italic">Sin requisitos previos</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Ratings Summary */}
+                <div className="bg-zinc-900 text-white border-4 border-zinc-900 p-8 shadow-[8px_8px_0px_0px_rgba(16,185,129,1)] space-y-6">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-xs font-black uppercase tracking-[0.2em] text-emerald-400">Insights de la Comunidad</h3>
+                    <button 
+                      onClick={() => openRatingModal(selectedSubject)}
+                      className="text-[10px] font-black uppercase underline decoration-emerald-400 underline-offset-4 hover:text-emerald-400 transition-colors"
+                    >
+                      CALIFICAR MATERIA
+                    </button>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-8">
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-zinc-400">
+                        <ShieldAlert className="w-4 h-4" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">DIFICULTAD</span>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-black italic">{globalRatings[selectedSubject.id]?.diffAvg.toFixed(1) || '0.0'}</span>
+                        <span className="text-xs font-bold text-zinc-500">/ 5.0</span>
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-zinc-400">
+                        <Sparkles className="w-4 h-4" />
+                        <span className="text-[10px] font-black uppercase tracking-widest">UTILIDAD</span>
+                      </div>
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-4xl font-black italic text-emerald-400">{globalRatings[selectedSubject.id]?.utilAvg.toFixed(1) || '0.0'}</span>
+                        <span className="text-xs font-bold text-zinc-500">/ 5.0</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Actions */}
+              <div className="p-6 border-t-4 border-zinc-900 bg-zinc-50 flex gap-4">
+                <button 
+                  onClick={() => {
+                    setSearchTerm(selectedSubject.year.toString());
+                    setSelectedSubject(null);
+                  }}
+                  className="flex-1 py-4 bg-white border-4 border-zinc-900 text-zinc-900 font-black uppercase tracking-widest text-xs shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] hover:-translate-y-1 active:translate-y-0 active:shadow-none transition-all flex items-center justify-center gap-2"
+                >
+                  <Layout className="w-4 h-4" strokeWidth={3} />
+                  Materias del Nivel
+                </button>
+                <button 
+                  onClick={() => setSelectedSubject(null)}
+                  className="px-6 py-4 bg-zinc-900 text-white font-black uppercase tracking-widest text-xs hover:bg-emerald-400 hover:text-zinc-900 transition-colors border-4 border-zinc-900"
+                >
+                  CERRAR
+                </button>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Celebration Modal */}
       <YearCelebrationModal
@@ -1345,60 +1139,4 @@ const CurriculumViewer = ({
       />
     </div>
   );
-};
-
-// ----------------------------------------------------------------------
-// YearCelebrationModal Component
-// ----------------------------------------------------------------------
-const YearCelebrationModal = ({ 
-  isOpen, 
-  onClose, 
-  userName, 
-  year 
-}: { 
-  isOpen: boolean; 
-  onClose: () => void; 
-  userName: string; 
-  year: number | string 
-}) => {
-  if (!isOpen) return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[2000] flex items-center justify-center p-4 overflow-hidden">
-      <div 
-        className="fixed inset-0 bg-black/60 backdrop-blur-md animate-fade-in" 
-        onClick={onClose}
-      />
-      <div className="relative bg-white rounded-[2.5rem] shadow-2xl max-w-md w-full p-8 text-center animate-celebrate overflow-hidden border border-[#EDE6DD]">
-        {/* Animated Background Decor */}
-        <div className="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden">
-           <div className="absolute -top-24 -right-24 w-48 h-48 bg-[#8BAA91]/10 rounded-full blur-3xl animate-pulse" />
-           <div className="absolute -bottom-24 -left-24 w-48 h-48 bg-[#D4856A]/10 rounded-full blur-3xl animate-pulse" style={{ animationDelay: '1s' }} />
-        </div>
-
-        <div className="relative z-10">
-          <div className="w-28 h-28 flex items-center justify-center mb-8 mx-auto rotate-3 animate-bounce-subtle">
-            <img src="/icon.png" alt="Logo" className="w-full h-full object-contain mix-blend-multiply" />
-          </div>
-
-          <h2 className="text-3xl font-black text-[#3D3229] mb-4 tracking-tight leading-tight">
-            ¡Año {year} Completado!
-          </h2>
-          
-          <p className="text-lg font-medium text-[#7A6E62] mb-8 leading-relaxed flex items-center justify-center gap-2 flex-wrap">
-            Felicitaciones <span className="text-[#3D3229] font-bold">{userName}</span>Cada vez estás más cerca de tu objetivo académico. Seguí así, ¡el esfuerzo vale la pena! 
-            <Rocket className="w-6 h-6 text-[#D4856A] animate-pulse inline-block" />
-          </p>
-
-          <button
-            onClick={onClose}
-            className="w-full bg-[#1A1A1A] hover:bg-[#3D3229] text-white font-bold text-lg px-8 py-4 rounded-2xl transition-all shadow-xl shadow-black/10 active:scale-[0.98] hover:shadow-2xl"
-          >
-            ¡Vamos por más!
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
-  );
-};
+}

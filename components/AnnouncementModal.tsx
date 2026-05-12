@@ -16,10 +16,9 @@ export function AnnouncementModal() {
       if (docSnap.exists()) {
         const data = docSnap.data();
         if (data.isAnnouncementActive) {
-          setTitle(data.announcementTitle || "Anuncio");
+          setTitle(data.announcementTitle || "ANUNCIO");
           setMessage(data.announcementMessage || "");
           
-          // Check if user already saw this specific announcement
           const lastSeen = localStorage.getItem("lastAnnouncement");
           const currentAnnounceId = data.announcementTitle + data.announcementMessage;
           if (lastSeen !== currentAnnounceId) {
@@ -46,37 +45,40 @@ export function AnnouncementModal() {
 
   return (
     <div 
-      className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/40 shadow-[0_0_10px_rgba(0,0,0,0.02)] animate-fade-in overscroll-none"
+      className="fixed inset-0 z-[10000] flex items-center justify-center p-4 transition-all duration-200"
       onWheel={(e) => e.stopPropagation()}
       onTouchMove={(e) => e.stopPropagation()}
     >
-      <div className="bg-white rounded-3xl p-6 sm:p-8 w-full max-w-[calc(100vw-2rem)] sm:max-w-md shadow-2xl relative border border-[#EDE6DD] animate-fade-in-up">
+      <div className="absolute inset-0 bg-zinc-900/60 backdrop-blur-sm animate-fade-in" onClick={handleClose} />
+      
+      <div className="relative bg-white p-8 w-full max-w-md border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] animate-fade-in-up">
+        {/* Close Button */}
         <button
           onClick={handleClose}
-          className="absolute top-4 right-4 p-2 rounded-xl text-[#A89F95] hover:bg-[#F5F0EA] hover:text-[#4A433C] transition-colors"
+          className="absolute -top-4 -right-4 w-10 h-10 bg-white border-4 border-zinc-900 flex items-center justify-center text-zinc-900 hover:bg-red-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all z-10"
         >
-          <X className="w-5 h-5" />
+          <X className="w-6 h-6" strokeWidth={4} />
         </button>
 
-        <div className="flex flex-col items-center text-center mt-2">
-          <div className="w-16 h-16 bg-[#F5EFE5] rounded-full flex items-center justify-center mb-6 border border-[#E2D6C2] relative">
-             <div className="absolute -top-1 -right-1 flex h-4 w-4">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#8BAA91] opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-[#8BAA91]"></span>
+        <div className="flex flex-col items-center text-center">
+          <div className="w-20 h-20 bg-yellow-400 border-4 border-zinc-900 flex items-center justify-center mb-6 shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] relative">
+             <div className="absolute -top-2 -right-2 flex h-5 w-5">
+                <span className="animate-ping absolute inline-flex h-full w-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex h-5 w-5 bg-emerald-500 border-2 border-zinc-900"></span>
              </div>
-             <Megaphone className="w-8 h-8 text-[#8B7355]" />
+             <Megaphone className="w-10 h-10 text-zinc-900" strokeWidth={3} />
           </div>
 
-          <h2 className="text-2xl font-bold text-[#2C2825] mb-3">{title}</h2>
-          <p className="text-base text-[#7A6E62] leading-relaxed mb-8">
+          <h2 className="text-3xl font-black text-zinc-900 mb-4 uppercase tracking-tighter leading-none italic">{title}</h2>
+          <p className="text-lg font-black text-zinc-700 leading-tight mb-8 uppercase tracking-tight">
             {message}
           </p>
 
           <button
             onClick={handleClose}
-            className="w-full py-3.5 px-6 rounded-xl bg-gradient-to-r from-[#8BAA91] to-[#7CC2A8] text-white font-bold text-lg hover:shadow-lg hover:scale-[1.02] active:scale-95 transition-all outline-none"
+            className="w-full py-4 px-6 bg-emerald-400 border-4 border-zinc-900 text-zinc-900 font-black text-xl uppercase tracking-widest shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] active:bg-emerald-500 transition-all"
           >
-            Entendido
+            ENTENDIDO
           </button>
         </div>
       </div>

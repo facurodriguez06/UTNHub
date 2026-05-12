@@ -84,8 +84,6 @@ export default function SubjectRatingModal({ isOpen, onClose, subject, careerId,
     setIsSubmitting(true);
     try {
       const ratingId = `${careerId}_${subject.id}`;
-      
-      // Update global rating aggregates
       const globalRef = doc(db, 'subject_aggregates', ratingId);
       const globalDoc = await getDoc(globalRef);
       
@@ -94,7 +92,6 @@ export default function SubjectRatingModal({ isOpen, onClose, subject, careerId,
       let countDiff = 1;
 
       if (previousRating) {
-        // If updating an existing rating, subtract the old ones and don't increment count
         diffDiff = difficulty - previousRating.difficulty;
         utilDiff = utility - previousRating.utility;
         countDiff = 0;
@@ -114,7 +111,6 @@ export default function SubjectRatingModal({ isOpen, onClose, subject, careerId,
         });
       }
 
-      // Update user document
       const userRef = doc(db, 'users', user.uid);
       const userDoc = await getDoc(userRef);
       const currentRatings = userDoc.exists() ? (userDoc.data().subjectRatings || {}) : {};
@@ -135,112 +131,130 @@ export default function SubjectRatingModal({ isOpen, onClose, subject, careerId,
 
   if (!isOpen || !subject || !mounted) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+  const modalContent = (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 transition-all duration-200">
       <div 
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
+        className="absolute inset-0 bg-zinc-900/60 backdrop-blur-sm animate-fade-in" 
         onClick={() => !isSubmitting && onClose()}
       />
-      <div className="relative bg-white rounded-3xl border border-[#EDE6DD] shadow-2xl max-w-sm w-[95vw] sm:w-full outline-none transform transition-all overflow-hidden animate-fade-in-scale">
-        <div className="absolute top-0 right-0 -mr-16 -mt-16 w-32 h-32 bg-[#F5F0EA] rounded-full blur-2xl opacity-60 pointer-events-none"></div>
-        <div className="absolute bottom-0 left-0 -ml-16 -mb-16 w-40 h-40 bg-[#8BAA91] rounded-full blur-3xl opacity-10 pointer-events-none"></div>
-
-        <div className="p-6">
-          <div className="flex items-center justify-between mb-2">
-            <h3 className="text-xl font-extrabold text-[#3D3229] pr-8 leading-tight">Calificar Materia</h3>
-            <button 
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="w-8 h-8 rounded-full bg-[#FAFAF8] flex items-center justify-center text-[#A0A0A0] hover:text-[#3D3229] hover:bg-[#F5F0EA] transition-all"
-            >
-              <X className="w-4 h-4" />
-            </button>
+      <div className="relative bg-white border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] max-w-md w-full animate-fade-in-scale flex flex-col overflow-hidden">
+        {/* Header */}
+        <div className="bg-emerald-400 border-b-4 border-zinc-900 p-6 flex justify-between items-start">
+          <div className="flex-1 pr-6">
+            <h3 className="text-2xl font-black text-zinc-900 uppercase tracking-tighter leading-none italic">Calificar Materia</h3>
+            <p className="text-[10px] text-zinc-900 font-black uppercase tracking-widest mt-2 bg-white/50 border-2 border-zinc-900 px-2 py-1 inline-block shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]">
+              {subject.name}
+            </p>
           </div>
-          
-          <p className="text-sm font-semibold text-[#8BAA91] bg-[#F4FBFA] px-3 py-1.5 rounded-lg border border-[#E8F0EA] w-fit mb-6">
-            {subject.name}
-          </p>
-
+          <button 
+            onClick={onClose}
+            disabled={isSubmitting}
+            className="w-10 h-10 bg-white border-4 border-zinc-900 flex items-center justify-center text-zinc-900 hover:bg-red-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[1px] hover:translate-y-[1px] transition-all"
+          >
+            <X className="w-6 h-6" strokeWidth={4} />
+          </button>
+        </div>
+        
+        <div className="p-8">
           {isLoading ? (
-            <div className="flex justify-center py-8">
-              <div className="w-6 h-6 border-2 border-[#8BAA91] border-t-transparent rounded-full animate-spin" />
+            <div className="flex flex-col items-center justify-center py-12 gap-4">
+              <div className="w-12 h-12 border-8 border-zinc-900 border-t-emerald-400 animate-spin" />
+              <p className="text-xs font-black text-zinc-400 uppercase tracking-[0.2em]">Cargando datos...</p>
             </div>
           ) : (
-            <div className="space-y-6 relative z-10">
-              {/* Entender la lógica detrás del componente de estrellas es crucial: renderizamos 5 estrellas y la llenamos según el hover o el click activo. */}
-              
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <ShieldAlert className="w-4 h-4 text-[#D4856A]" />
-                  <span className="text-sm font-bold text-[#3D3229]">Dificultad</span>
+            <div className="space-y-8">
+              {/* Dificultad */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-yellow-400 border-4 border-zinc-900 flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                    <ShieldAlert className="w-6 h-6 text-zinc-900" strokeWidth={3} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Dificultad</h4>
+                    <p className="text-[10px] text-zinc-400 font-black uppercase tracking-tight italic leading-none">¿Qué tan desafiante te resultó?</p>
+                  </div>
                 </div>
-                <p className="text-xs text-[#A89F95] mb-2 leading-tight">¿Qué tan desafiante te resultó cursarla y aprobarla?</p>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setDifficulty(star)}
-                      onMouseEnter={() => setHoverDiff(star)}
-                      onMouseLeave={() => setHoverDiff(0)}
-                      className="p-1 hover:scale-110 active:scale-95 transition-transform"
-                    >
-                      <Star 
-                        className={`w-7 h-7 ${(hoverDiff || difficulty) >= star ? 'fill-[#EAB308] text-[#EAB308]' : 'fill-transparent text-[#D1D5DB]'}`} 
-                      />
-                    </button>
-                  ))}
-                  <span className="ml-3 self-center text-xs font-bold text-[#A89F95] w-16">
-                    {difficulty === 1 ? 'Muy fácil' : difficulty === 2 ? 'Fácil' : difficulty === 3 ? 'Normal' : difficulty === 4 ? 'Difícil' : difficulty === 5 ? 'Muy difícil' : ''}
-                  </span>
+                
+                <div className="flex flex-col gap-4 bg-zinc-50 border-4 border-zinc-900 p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.05)]">
+                  <div className="flex justify-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setDifficulty(star)}
+                        onMouseEnter={() => setHoverDiff(star)}
+                        onMouseLeave={() => setHoverDiff(0)}
+                        className="transition-all hover:scale-125 active:scale-95"
+                      >
+                        <Star 
+                          className={`w-10 h-10 transition-colors ${(hoverDiff || difficulty) >= star ? 'fill-yellow-400 text-zinc-900' : 'fill-transparent text-zinc-200'}`} 
+                          strokeWidth={3}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-center text-[10px] font-black text-zinc-900 uppercase tracking-widest min-h-[1.5em] italic">
+                    {difficulty === 1 ? 'Muy fácil' : difficulty === 2 ? 'Fácil' : difficulty === 3 ? 'Normal' : difficulty === 4 ? 'Difícil' : difficulty === 5 ? 'Muy difícil' : 'SIN SELECCIONAR'}
+                  </p>
                 </div>
               </div>
 
-              <div className="h-[1px] bg-[#EDE6DD]" />
-
-              <div className="space-y-2">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[#8BAA91]" />
-                  <span className="text-sm font-bold text-[#3D3229]">Utilidad</span>
+              {/* Utilidad */}
+              <div className="space-y-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-emerald-400 border-4 border-zinc-900 flex items-center justify-center shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+                    <Sparkles className="w-6 h-6 text-zinc-900" strokeWidth={3} />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-black text-zinc-900 uppercase tracking-widest">Utilidad</h4>
+                    <p className="text-[10px] text-zinc-400 font-black uppercase tracking-tight italic leading-none">¿Qué tanto te aportó?</p>
+                  </div>
                 </div>
-                <p className="text-xs text-[#A89F95] mb-2 leading-tight">¿Qué tanto te aportó para tu desarrollo profesional de los temas vistos?</p>
-                <div className="flex gap-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setUtility(star)}
-                      onMouseEnter={() => setHoverUtil(star)}
-                      onMouseLeave={() => setHoverUtil(0)}
-                      className="p-1 hover:scale-110 active:scale-95 transition-transform"
-                    >
-                      <Star 
-                        className={`w-7 h-7 ${(hoverUtil || utility) >= star ? 'fill-[#8BAA91] text-[#8BAA91]' : 'fill-transparent text-[#D1D5DB]'}`} 
-                      />
-                    </button>
-                  ))}
-                  <span className="ml-3 self-center text-xs font-bold text-[#A89F95] w-16">
-                    {utility === 1 ? 'Nada útil' : utility === 2 ? 'Poco útil' : utility === 3 ? 'Útil' : utility === 4 ? 'Muy útil' : utility === 5 ? 'Clave' : ''}
-                  </span>
+                
+                <div className="flex flex-col gap-4 bg-zinc-50 border-4 border-zinc-900 p-4 shadow-[4px_4px_0px_0px_rgba(0,0,0,0.05)]">
+                  <div className="flex justify-center gap-2">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button
+                        key={star}
+                        type="button"
+                        onClick={() => setUtility(star)}
+                        onMouseEnter={() => setHoverUtil(star)}
+                        onMouseLeave={() => setHoverUtil(0)}
+                        className="transition-all hover:scale-125 active:scale-95"
+                      >
+                        <Star 
+                          className={`w-10 h-10 transition-colors ${(hoverUtil || utility) >= star ? 'fill-emerald-400 text-zinc-900' : 'fill-transparent text-zinc-200'}`} 
+                          strokeWidth={3}
+                        />
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-center text-[10px] font-black text-zinc-900 uppercase tracking-widest min-h-[1.5em] italic">
+                    {utility === 1 ? 'Nada útil' : utility === 2 ? 'Poco útil' : utility === 3 ? 'Útil' : utility === 4 ? 'Muy útil' : utility === 5 ? 'Clave' : 'SIN SELECCIONAR'}
+                  </p>
                 </div>
               </div>
 
               <button
                 onClick={handleSave}
                 disabled={isSubmitting || difficulty === 0 || utility === 0}
-                className="w-full mt-4 bg-[#1A1A1A] hover:bg-[#3D3229] text-white font-bold text-sm px-4 py-3.5 rounded-xl transition-all shadow-lg active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+                className="w-full mt-6 bg-zinc-900 border-4 border-zinc-900 text-white font-black text-xl py-5 uppercase tracking-widest transition-all shadow-[8px_8px_0px_0px_rgba(16,185,129,1)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px] disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:translate-x-0 disabled:translate-y-0"
               >
                 {isSubmitting ? (
-                  <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <div className="flex items-center justify-center gap-3">
+                    <div className="w-6 h-6 border-4 border-white border-t-transparent animate-spin" />
+                    <span>ENVIANDO...</span>
+                  </div>
                 ) : (
-                  previousRating ? "Actualizar calificación" : "Enviar calificación"
+                  previousRating ? "ACTUALIZAR VOTO" : "ENVIAR VOTO"
                 )}
               </button>
             </div>
           )}
         </div>
       </div>
-    </div>,
-    document.body
+    </div>
   );
+
+  return createPortal(modalContent, document.body);
 }
