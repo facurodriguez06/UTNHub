@@ -66,17 +66,17 @@ export default function Home() {
            }}>
       </div>
 
-      <div className="relative z-10 max-w-[1400px] mx-auto w-full px-6 md:px-12 py-16 md:py-24">
+      <div className="relative z-10 max-w-[1400px] mx-auto w-full px-4 sm:px-6 md:px-12 py-12 sm:py-16 md:py-24">
         
         {/* Interactive Brutalist Hero */}
-        <section className="flex flex-col items-center justify-center text-center mb-32 min-h-[60vh] relative">
+        <section className="flex flex-col items-center justify-center text-center mb-24 sm:mb-32 min-h-[58vh] sm:min-h-[60vh] relative">
           
-          <div className="inline-flex items-center gap-2 px-6 py-2.5 mb-10 border-4 border-zinc-900 bg-white text-zinc-900 text-xs font-black tracking-[0.2em] uppercase shadow-neo hover:-translate-x-1 hover:-translate-y-1 hover:shadow-neo-xl transition-all duration-300 cursor-pointer rotate-1 italic">
+          <div className="inline-flex items-center gap-2 px-4 sm:px-6 py-2.5 mb-8 sm:mb-10 border-4 border-zinc-900 bg-white text-zinc-900 text-[10px] sm:text-xs font-black tracking-[0.2em] uppercase shadow-neo hover:-translate-x-1 hover:-translate-y-1 hover:shadow-neo-xl transition-all duration-300 cursor-pointer rotate-1 italic">
             <Sparkles className="w-4 h-4 text-emerald-600 animate-pulse" strokeWidth={3} />
             De estudiantes para estudiantes
           </div>
           
-          <h1 className="text-7xl md:text-9xl lg:text-[10rem] font-black text-zinc-900 tracking-tighter leading-[0.85] mb-12 group cursor-default perspective-1000">
+          <h1 className="text-5xl sm:text-7xl md:text-9xl lg:text-[10rem] font-black text-zinc-900 tracking-tighter leading-[0.85] mb-10 sm:mb-12 group cursor-default perspective-1000">
             <span className="block transition-all duration-500 hover:scale-105 hover:rotate-2 hover:text-emerald-500 select-none">
               UTN
             </span>
@@ -85,42 +85,42 @@ export default function Home() {
             </span>
           </h1>
           
-          <p className="text-xl md:text-3xl text-zinc-800 mb-16 max-w-2xl font-black uppercase tracking-tight leading-none rotate-[-0.5deg] flex flex-col items-center gap-3">
+          <p className="text-lg sm:text-xl md:text-3xl text-zinc-800 mb-12 sm:mb-16 max-w-2xl font-black uppercase tracking-tight leading-none rotate-[-0.5deg] flex flex-col items-center gap-3 px-2">
             <span className="block">Relajá tu semestre.</span>
-            <span className="inline-block bg-emerald-400 border-2 border-zinc-900 px-3 py-1 text-zinc-900 whitespace-nowrap">
+            <span className="inline-block bg-emerald-400 border-2 border-zinc-900 px-3 py-1 text-zinc-900 whitespace-normal sm:whitespace-nowrap text-center">
               La comunidad definitiva
             </span>
             <span className="block">de resúmenes.</span>
           </p>
           
-          <div className="w-full max-w-3xl relative group z-30 mb-20">
+          <div className="w-full max-w-3xl relative group z-30 mb-14 sm:mb-20 px-1 sm:px-0">
             <div className="relative bg-white p-2 md:p-3 rounded-none border-[6px] border-zinc-900 shadow-neo-xl group-hover:shadow-[16px_16px_0px_0px_rgba(16,185,129,1)] group-hover:-translate-y-1 transition-all duration-300">
               <GlobalSearchBar />
             </div>
           </div>
 
           {/* Neo-Brutalist Stats - More aggressive geometry */}
-          <div className="flex flex-wrap items-center justify-center gap-6 mt-4">
+          <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-6 mt-4 w-full">
             <div className="group relative">
               <div className="absolute inset-0 bg-emerald-500 translate-x-2 translate-y-2 border-4 border-zinc-900"></div>
-              <div className="relative px-8 py-5 bg-zinc-900 text-white border-4 border-zinc-900 hover:-translate-x-1 hover:-translate-y-1 transition-all cursor-default">
-                <div className="text-4xl font-black text-emerald-400 mb-1 leading-none"><LiveNotesCount /></div>
+              <div className="relative px-5 sm:px-8 py-4 sm:py-5 bg-zinc-900 text-white border-4 border-zinc-900 hover:-translate-x-1 hover:-translate-y-1 transition-all cursor-default min-w-[105px] sm:min-w-[auto]">
+                <div className="text-3xl sm:text-4xl font-black text-emerald-400 mb-1 leading-none"><LiveNotesCount /></div>
                 <div className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-400">Apuntes</div>
               </div>
             </div>
             
             <div className="group relative">
               <div className="absolute inset-0 bg-yellow-400 translate-x-2 translate-y-2 border-4 border-zinc-900"></div>
-              <div className="relative px-8 py-5 bg-white text-zinc-900 border-4 border-zinc-900 hover:-translate-x-1 hover:-translate-y-1 transition-all cursor-default">
-                <div className="text-4xl font-black mb-1 leading-none">{totalSubjects}</div>
+              <div className="relative px-5 sm:px-8 py-4 sm:py-5 bg-white text-zinc-900 border-4 border-zinc-900 hover:-translate-x-1 hover:-translate-y-1 transition-all cursor-default min-w-[105px] sm:min-w-[auto]">
+                <div className="text-3xl sm:text-4xl font-black mb-1 leading-none">{totalSubjects}</div>
                 <div className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-500">Materias</div>
               </div>
             </div>
 
             <div className="group relative">
               <div className="absolute inset-0 bg-zinc-900 translate-x-2 translate-y-2 border-4 border-zinc-900"></div>
-              <div className="relative px-8 py-5 bg-emerald-500 text-zinc-900 border-4 border-zinc-900 hover:-translate-x-1 hover:-translate-y-1 transition-all cursor-default">
-                <div className="text-4xl font-black mb-1 leading-none">{careersData.length}</div>
+              <div className="relative px-5 sm:px-8 py-4 sm:py-5 bg-emerald-500 text-zinc-900 border-4 border-zinc-900 hover:-translate-x-1 hover:-translate-y-1 transition-all cursor-default min-w-[105px] sm:min-w-[auto]">
+                <div className="text-3xl sm:text-4xl font-black mb-1 leading-none">{careersData.length}</div>
                 <div className="text-[10px] uppercase tracking-[0.2em] font-black text-zinc-900">Carreras</div>
               </div>
             </div>
@@ -128,8 +128,8 @@ export default function Home() {
         </section>
 
         {/* Scrolling Marquee Tape - High Impact */}
-        <div className="w-[120vw] relative left-1/2 -translate-x-1/2 bg-yellow-400 text-zinc-900 py-6 transform -rotate-3 mb-40 border-y-[6px] border-zinc-900 overflow-hidden flex whitespace-nowrap shadow-[0px_10px_30px_rgba(0,0,0,0.1)]">
-          <div className="animate-marquee inline-flex w-max items-center font-black text-4xl md:text-5xl uppercase tracking-tighter gap-8 whitespace-nowrap">
+        <div className="w-[160vw] sm:w-[120vw] relative left-1/2 -translate-x-1/2 bg-yellow-400 text-zinc-900 py-4 sm:py-6 transform -rotate-3 mb-24 sm:mb-40 border-y-[6px] border-zinc-900 overflow-hidden flex whitespace-nowrap shadow-[0px_10px_30px_rgba(0,0,0,0.1)]">
+          <div className="animate-marquee inline-flex w-max items-center font-black text-2xl sm:text-4xl md:text-5xl uppercase tracking-tighter gap-6 sm:gap-8 whitespace-nowrap">
             <span className="flex items-center gap-8 shrink-0">
               <span>APROBÁ TUS FINALES</span>
               <span className="text-zinc-500">•</span>

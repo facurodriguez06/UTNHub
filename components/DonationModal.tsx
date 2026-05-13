@@ -68,29 +68,29 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
   const modalContent = (
     <div 
       className={cn(
-        "fixed inset-0 z-[10000] flex items-center justify-center p-4 transition-all duration-200",
+        "fixed inset-0 z-[10000] flex items-center justify-center p-3 sm:p-4 transition-all duration-200",
         isClosing ? "opacity-0" : "opacity-100"
       )}
     >
       <div className="absolute inset-0 bg-zinc-900/80 backdrop-blur-sm animate-fade-in" onClick={handleClose} />
 
       <div className={cn(
-        "relative w-full max-w-4xl bg-white border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all duration-300 transform pointer-events-auto",
+        "relative w-full max-w-[calc(100vw-1.5rem)] sm:max-w-4xl max-h-[calc(100vh-1.5rem)] bg-white border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] transition-all duration-300 transform pointer-events-auto overflow-visible pt-14 sm:pt-0",
         isClosing ? 'scale-95 opacity-0 translate-y-4' : 'scale-100 opacity-100 translate-y-0'
       )}>
         {/* Close Button */}
         <button 
           onClick={handleClose}
-          className="absolute -top-6 -right-6 w-12 h-12 bg-white border-4 border-zinc-900 flex items-center justify-center text-zinc-900 hover:bg-red-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all z-50 group"
+          className="absolute top-3 right-3 sm:-top-6 sm:-right-6 w-10 h-10 sm:w-12 sm:h-12 bg-white border-4 border-zinc-900 flex items-center justify-center text-zinc-900 hover:bg-red-400 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[2px] hover:translate-y-[2px] transition-all z-[60] group"
         >
           <X className="w-6 h-6 group-hover:rotate-90 transition-transform" strokeWidth={4} />
         </button>
 
-        <div className="grid grid-cols-1 md:grid-cols-2">
+        <div className="grid grid-cols-1 md:grid-cols-2 max-h-[calc(100vh-1.5rem)] overflow-y-auto md:overflow-hidden">
           {/* Left: Branding */}
-          <div className="bg-emerald-400 p-8 border-b-4 md:border-b-0 md:border-r-4 border-zinc-900 flex flex-col justify-center items-center text-center">
-            <div className="w-24 h-24 bg-white border-4 border-zinc-900 flex items-center justify-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] mb-6 animate-bounce-slow">
-              <Image src="/utn-logo-optimized.webp" alt="UTN Logo" width={64} height={64} className="w-16 h-16 object-contain" />
+            <div className="bg-emerald-400 p-6 sm:p-8 border-b-4 md:border-b-0 md:border-r-4 border-zinc-900 flex flex-col justify-center items-center text-center">
+            <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white border-4 border-zinc-900 flex items-center justify-center shadow-[6px_6px_0px_0px_rgba(0,0,0,1)] mb-6 animate-bounce-slow">
+               <Image src="/iconNeo-v2.png" alt="UTN Logo" width={64} height={64} className="w-16 h-16 object-contain" />
             </div>
 
             <h2 className="text-4xl font-black text-zinc-900 tracking-tighter leading-none mb-4 uppercase italic">
@@ -111,7 +111,7 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
           </div>
 
           {/* Right: Form */}
-          <div className="p-8 bg-white flex flex-col justify-center">
+          <div className="p-5 sm:p-8 bg-white flex flex-col justify-center min-w-0">
             <div className="flex items-center gap-3 mb-8">
               <div className="w-12 h-12 bg-yellow-400 border-4 border-zinc-900 flex items-center justify-center shadow-[4px_4px_0px_0px_rgba(0,0,0,1)]">
                 <DollarSign className="w-6 h-6 text-zinc-900" strokeWidth={4} />
@@ -122,7 +122,7 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
               </div>
             </div>
 
-            <div className="grid grid-cols-3 gap-3 mb-6">
+            <div className="grid grid-cols-3 gap-2 sm:gap-3 mb-6">
               {PRESET_AMOUNTS.map((amount) => (
                 <button
                   key={amount}
@@ -131,7 +131,7 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
                     setCustomAmount("");
                   }}
                   className={cn(
-                    "py-4 text-lg font-black transition-all border-4 border-zinc-900 uppercase tracking-tighter",
+                    "py-3 sm:py-4 text-base sm:text-lg font-black transition-all border-4 border-zinc-900 uppercase tracking-tighter",
                     selectedPreset === amount 
                       ? "bg-zinc-900 text-white shadow-none translate-x-[2px] translate-y-[2px]"
                       : "bg-white text-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:bg-zinc-50 active:shadow-none active:translate-x-[2px] active:translate-y-[2px]"
@@ -152,7 +152,7 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
                   setCustomAmount(e.target.value.replace(/[^0-9]/g, ""));
                   setSelectedPreset(null);
                 }}
-                className="w-full pl-10 pr-6 py-4 bg-white border-4 border-zinc-900 text-lg font-black uppercase tracking-tighter outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:shadow-none focus:translate-x-[2px] focus:translate-y-[2px] transition-all placeholder:text-zinc-300"
+                className="w-full pl-10 pr-6 py-3 sm:py-4 bg-white border-4 border-zinc-900 text-base sm:text-lg font-black uppercase tracking-tighter outline-none shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] focus:shadow-none focus:translate-x-[2px] focus:translate-y-[2px] transition-all placeholder:text-zinc-300"
               />
             </div>
 
@@ -160,7 +160,7 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
               onClick={handleDonate}
               disabled={currentAmount <= 0 || isLoading}
               className={cn(
-                "w-full flex items-center justify-center gap-4 py-5 border-4 border-zinc-900 font-black text-xl uppercase tracking-widest transition-all",
+                "w-full flex items-center justify-center gap-4 py-4 sm:py-5 border-4 border-zinc-900 font-black text-lg sm:text-xl uppercase tracking-widest transition-all",
                 currentAmount > 0 && !isLoading
                   ? "bg-emerald-400 text-zinc-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] hover:shadow-none hover:translate-x-[4px] hover:translate-y-[4px]"
                   : "bg-zinc-100 text-zinc-400 cursor-not-allowed border-zinc-200 shadow-none"

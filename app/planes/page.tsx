@@ -23,6 +23,8 @@ import { cn } from "@/lib/utils";
 
 type SubjectId = string | number;
 type UserProgress = { aprobadas: SubjectId[]; regulares: SubjectId[] };
+const hasProgressId = (items: SubjectId[], id: SubjectId) => items.some((item) => String(item) === String(id));
+const countProgressIds = (items: SubjectId[], ids: SubjectId[]) => ids.filter((id) => hasProgressId(items, id)).length;
 type UserProfileSummary = {
   role?: string;
   providerId?: string;
@@ -108,12 +110,12 @@ const InteractiveProgressButtons = ({
   onToggle,
   user,
   setShowLoginPrompt,
-}: InteractiveProgressButtonsProps) => {
-  const isApproved = user ? userProgress.aprobadas.includes(subject.id) : false;
-  const isRegular = user ? userProgress.regulares.includes(subject.id) : false;
+  }: InteractiveProgressButtonsProps) => {
+  const isApproved = user ? hasProgressId(userProgress.aprobadas, subject.id) : false;
+  const isRegular = user ? hasProgressId(userProgress.regulares, subject.id) : false;
 
-  const missingAprobadas = subject.aprobadas.some((id: string | number) => !userProgress.aprobadas.includes(id));
-  const missingRegulares = subject.regulares.some((id: string | number) => !userProgress.aprobadas.includes(id) && !userProgress.regulares.includes(id));
+  const missingAprobadas = subject.aprobadas.some((id: string | number) => !hasProgressId(userProgress.aprobadas, id));
+  const missingRegulares = subject.regulares.some((id: string | number) => !hasProgressId(userProgress.aprobadas, id) && !hasProgressId(userProgress.regulares, id));
   const canTake = !missingAprobadas && !missingRegulares;
 
   const handleAction = (type: 'aprobadas' | 'regulares') => {
@@ -232,6 +234,24 @@ export default function PlanesPage() {
     };
   }, [activeCareer.id]);
 
+  useEffect(() => {
+    if (user) {
+      const userRef = doc(db, 'users', user.uid);
+      getDoc(userRef)
+        .then((docSnap) => {
+          if (!docSnap.exists()) return;
+
+          const data = docSnap.data() as UserProfileSummary & { progress?: UserProgress };
+          setUserProgress(data.progress || { aprobadas: [], regulares: [] });
+        })
+        .catch((error) => {
+          console.error('Error al leer el progreso resumen:', error);
+        });
+    } else {
+      setUserProgress({ aprobadas: [], regulares: [] });
+    }
+  }, [user]);
+
   const openRatingModal = (subject: Pick<Subject, 'id' | 'name'>) => {
     setRatingModalCareer(activeCareer.id);
     setRatingModalSubject({ id: String(subject.id), name: subject.name });
@@ -247,16 +267,16 @@ export default function PlanesPage() {
       <div className="fixed inset-0 bg-[url('/grid.svg')] bg-center opacity-[0.4] pointer-events-none z-0" />
 
       {/* Main Content */}
-      <div ref={containerRef} className="flex-grow flex flex-col pt-12 relative z-10 w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div ref={containerRef} className="flex-grow flex flex-col pt-10 sm:pt-12 relative z-10 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         
-        <div className="flex flex-col gap-8 mb-16">
+        <div className="flex flex-col gap-6 sm:gap-8 mb-12 sm:mb-16">
           <div className="space-y-6 max-w-3xl">
             <Link href="/" className="neo-btn-outline">
               <ArrowLeft className="w-4 h-4" strokeWidth={3} />
               Volver al inicio
             </Link>
             <div>
-              <h1 className="text-5xl sm:text-7xl font-black text-zinc-900 uppercase tracking-tighter leading-none mb-4 italic">
+              <h1 className="text-4xl sm:text-7xl font-black text-zinc-900 uppercase tracking-tighter leading-none mb-4 italic">
                 Planes de <span className="text-emerald-400">Estudio</span>
               </h1>
               <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest max-w-xl border-l-4 border-zinc-900 pl-4">
@@ -268,8 +288,8 @@ export default function PlanesPage() {
 
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 mb-12">
-          <div className="lg:col-span-8 bg-white border-4 border-zinc-900 shadow-neo-xl p-6 flex flex-col sm:flex-row items-center gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 mb-10 sm:mb-12">
+          <div className="lg:col-span-8 bg-white border-4 border-zinc-900 shadow-neo-xl p-4 sm:p-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
             <div className="relative flex-grow w-full">
               <Info className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={3} />
               <input
@@ -280,27 +300,27 @@ export default function PlanesPage() {
                 className="w-full bg-zinc-50 border-4 border-zinc-900 pl-12 pr-4 py-4 text-sm font-black uppercase tracking-widest focus:bg-white focus:outline-none focus:ring-0 transition-colors"
               />
             </div>
-            <div className="flex gap-4 shrink-0 w-full sm:w-auto">
-              <div className="flex-1 sm:flex-none flex flex-col items-center justify-center px-6 py-2 bg-zinc-900 text-white border-4 border-zinc-900">
+            <div className="flex gap-3 sm:gap-4 shrink-0 w-full sm:w-auto">
+              <div className="flex-1 sm:flex-none flex flex-col items-center justify-center px-4 sm:px-6 py-2 bg-zinc-900 text-white border-4 border-zinc-900">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em] opacity-60">Materias</span>
-                <span className="text-xl font-black">{activeCareer.curriculum.length}</span>
+                <span className="text-xl font-black">{activeCareer.curriculum.filter(s => !s.isElectiva).length}</span>
               </div>
-              <div className="flex-1 sm:flex-none flex flex-col items-center justify-center px-6 py-2 bg-emerald-400 text-zinc-900 border-4 border-zinc-900 shadow-neo">
+              <div className="flex-1 sm:flex-none flex flex-col items-center justify-center px-4 sm:px-6 py-2 bg-emerald-400 text-zinc-900 border-4 border-zinc-900 shadow-neo">
                 <span className="text-[10px] font-black uppercase tracking-[0.2em]">Aprobadas</span>
                 <span className="text-xl font-black">
-                  {user ? activeCareer.curriculum.filter(s => userProgress.aprobadas.includes(s.id)).length : 0}
+                  {user ? activeCareer.curriculum.filter(s => !s.isElectiva && hasProgressId(userProgress.aprobadas, s.id)).length : 0}
                 </span>
               </div>
             </div>
           </div>
           
-          <div className="lg:col-span-4 flex bg-white p-2 flex-wrap justify-start items-center border-4 border-zinc-900 w-full gap-2 relative z-20 shadow-neo-xl">
+          <div className="lg:col-span-4 flex bg-white p-2 flex-nowrap sm:flex-wrap overflow-x-auto justify-start items-center border-4 border-zinc-900 w-full gap-2 relative z-20 shadow-neo-xl">
             {careerOptions.map((career) => (
               <button
                 key={career.id}
                 onClick={() => setActiveCareer(career)}
                 className={cn(
-                  "flex-1 min-w-[120px] px-4 py-3 font-black uppercase tracking-widest text-xs border-4 transition-all active:translate-y-1 active:shadow-none italic",
+                  "flex-1 min-w-[110px] px-4 py-3 font-black uppercase tracking-widest text-xs border-4 transition-all active:translate-y-1 active:shadow-none italic whitespace-nowrap",
                   activeCareer.id === career.id 
                     ? "bg-emerald-400 text-zinc-900 border-zinc-900 shadow-none translate-y-1" 
                     : "bg-white text-zinc-600 border-transparent hover:border-zinc-900 hover:text-zinc-900 hover:-translate-y-1 hover:shadow-neo"
@@ -313,7 +333,7 @@ export default function PlanesPage() {
         </div>
 
         {/* Curriculum Viewer Container */}
-        <div className="flex-grow relative flex flex-col min-h-[600px] mb-8">
+          <div className="flex-grow relative flex flex-col min-h-[540px] sm:min-h-[600px] mb-8">
           <div className="absolute inset-0 bg-white border-b   border-[3px] border-zinc-900  pointer-events-none z-0" />
           <div className="relative z-10 flex-grow flex flex-col min-h-[600px]  overflow-hidden">
             <CurriculumViewer
@@ -322,6 +342,8 @@ export default function PlanesPage() {
               openRatingModal={openRatingModal}
               setShowLoginPrompt={setShowLoginPrompt}
               setSearchTerm={setSearchTerm}
+              userProgress={userProgress}
+              setUserProgress={setUserProgress}
             />
           </div>
         </div>
@@ -339,12 +361,12 @@ export default function PlanesPage() {
 
       {/* Login Prompt Modal */}
       {showLoginPrompt && typeof document !== 'undefined' && createPortal(
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-[1000] flex items-center justify-center p-3 sm:p-4">
           <div 
             className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity" 
             onClick={() => setShowLoginPrompt(false)}
           />
-          <div className="relative bg-white  border-[3px] border-zinc-900  max-w-sm w-full outline-none transform transition-all overflow-hidden animate-fade-in-scale p-6 text-center mx-4">
+          <div className="relative bg-white border-[3px] border-zinc-900 max-w-sm w-full outline-none transform transition-all overflow-hidden animate-fade-in-scale p-5 sm:p-6 text-center mx-2 sm:mx-4">
             <div className="w-14 h-14 bg-zinc-100  flex items-center justify-center mb-6  text-amber-600 mx-auto">
               <LogIn className="w-7 h-7" />
             </div>
@@ -408,6 +430,8 @@ type CurriculumViewerProps = {
   openRatingModal: (subject: Pick<Subject, 'id' | 'name'>) => void;
   setShowLoginPrompt: (show: boolean) => void;
   setSearchTerm: (term: string) => void;
+  userProgress: UserProgress;
+  setUserProgress: React.Dispatch<React.SetStateAction<UserProgress>>;
 };
 
 const CurriculumViewer = ({
@@ -416,10 +440,11 @@ const CurriculumViewer = ({
   openRatingModal,
   setShowLoginPrompt,
   setSearchTerm,
+  userProgress,
+  setUserProgress,
 }: CurriculumViewerProps) => {
   const { user } = useAuth();
   const { showToast } = useToast();
-  const [userProgress, setUserProgress] = useState<UserProgress>({ aprobadas: [], regulares: [] });
   const [profileSummary, setProfileSummary] = useState<UserProfileSummary>({});
   const [celebrationModal, setCelebrationModal] = useState<{ isOpen: boolean; year: string | number }>({ isOpen: false, year: '' });
 
@@ -428,8 +453,7 @@ const CurriculumViewer = ({
       const userRef = doc(db, 'users', user.uid);
       getDoc(userRef).then((docSnap) => {
         if (docSnap.exists()) {
-          const data = docSnap.data() as UserProfileSummary & { progress?: UserProgress };
-          setUserProgress(data.progress || { aprobadas: [], regulares: [] });
+          const data = docSnap.data() as UserProfileSummary;
           setProfileSummary({
             role: data.role || (user.email?.toLowerCase() === 'facundorodriguezsp@gmail.com' ? 'admin' : 'user'),
             providerId: data.providerId || user.providerData[0]?.providerId || 'unknown',
@@ -440,10 +464,9 @@ const CurriculumViewer = ({
           });
         }
       }).catch((error) => {
-        console.error("Error al leer el progreso:", error);
+        console.error("Error al leer el perfil:", error);
       });
     } else {
-      setUserProgress({ aprobadas: [], regulares: [] });
       setProfileSummary({});
     }
   }, [user]);
@@ -510,7 +533,7 @@ const CurriculumViewer = ({
       const subject = career.curriculum.find(s => s.id === subjectId);
       if (subject && !subject.isElectiva) {
         const yearSubjects = career.curriculum.filter(s => s.year === subject.year && !s.isElectiva);
-        const allApproved = yearSubjects.every(s => nextProgress.aprobadas.includes(s.id));
+        const allApproved = yearSubjects.every(s => hasProgressId(nextProgress.aprobadas, s.id));
         if (allApproved) {
           setCelebrationModal({ isOpen: true, year: subject.year });
         }
@@ -533,18 +556,8 @@ const CurriculumViewer = ({
     setSelectedYear(1);
   }, [career.id]);
 
-  // Bloquear el scroll de la página en celulares cuando el modal está abierto (Fix iOS)
-  // Utilizamos el hook global para tener un comportamiento estandarizado entre Android e iOS
-  // y prevenir problemas con el Header donde position=fixed resetearía el scrollY
-  const [isMobile, setIsMobile] = useState(false);
-  useEffect(() => {
-    setIsMobile(window.innerWidth < 1024);
-    const handleResize = () => setIsMobile(window.innerWidth < 1024);
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
-
-  useScrollLock(!!selectedSubject && isMobile);
+  // Bloquear el scroll de la página cuando el panel está abierto
+  useScrollLock(!!selectedSubject);
 
   // Group by year
     const subjectsByYear = useMemo(() => {
@@ -631,80 +644,94 @@ const CurriculumViewer = ({
     return (
       <div className="flex flex-col lg:flex-row h-full w-full relative">
       {/* Main Grid View */}
-      <div className="flex-grow overflow-x-auto p-4 sm:p-6 lg:p-8 custom-scrollbar">
+      <div className={cn(
+        "flex-grow overflow-x-auto p-4 sm:p-6 lg:p-8 custom-scrollbar transition-[padding-right] duration-300",
+        selectedSubject ? "lg:pr-[36rem]" : "lg:pr-0"
+      )}>
         
-        {/* Simple header inside viewer */}
-        <div className="flex flex-col xl:flex-row xl:items-center justify-between mb-6 lg:mb-8 pb-6 border-b border-zinc-300 gap-4">
-          <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-6">
+        <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 lg:mb-8 pb-6 border-b-4 border-zinc-900">
+          <div className="space-y-2 max-w-3xl">
             <div className="flex items-center gap-4">
-              <div className="w-10 h-10 lg:w-12 lg:h-12  bg-zinc-100 flex items-center justify-center text-emerald-500  shrink-0">
-                <GraduationCap className="w-5 h-5 lg:w-6 lg:h-6" />
+              <div className="w-10 h-10 bg-emerald-400 border-4 border-zinc-900 flex items-center justify-center shrink-0 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]">
+                <GraduationCap className="w-5 h-5 text-zinc-900" />
               </div>
               <div>
-                <h2 className="text-lg lg:text-xl font-bold text-[#1A1A1A]">Estructura del Plan</h2>
-                <div className="flex items-center gap-2 mt-1 flex-wrap">
-                  <p className="text-xs lg:text-sm font-medium text-[#5C5C5C]">
-                    {career.curriculum.filter(s => !s.isElectiva).length} troncales {career.requiredElectiveHours ? ` + ${career.requiredElectiveHours} hs electivas` : ''}
-                  </p>
-                  
-                  {user ? (
-                    <>
-                      <div className="w-1.5 h-1.5  bg-emerald-100 hidden sm:block"></div>
-                      {(() => {
-                        const coreSubjects = career.curriculum.filter(s => !s.isElectiva);
-                        const electiveSubjects = career.curriculum.filter(s => s.isElectiva);
-                        const approvedCore = coreSubjects.filter(s => userProgress.aprobadas.includes(s.id)).length;
-                        
-                        if (career.requiredElectiveHours) {
-                           const approvedHs = electiveSubjects
-                            .filter(s => userProgress.aprobadas.includes(s.id))
-                            .reduce((acc, s) => acc + (s.weekly_hours || s.total_hours || 0), 0);
-                            
-                          const remainingCore = coreSubjects.length - approvedCore;
-                            
-                          return (
-                            <div className="flex flex-wrap items-center gap-2">
-                               <span className="text-[11px] lg:text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1  flex items-center gap-1  border border-[#388E3C]/20"><CheckCircle2 className="w-3.5 h-3.5" /> Troncales: {approvedCore} / {coreSubjects.length}</span>
-                               {remainingCore > 0 && <span className="text-[11px] lg:text-xs font-bold text-amber-600 bg-[#FFF9F2] px-2 py-1  flex items-center gap-1  border border-[#D4856A]/20"><AlertTriangle className="w-3.5 h-3.5" /> {remainingCore} restantes</span>}
-                               
-                               <span className="text-[11px] lg:text-xs font-bold text-emerald-500 bg-emerald-50 px-2 py-1  flex items-center gap-1  border border-emerald-500/20"><Atom className="w-3.5 h-3.5" /> Electivas: {approvedHs} / {career.requiredElectiveHours} hs</span>
-                            </div>
-                          );
-                        } else {
-                          const careerSubjectIds = new Set(career.curriculum.map(s => s.id));
-                          const approvedInCareer = userProgress.aprobadas.filter(id => careerSubjectIds.has(id)).length;
-                          const remaining = career.curriculum.length - approvedInCareer;
-                          
-                          return (
-                            <div className="flex flex-wrap items-center gap-2">
-                               <span className="text-[11px] lg:text-xs font-bold text-emerald-700 bg-emerald-100 px-2 py-1  flex items-center gap-1  border border-[#388E3C]/20"><CheckCircle2 className="w-3.5 h-3.5" /> {approvedInCareer} aprobadas</span>
-                               {remaining > 0 && <span className="text-[11px] lg:text-xs font-bold text-amber-600 bg-[#FFF9F2] px-2 py-1  flex items-center gap-1  border border-[#D4856A]/20"><AlertTriangle className="w-3.5 h-3.5" /> {remaining} restantes</span>}
-                            </div>
-                          );
-                        }
-                      })()}
-                    </>
-                  ) : (
-                    <>
-                      <div className="w-1.5 h-1.5  bg-emerald-100 hidden sm:block"></div>
-                      <span className="text-[11px] lg:text-xs font-bold text-zinc-400 bg-zinc-100 px-2 py-1  flex items-center gap-1  border-[3px] border-zinc-900 border-dashed"><LogIn className="w-3.5 h-3.5" /> Logueate para llevar tu progreso y horas electivas</span>
-                    </>
-                  )}
-                </div>
+                <h2 className="text-xl sm:text-2xl font-black text-zinc-900 uppercase tracking-tighter italic leading-none">Estructura del Plan</h2>
+                <p className="text-xs sm:text-sm font-bold text-zinc-600 mt-2">
+                  {career.curriculum.filter(s => !s.isElectiva).length} troncales{career.requiredElectiveHours ? ` + ${career.requiredElectiveHours} hs electivas` : ''}
+                </p>
               </div>
             </div>
-            
-            {/* Download PDF Button */}
+            <div className="flex flex-wrap items-center gap-2">
+              {(() => {
+                const coreSubjects = career.curriculum.filter(s => !s.isElectiva);
+                const electiveSubjects = career.curriculum.filter(s => s.isElectiva);
+                const approvedCore = coreSubjects.filter(s => hasProgressId(userProgress.aprobadas, s.id)).length;
+
+                if (career.requiredElectiveHours) {
+                  const approvedHs = electiveSubjects.filter(s => hasProgressId(userProgress.aprobadas, s.id)).reduce((acc, s) => acc + (s.weekly_hours || s.total_hours || 0), 0);
+                  const remainingCore = coreSubjects.length - approvedCore;
+                  return (
+                    <>
+                      <span className="text-[11px] font-black uppercase tracking-widest text-zinc-900 bg-emerald-400 px-3 py-1.5 border-2 border-zinc-900 inline-flex items-center gap-1.5">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> {approvedCore} / {coreSubjects.length}
+                      </span>
+                      {remainingCore > 0 && (
+                        <span className="text-[11px] font-black uppercase tracking-widest text-zinc-900 bg-yellow-400 px-3 py-1.5 border-2 border-zinc-900 inline-flex items-center gap-1.5">
+                          <AlertTriangle className="w-3.5 h-3.5" /> {remainingCore} restantes
+                        </span>
+                      )}
+                      <span className="text-[11px] font-black uppercase tracking-widest text-zinc-900 bg-white px-3 py-1.5 border-2 border-zinc-900 inline-flex items-center gap-1.5">
+                        <Atom className="w-3.5 h-3.5 text-emerald-500" /> {approvedHs} hs electivas
+                      </span>
+                    </>
+                  );
+                }
+
+                const careerSubjectIds = new Set(career.curriculum.map(s => s.id));
+                const approvedInCareer = countProgressIds(userProgress.aprobadas, Array.from(careerSubjectIds));
+                const remaining = career.curriculum.length - approvedInCareer;
+                return (
+                  <>
+                    <span className="text-[11px] font-black uppercase tracking-widest text-zinc-900 bg-emerald-400 px-3 py-1.5 border-2 border-zinc-900 inline-flex items-center gap-1.5">
+                      <CheckCircle2 className="w-3.5 h-3.5" /> {approvedInCareer} aprobadas
+                    </span>
+                    {remaining > 0 && (
+                      <span className="text-[11px] font-black uppercase tracking-widest text-zinc-900 bg-yellow-400 px-3 py-1.5 border-2 border-zinc-900 inline-flex items-center gap-1.5">
+                        <AlertTriangle className="w-3.5 h-3.5" /> {remaining} restantes
+                      </span>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-auto xl:mr-2">
+            <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar bg-white border-4 border-zinc-900 p-1 max-w-full">
+              {yearsOptions.map(year => (
+                <button
+                  key={year}
+                  onClick={() => setSelectedYear(year as number | 'electivas')}
+                  className={cn(
+                    "px-4 sm:px-5 py-2 text-xs sm:text-sm font-black uppercase tracking-widest border-2 border-zinc-900 whitespace-nowrap transition-all",
+                    selectedYear === year
+                      ? "bg-emerald-400 text-zinc-900"
+                      : "bg-white text-zinc-600 hover:bg-zinc-100"
+                  )}
+                >
+                  {year === 'electivas' ? 'Electivas' : `Año ${year}`}
+                </button>
+              ))}
+            </div>
+
             <button
               onClick={() => {
                 const previewWindow = window.open('', '_blank');
 
-                if (!previewWindow) {
-                  return;
-                }
+                if (!previewWindow) return;
 
                 previewWindow.focus();
-
                 previewWindow.document.write(`
                   <title>Generando PDF...</title>
                   <body style="margin:0;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;background:#fcf9f4;color:#3d3229;">
@@ -720,29 +747,11 @@ const CurriculumViewer = ({
                   previewWindow.close();
                 });
               }}
-              className="flex items-center justify-center gap-2 bg-zinc-900 text-white px-6 py-3 border-4 border-zinc-900 text-sm font-black uppercase tracking-widest shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] hover:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)] transition-all hover:-translate-y-1 active:translate-y-0 active:shadow-none group w-full sm:w-auto"
+              className="flex shrink-0 items-center justify-center gap-2 bg-zinc-900 text-white px-4 py-2.5 border-4 border-zinc-900 text-[11px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap"
             >
-              <FileText className="w-5 h-5 group-hover:scale-110 transition-transform" strokeWidth={3} />
-              <span>Descargar Plan</span>
+              <FileText className="w-3.5 h-3.5" strokeWidth={3} />
+              Descargar Plan
             </button>
-          </div>
-
-          <div className="flex bg-white border-4 border-zinc-900 p-1 overflow-x-auto custom-scrollbar w-full xl:w-auto mt-2 xl:mt-0 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
-            {yearsOptions.map(year => (
-              <button
-                key={year}
-                onClick={() => setSelectedYear(year as number | 'electivas')}
-                className={`
-                  relative px-4 sm:px-5 py-2 text-xs sm:text-sm font-black uppercase tracking-widest transition-all duration-150 whitespace-nowrap active:translate-y-1 active:shadow-none flex-1 xl:flex-none text-center
-                  ${selectedYear === year 
-                    ? 'bg-emerald-400 text-zinc-900 shadow-none z-10' 
-                    : 'text-zinc-600 hover:text-zinc-900 hover:bg-zinc-100'
-                  }
-                `}
-              >
-                {year === 'electivas' ? 'Electivas' : `Año ${year}`}
-              </button>
-            ))}
           </div>
         </div>
 
@@ -765,7 +774,7 @@ const CurriculumViewer = ({
         </div>
 
         {/* Years Grid */}
-        <div className={`flex flex-col gap-6 pb-8 ${selectedSubject ? 'mb-[50vh] lg:mb-0' : ''}`}>
+        <div className={`flex flex-col gap-6 pb-8 ${selectedSubject ? 'mb-0 lg:mb-0' : ''}`}>
           {displayedYears.map(([yearStr, subjects]) => (
             <div key={yearStr} className="flex flex-col gap-4 w-full">
               <div className={`grid gap-4 ${
@@ -776,15 +785,15 @@ const CurriculumViewer = ({
                 {subjects.map((subject, index) => {
                   const isSelected = selectedSubject?.id === subject.id;
 
-                  const isApproved = userProgress.aprobadas.includes(subject.id);
-                  const isRegular = userProgress.regulares.includes(subject.id);
+                   const isApproved = hasProgressId(userProgress.aprobadas, subject.id);
+                   const isRegular = hasProgressId(userProgress.regulares, subject.id);
                   const isReqOfHovered = hoveredData ? hoveredRegulares.has(subject.id) : false;
                   const unlocksHovered = hoveredData ? hoveredAprobadas.has(subject.id) : false;
 
                   let canTake = false;
                   if (user && !isApproved && !isRegular && subject.name !== "Materias Electivas") {
-                    const missingAprobadas = subject.aprobadas.some((id: string | number) => !userProgress.aprobadas.includes(id));
-                    const missingRegulares = subject.regulares.some((id: string | number) => !userProgress.aprobadas.includes(id) && !userProgress.regulares.includes(id));
+                     const missingAprobadas = subject.aprobadas.some((id: string | number) => !hasProgressId(userProgress.aprobadas, id));
+                     const missingRegulares = subject.regulares.some((id: string | number) => !hasProgressId(userProgress.aprobadas, id) && !hasProgressId(userProgress.regulares, id));
                     canTake = !missingAprobadas && !missingRegulares;
                   }
 
@@ -801,8 +810,8 @@ const CurriculumViewer = ({
                       cardStyle = "bg-white border-4 border-emerald-500 shadow-[4px_4px_0px_0px_rgba(16,185,129,1)]";
                       iconColor = "text-emerald-500";
                     } else {
-                      cardStyle = "bg-white border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] grayscale-[0.8]";
-                      iconColor = "text-zinc-400";
+                      cardStyle = "bg-white border-4 border-yellow-400 shadow-[4px_4px_0px_0px_rgba(250,204,21,1)] opacity-95";
+                      iconColor = "text-zinc-900";
                     }
                   }
 
@@ -958,20 +967,20 @@ const CurriculumViewer = ({
           />
           
           {/* Drawer Panel */}
-          <div className="fixed right-0 top-0 h-full w-full max-w-xl bg-white border-l-8 border-zinc-900 z-[100] shadow-[-12px_0px_0px_0px_rgba(24,24,27,1)] flex flex-col">
+          <div className="fixed right-0 top-[88px] h-[calc(100vh-88px)] w-full max-w-full sm:max-w-xl bg-white border-l-8 border-zinc-900 z-[1000] shadow-[-12px_0px_0px_0px_rgba(24,24,27,1)] flex flex-col overflow-hidden">
               {/* Header */}
-              <div className="p-8 border-b-4 border-zinc-900 bg-zinc-50 relative overflow-hidden">
+              <div className="p-6 sm:p-8 pb-5 sm:pb-6 border-b-4 border-zinc-900 bg-zinc-50 relative overflow-visible shrink-0">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400 rotate-45 translate-x-16 -translate-y-16 border-l-4 border-zinc-900 opacity-20" />
                 
                 <button 
                   onClick={() => setSelectedSubject(null)}
-                  className="absolute top-6 right-6 p-2 bg-white border-4 border-zinc-900 hover:bg-red-400 transition-colors shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
+                  className="absolute top-4 right-4 sm:top-6 sm:right-6 p-2 bg-white border-4 border-zinc-900 hover:bg-red-400 transition-colors shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1"
                 >
                   <X className="w-6 h-6" strokeWidth={3} />
                 </button>
 
-                <div className="space-y-4 pr-12">
-                  <div className="flex items-center gap-3">
+                <div className="space-y-4 pr-10 sm:pr-12 pb-2 sm:pb-3">
+                  <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                     <span className="px-3 py-1 bg-zinc-900 text-white text-[10px] font-black uppercase tracking-widest">
                       Nivel {selectedSubject.year}
                     </span>
@@ -979,14 +988,14 @@ const CurriculumViewer = ({
                       {selectedSubject.id}
                     </span>
                   </div>
-                  <h2 className="text-4xl font-black text-zinc-900 uppercase tracking-tighter leading-[0.9]">
+                  <h2 className="text-2xl sm:text-3xl font-black text-zinc-900 uppercase tracking-tighter leading-[1] break-words max-w-[18ch] sm:max-w-none">
                     {selectedSubject.name}
                   </h2>
                 </div>
               </div>
 
               {/* Body */}
-              <div className="flex-grow overflow-y-auto p-8 space-y-10 custom-scrollbar">
+              <div className="flex-grow overflow-y-auto p-5 sm:p-8 space-y-8 sm:space-y-10 custom-scrollbar min-h-0">
                 <InteractiveProgressButtons 
                   subject={selectedSubject} 
                   userProgress={userProgress} 
@@ -997,7 +1006,7 @@ const CurriculumViewer = ({
 
                 {/* Information Grid */}
                 {(selectedSubject.weekly_hours || selectedSubject.total_hours) && (
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {selectedSubject.weekly_hours && (
                       <div className="bg-zinc-50 border-4 border-zinc-900 p-4 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
                         <span className="text-[10px] font-black uppercase tracking-widest text-zinc-400 block mb-1">Horas Semanales</span>
@@ -1027,7 +1036,7 @@ const CurriculumViewer = ({
                           {selectedSubject.regulares.map(id => {
                             const s = career.curriculum.find(subj => subj.id === id);
                             return s ? (
-                              <button key={id} onClick={() => setSelectedSubject(s)} className="px-3 py-1.5 bg-zinc-100 border-2 border-zinc-900 text-[10px] font-bold uppercase hover:bg-yellow-400 transition-colors">
+                                <button key={id} onClick={() => setSelectedSubject(s)} className="px-3 py-1.5 bg-zinc-100 border-2 border-zinc-900 text-[10px] font-bold uppercase hover:bg-yellow-400 transition-colors max-w-full break-words">
                                 {s.name}
                               </button>
                             ) : null;
@@ -1045,7 +1054,7 @@ const CurriculumViewer = ({
                           {selectedSubject.aprobadas.map(id => {
                             const s = career.curriculum.find(subj => subj.id === id);
                             return s ? (
-                              <button key={id} onClick={() => setSelectedSubject(s)} className="px-3 py-1.5 bg-zinc-100 border-2 border-zinc-900 text-[10px] font-bold uppercase hover:bg-emerald-400 transition-colors">
+                                <button key={id} onClick={() => setSelectedSubject(s)} className="px-3 py-1.5 bg-zinc-100 border-2 border-zinc-900 text-[10px] font-bold uppercase hover:bg-emerald-400 transition-colors max-w-full break-words">
                                 {s.name}
                               </button>
                             ) : null;
@@ -1070,7 +1079,7 @@ const CurriculumViewer = ({
                     </button>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 sm:gap-8">
                     <div className="space-y-2">
                       <div className="flex items-center gap-2 text-zinc-400">
                         <ShieldAlert className="w-4 h-4" />
@@ -1096,7 +1105,7 @@ const CurriculumViewer = ({
               </div>
 
               {/* Footer Actions */}
-              <div className="p-6 border-t-4 border-zinc-900 bg-zinc-50 flex gap-4">
+              <div className="p-4 sm:p-6 border-t-4 border-zinc-900 bg-zinc-50 flex flex-col sm:flex-row gap-4">
                 <button 
                   onClick={() => {
                     setSearchTerm(selectedSubject.year.toString());

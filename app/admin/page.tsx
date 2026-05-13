@@ -1396,7 +1396,7 @@ export default function AdminPage() {
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
               {adminList.map((adm) => (
-                <div key={adm.id} className="bg-white p-4 rounded-none border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(24,24,27,1)] flex flex-col gap-3 group transition-all hover:-translate-y-1 hover:-translate-x-1">
+                <div key={adm.id} className="bg-white p-4 rounded-none border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(24,24,27,1)] flex flex-col gap-3 group transition-all hover:-translate-y-1 hover:-translate-x-1 min-w-0">
                   <div className="flex items-center gap-3">
                     <div className="p-2 bg-emerald-100 text-zinc-900 border-2 border-zinc-900 rounded-none">
                       <Mail className="w-4 h-4" />
@@ -1408,7 +1408,7 @@ export default function AdminPage() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex gap-2 mt-auto">
+                  <div className="flex flex-col sm:flex-row gap-2 mt-auto">
                     <button 
                       onClick={() => handleResetPassword(adm.email)}
                       className="flex-1 py-2 px-3 rounded-none border-4 border-zinc-900 text-[10px] font-black uppercase tracking-wider text-zinc-900 bg-white hover:bg-yellow-300 transition-all shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]"
@@ -1439,7 +1439,7 @@ export default function AdminPage() {
         </div>
       )}
 
-      <div className="flex flex-wrap gap-2 mb-8 bg-white p-2 rounded-none border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(24,24,27,1)]">
+      <div className="flex gap-2 mb-8 bg-white p-2 rounded-none border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(24,24,27,1)] overflow-x-auto whitespace-nowrap">
         {[
           { id: 'apuntes', label: 'Apuntes' },
           { id: 'estadisticas', label: 'Estadísticas' },
@@ -1451,7 +1451,7 @@ export default function AdminPage() {
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "flex-1 py-3 px-4 rounded-none font-black text-sm uppercase tracking-widest transition-all whitespace-nowrap border-2 border-transparent",
+              "flex-1 min-w-[120px] py-3 px-4 rounded-none font-black text-sm uppercase tracking-widest transition-all whitespace-nowrap border-2 border-transparent",
               activeTab === tab.id ? "bg-zinc-900 text-emerald-400 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(16,185,129,1)] -translate-y-1" : "text-zinc-600 hover:bg-emerald-100 hover:text-zinc-900"
             )}
           >

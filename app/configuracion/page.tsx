@@ -238,16 +238,16 @@ export default function ConfigurationPage() {
       <main className="flex-grow pt-32 pb-20 px-4 sm:px-6 lg:px-8">
         <div className="max-w-7xl mx-auto">
           {/* Header Section */}
-          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-10 mb-20 animate-fade-in">
+          <div className="flex flex-col lg:flex-row lg:items-end justify-between gap-8 sm:gap-10 mb-14 sm:mb-20 animate-fade-in">
             <div className="max-w-3xl">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-zinc-900 text-white text-[10px] font-black uppercase tracking-[0.3em] mb-8 shadow-[4px_4px_0px_0px_rgba(52,211,153,1)] transform -rotate-1">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-zinc-900 text-white text-[10px] font-black uppercase tracking-[0.3em] mb-6 sm:mb-8 shadow-[4px_4px_0px_0px_rgba(52,211,153,1)] transform -rotate-1">
                 <Settings className="w-4 h-4" />
                 CENTRO DE CONFIGURACIÓN
               </div>
-              <h1 className="text-6xl md:text-9xl font-black text-zinc-900 uppercase tracking-tighter italic leading-[0.85] mb-8">
+              <h1 className="text-4xl sm:text-6xl md:text-9xl font-black text-zinc-900 uppercase tracking-tighter italic leading-[0.85] mb-6 sm:mb-8">
                 TU <span className="text-emerald-500 underline decoration-zinc-900 decoration-8 underline-offset-4">ESPACIO</span>
               </h1>
-              <p className="text-zinc-600 font-black uppercase tracking-widest text-sm md:text-base border-l-8 border-emerald-400 pl-8 py-3 max-w-2xl leading-relaxed">
+              <p className="text-zinc-600 font-black uppercase tracking-widest text-xs sm:text-sm md:text-base border-l-8 border-emerald-400 pl-4 sm:pl-8 py-3 max-w-2xl leading-relaxed">
                 GESTIÓN INTEGRAL DE IDENTIDAD ELECTRÓNICA Y PROGRESO ACADÉMICO. <br/>
                 SEGURIDAD: <span className="text-emerald-600 bg-emerald-50 px-2 border-2 border-emerald-200">NIVEL 1 VERIFICADO</span>
               </p>
@@ -255,24 +255,24 @@ export default function ConfigurationPage() {
             
             <button
               onClick={handleLogout}
-              className="neo-btn px-8 py-5 bg-white hover:bg-rose-50 text-rose-600 border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(194,139,139,1)] hover:shadow-[8px_8px_0px_0px_rgba(194,139,139,1)] active:shadow-none transition-all font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3"
+            className="neo-btn px-6 sm:px-8 py-4 sm:py-5 bg-white hover:bg-rose-50 text-rose-600 border-4 border-zinc-900 shadow-[6px_6px_0px_0px_rgba(194,139,139,1)] hover:shadow-[8px_8px_0px_0px_rgba(194,139,139,1)] active:shadow-none transition-all font-black uppercase tracking-widest text-xs sm:text-sm flex items-center justify-center gap-3 w-full lg:w-auto"
             >
               <LogOut className="w-6 h-6" strokeWidth={3} />
               CERRAR SESIÓN
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 items-start">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-10 items-start">
             {/* Sidebar Navigation */}
             <div className="lg:col-span-3 space-y-6 animate-fade-in-up delay-100">
               <div className="bg-white border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] p-4">
-                <nav className="flex flex-col gap-3">
+                <nav className="flex flex-row lg:flex-col gap-2 lg:gap-3 overflow-x-auto lg:overflow-visible pb-1 lg:pb-0">
                   {tabs.map((tab) => (
                     <button
                       key={tab.id}
                       onClick={() => setActiveTab(tab.id)}
                       className={`
-                        flex items-center gap-4 px-5 py-4 font-black uppercase tracking-[0.2em] text-xs transition-all duration-300 border-4
+                        flex items-center gap-3 px-4 sm:px-5 py-3 sm:py-4 font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[10px] sm:text-xs transition-all duration-300 border-4 whitespace-nowrap shrink-0 lg:shrink
                         ${activeTab === tab.id 
                           ? `${tab.color} text-zinc-900 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] transform translate-x-2` 
                           : "text-zinc-400 hover:text-zinc-900 hover:bg-zinc-50 border-transparent"
@@ -287,7 +287,7 @@ export default function ConfigurationPage() {
               </div>
 
               {/* Quick Info Card */}
-              <div className="bg-zinc-900 border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(52,211,153,1)] p-8 text-white transform rotate-1 relative overflow-hidden group">
+              <div className="bg-zinc-900 border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(52,211,153,1)] p-6 sm:p-8 text-white transform rotate-1 relative overflow-hidden group">
                 <div className="absolute -top-10 -right-10 w-32 h-32 bg-emerald-400/10 rounded-full blur-3xl group-hover:bg-emerald-400/20 transition-all" />
                 <h3 className="font-black uppercase tracking-[0.3em] text-[10px] mb-6 text-emerald-400 italic flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4" /> ESTADO DE CUENTA
@@ -312,18 +312,18 @@ export default function ConfigurationPage() {
 
             {/* Main Content Area */}
             <div className="lg:col-span-9 animate-fade-in-up delay-200">
-              <div className="bg-white border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-h-[700px]">
+              <div className="bg-white border-4 border-zinc-900 shadow-[12px_12px_0px_0px_rgba(0,0,0,1)] overflow-hidden min-h-[640px] sm:min-h-[700px]">
                 {/* Content Header */}
-                <div className="border-b-4 border-zinc-900 bg-zinc-50 p-8 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="border-b-4 border-zinc-900 bg-zinc-50 p-5 sm:p-8 md:p-10 flex flex-col md:flex-row md:items-center justify-between gap-4 sm:gap-6">
                   <div className="flex items-center gap-6">
-                    <div className={`w-16 h-16 flex items-center justify-center border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${tabs.find(t => t.id === activeTab)?.color}`}>
+                    <div className={`w-14 h-14 sm:w-16 sm:h-16 flex items-center justify-center border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] ${tabs.find(t => t.id === activeTab)?.color}`}>
                       {(() => {
                         const Icon = tabs.find(t => t.id === activeTab)?.icon || User;
                         return <Icon className="w-8 h-8 text-zinc-900" strokeWidth={3} /> ;
                       })()}
                     </div>
                     <div>
-                      <h2 className="text-3xl md:text-4xl font-black uppercase italic text-zinc-900 leading-none mb-2 tracking-tighter">
+                      <h2 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase italic text-zinc-900 leading-none mb-2 tracking-tighter">
                         {tabs.find(t => t.id === activeTab)?.label}
                       </h2>
                       <div className="flex items-center gap-2">
@@ -335,12 +335,12 @@ export default function ConfigurationPage() {
                 </div>
 
                 {/* Tab Content */}
-                <div className="p-8 md:p-12 lg:p-16">
+                <div className="p-5 sm:p-8 md:p-12 lg:p-16">
                   {activeTab === "perfil" && (
-                    <div className="max-w-3xl space-y-12">
-                      <div className="grid grid-cols-1 gap-10">
+                    <div className="max-w-3xl space-y-10 sm:space-y-12">
+                      <div className="grid grid-cols-1 gap-8 sm:gap-10">
                         <div className="space-y-4">
-                          <label className="text-[10px] font-black uppercase tracking-[0.3em] text-zinc-900 flex items-center gap-2">
+                          <label className="text-[10px] font-black uppercase tracking-[0.25em] sm:tracking-[0.3em] text-zinc-900 flex items-center gap-2">
                             <span className="w-2 h-2 bg-zinc-900" /> NOMBRE DE USUARIO
                           </label>
                           <div className="relative group">
@@ -351,14 +351,14 @@ export default function ConfigurationPage() {
                               type="text"
                               value={displayName}
                               onChange={(e) => setDisplayName(e.target.value)}
-                              className="w-full pl-16 pr-6 py-5 bg-white border-4 border-zinc-900 text-zinc-900 font-black uppercase tracking-widest text-sm placeholder:text-zinc-300 focus:outline-none focus:bg-zinc-50 focus:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)] transition-all"
+                              className="w-full pl-16 pr-6 py-4 sm:py-5 bg-white border-4 border-zinc-900 text-zinc-900 font-black uppercase tracking-widest text-sm placeholder:text-zinc-300 focus:outline-none focus:bg-zinc-50 focus:shadow-[6px_6px_0px_0px_rgba(16,185,129,1)] transition-all"
                               placeholder="ESCRIBE TU NOMBRE..."
                             />
                           </div>
                         </div>
                       </div>
 
-                      <div className="pt-8 border-t-4 border-zinc-100">
+                      <div className="pt-6 sm:pt-8 border-t-4 border-zinc-100">
                         <button
                           onClick={handleUpdateProfile}
                           disabled={saving}
