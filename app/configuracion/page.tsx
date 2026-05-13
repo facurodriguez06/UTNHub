@@ -15,6 +15,7 @@ import {
   BookOpen,
   CheckCircle2,
   Award,
+  Star,
   Hash,
   RefreshCw,
   MoreVertical,
