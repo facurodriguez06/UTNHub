@@ -646,7 +646,7 @@ const CurriculumViewer = ({
       {/* Main Grid View */}
       <div className={cn(
         "flex-grow overflow-x-auto p-4 sm:p-6 lg:p-8 custom-scrollbar transition-[padding-right] duration-300",
-        selectedSubject ? "lg:pr-[36rem]" : "lg:pr-0"
+        selectedSubject && "lg:pr-[38rem]"
       )}>
         
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 lg:mb-8 pb-6 border-b-4 border-zinc-900">
@@ -777,7 +777,7 @@ const CurriculumViewer = ({
         <div className={`flex flex-col gap-6 pb-8 ${selectedSubject ? 'mb-0 lg:mb-0' : ''}`}>
           {displayedYears.map(([yearStr, subjects]) => (
             <div key={yearStr} className="flex flex-col gap-4 w-full">
-              <div className={`grid gap-4 ${
+              <div className={`grid gap-4 pr-3 pb-3 ${
                 selectedSubject 
                   ? 'grid-cols-1 md:grid-cols-2 xl:grid-cols-2 2xl:grid-cols-3' 
                   : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
@@ -934,20 +934,23 @@ const CurriculumViewer = ({
 
               {/* Bulk Actions for the year */}
               {yearStr !== 'electivas' && user && (
-                <div className="flex flex-wrap items-center gap-4 mt-6 px-4 py-3 bg-zinc-50  border-[3px] border-zinc-900 border-dashed">
-                  <p className="text-[11px] font-bold text-[#A89F95] uppercase tracking-wider">Acciones rápidas para el año:</p>
+                <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center justify-between gap-4 mt-6 px-5 py-4 bg-white border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]">
                   <div className="flex items-center gap-3">
+                    <Zap className="w-5 h-5 text-zinc-900" strokeWidth={3} />
+                    <p className="text-[11px] sm:text-xs font-black text-zinc-900 uppercase tracking-widest">Acciones rápidas del año</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
                     <button
                       onClick={() => handleBulkToggle(subjects, 'regulares')}
-                      className="text-[11px] font-bold text-amber-600 hover:text-[#A9634C] transition-all flex items-center gap-1.5 px-3 py-1.5  hover:bg-[#FFF9F2] border border-transparent hover:border-[#D4856A]/20 active:scale-95"
+                      className="flex-1 sm:flex-none text-[10px] sm:text-[11px] font-black text-zinc-900 uppercase tracking-widest bg-yellow-400 px-4 py-2 border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all flex items-center justify-center gap-2"
                     >
-                      <AlertTriangle className="w-3 h-3" /> Marcar todo el año regular
+                      <AlertTriangle className="w-4 h-4" strokeWidth={3} /> Regularizar Año
                     </button>
                     <button
                       onClick={() => handleBulkToggle(subjects, 'aprobadas')}
-                      className="text-[11px] font-bold text-emerald-500 hover:text-[#6B8A72] transition-all flex items-center gap-1.5 px-3 py-1.5  hover:bg-emerald-50 border border-transparent hover:border-emerald-500/20 active:scale-95"
+                      className="flex-1 sm:flex-none text-[10px] sm:text-[11px] font-black text-zinc-900 uppercase tracking-widest bg-emerald-400 px-4 py-2 border-4 border-zinc-900 shadow-[4px_4px_0px_0px_rgba(24,24,27,1)] hover:translate-y-1 hover:translate-x-1 hover:shadow-none transition-all flex items-center justify-center gap-2"
                     >
-                      <CheckCircle2 className="w-3 h-3" /> Marcar todo el año aprobado
+                      <CheckCircle2 className="w-4 h-4" strokeWidth={3} /> Aprobar Año
                     </button>
                   </div>
                 </div>
