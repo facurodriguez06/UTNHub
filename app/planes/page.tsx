@@ -81,7 +81,7 @@ const SubjectStatusRibbon = ({
         className="absolute left-1/2 top-1/2 flex w-[146%] -translate-x-1/2 -translate-y-1/2 items-center justify-center select-none"
       >
         <div
-          className={`relative flex w-full items-center justify-center overflow-hidden border-zinc-900 px-4 text-center font-black uppercase whitespace-nowrap ${toneClasses}`}
+          className={`relative flex w-full items-center justify-center overflow-hidden border-zinc-900 px-4 text-center font-black uppercase whitespace-nowrap animate-stamp ${toneClasses}`}
           style={{
             fontSize: 'clamp(0.72rem, 5.6cqw, 1.75rem)',
             paddingTop: 'clamp(0.35rem, 1cqw, 0.6rem)',
@@ -150,7 +150,7 @@ const InteractiveProgressButtons = ({
         <button
           onClick={() => handleAction('aprobadas')}
           className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-black transition-all border-4 border-zinc-900 uppercase tracking-widest italic
-            ${isApproved ? 'bg-emerald-400 text-zinc-900 shadow-none translate-x-1 translate-y-1' : 'bg-white text-zinc-900 shadow-neo hover:-translate-y-1 hover:bg-emerald-50 active:translate-y-1 active:shadow-none'}
+            ${isApproved ? 'bg-emerald-400 text-zinc-900 shadow-none translate-x-[4px] translate-y-[4px]' : 'bg-white text-zinc-900 shadow-neo hover:-translate-y-1 hover:-translate-x-1 hover:shadow-neo-xl active:translate-y-[4px] active:translate-x-[4px] active:shadow-none'}
           `}
         >
           <CheckCircle2 className="w-4 h-4" strokeWidth={3} /> {isApproved ? 'Aprobada!' : 'Aprobar'}
@@ -158,7 +158,7 @@ const InteractiveProgressButtons = ({
         <button
           onClick={() => handleAction('regulares')}
           className={`flex-1 flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-black transition-all border-4 border-zinc-900 uppercase tracking-widest italic
-            ${isRegular ? 'bg-yellow-400 text-zinc-900 shadow-none translate-x-1 translate-y-1' : 'bg-white text-zinc-900 shadow-neo hover:-translate-y-1 hover:bg-yellow-50 active:translate-y-1 active:shadow-none'}
+            ${isRegular ? 'bg-yellow-400 text-zinc-900 shadow-none translate-x-[4px] translate-y-[4px]' : 'bg-white text-zinc-900 shadow-neo hover:-translate-y-1 hover:-translate-x-1 hover:shadow-neo-xl active:translate-y-[4px] active:translate-x-[4px] active:shadow-none'}
           `}
         >
           <AlertTriangle className="w-4 h-4" strokeWidth={3} /> {isRegular ? 'Regular!' : 'Regularizar'}
@@ -269,17 +269,17 @@ export default function PlanesPage() {
       {/* Main Content */}
       <div ref={containerRef} className="flex-grow flex flex-col pt-10 sm:pt-12 relative z-10 w-full max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
         
-        <div className="flex flex-col gap-6 sm:gap-8 mb-12 sm:mb-16">
+        <div className="flex flex-col gap-6 sm:gap-8 mb-12 sm:mb-16 animate-slide-right-neo" style={{ animationDelay: '100ms' }}>
           <div className="space-y-6 max-w-3xl">
-            <Link href="/" className="neo-btn-outline">
+            <Link href="/" className="neo-btn-outline w-fit animate-slide-right-neo" style={{ animationDelay: '200ms' }}>
               <ArrowLeft className="w-4 h-4" strokeWidth={3} />
               Volver al inicio
             </Link>
             <div>
-              <h1 className="text-4xl sm:text-7xl font-black text-zinc-900 uppercase tracking-tighter leading-none mb-4 italic">
+              <h1 className="text-4xl sm:text-7xl font-black text-zinc-900 uppercase tracking-tighter leading-none mb-4 italic animate-slide-right-neo" style={{ animationDelay: '300ms' }}>
                 Planes de <span className="text-emerald-400">Estudio</span>
               </h1>
-              <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest max-w-xl border-l-4 border-zinc-900 pl-4">
+              <p className="text-sm font-bold text-zinc-500 uppercase tracking-widest max-w-xl border-l-4 border-zinc-900 pl-4 animate-slide-right-neo" style={{ animationDelay: '400ms' }}>
                 Visualizá tu progreso académico, consultá correlativas y planificá tu semestre con el sistema de trazado interactivo de UTNHUB.
               </p>
             </div>
@@ -288,7 +288,7 @@ export default function PlanesPage() {
 
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 mb-10 sm:mb-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 sm:gap-6 mb-10 sm:mb-12 animate-pop-in-neo" style={{ animationDelay: '300ms' }}>
           <div className="lg:col-span-8 bg-white border-4 border-zinc-900 shadow-neo-xl p-4 sm:p-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-4 sm:gap-6">
             <div className="relative flex-grow w-full">
               <Info className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-zinc-400" strokeWidth={3} />
@@ -315,15 +315,16 @@ export default function PlanesPage() {
           </div>
           
           <div className="lg:col-span-4 flex bg-white p-2 flex-nowrap sm:flex-wrap overflow-x-auto justify-start items-center border-4 border-zinc-900 w-full gap-2 relative z-20 shadow-neo-xl">
-            {careerOptions.map((career) => (
+            {careerOptions.map((career, idx) => (
               <button
                 key={career.id}
                 onClick={() => setActiveCareer(career)}
+                style={{ animationDelay: `${400 + idx * 100}ms` }}
                 className={cn(
-                  "flex-1 min-w-[110px] px-4 py-3 font-black uppercase tracking-widest text-xs border-4 transition-all active:translate-y-1 active:shadow-none italic whitespace-nowrap",
+                  "flex-1 min-w-[110px] px-4 py-3 font-black uppercase tracking-widest text-xs border-4 transition-all duration-300 active:translate-y-[4px] active:translate-x-[4px] active:shadow-none italic whitespace-nowrap animate-slide-right-neo",
                   activeCareer.id === career.id 
-                    ? "bg-emerald-400 text-zinc-900 border-zinc-900 shadow-none translate-y-1" 
-                    : "bg-white text-zinc-600 border-transparent hover:border-zinc-900 hover:text-zinc-900 hover:-translate-y-1 hover:shadow-neo"
+                    ? "bg-emerald-400 text-zinc-900 border-zinc-900 shadow-none translate-y-[4px] translate-x-[4px]" 
+                    : "bg-white text-zinc-600 border-transparent hover:border-zinc-900 hover:text-zinc-900 hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[4px_4px_0px_0px_rgba(24,24,27,1)]"
                 )}
               >
                 {career.shortName}
@@ -630,7 +631,7 @@ const CurriculumViewer = ({
 
             <button
               onClick={onClose}
-              className="w-full bg-zinc-900 text-white font-black uppercase tracking-widest text-lg px-8 py-5 border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(16,185,129,1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
+              className="w-full bg-zinc-900 text-white font-black uppercase tracking-widest text-lg px-8 py-5 border-4 border-zinc-900 shadow-[8px_8px_0px_0px_rgba(16,185,129,1)] transition-all duration-300 ease-out hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[12px_12px_0px_0px_rgba(16,185,129,1)] active:translate-y-[8px] active:translate-x-[8px] active:shadow-none"
             >
               ¡VAMOS POR MÁS!
             </button>
@@ -650,7 +651,7 @@ const CurriculumViewer = ({
       )}>
         
         <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4 mb-6 lg:mb-8 pb-6 border-b-4 border-zinc-900">
-          <div className="space-y-2 max-w-3xl">
+          <div className="space-y-2 max-w-3xl animate-slide-right-neo" style={{ animationDelay: '200ms' }}>
             <div className="flex items-center gap-4">
               <div className="w-10 h-10 bg-emerald-400 border-4 border-zinc-900 flex items-center justify-center shrink-0 shadow-[3px_3px_0px_0px_rgba(24,24,27,1)]">
                 <GraduationCap className="w-5 h-5 text-zinc-900" />
@@ -708,7 +709,7 @@ const CurriculumViewer = ({
           </div>
 
           <div className="flex flex-col sm:flex-row gap-2 w-full xl:w-auto xl:mr-2">
-            <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar bg-white border-4 border-zinc-900 p-1 max-w-full">
+            <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar bg-white border-4 border-zinc-900 p-1 max-w-full animate-slide-right-neo" style={{ animationDelay: '300ms' }}>
               {yearsOptions.map(year => (
                 <button
                   key={year}
@@ -747,7 +748,7 @@ const CurriculumViewer = ({
                   previewWindow.close();
                 });
               }}
-              className="flex shrink-0 items-center justify-center gap-2 bg-zinc-900 text-white px-4 py-2.5 border-4 border-zinc-900 text-[11px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap"
+              className="flex shrink-0 items-center justify-center gap-2 bg-zinc-900 text-white px-4 py-2.5 border-4 border-zinc-900 text-[11px] sm:text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all duration-300 hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[8px_8px_0px_0px_rgba(16,185,129,1)] active:translate-y-[4px] active:translate-x-[4px] active:shadow-none animate-slide-right-neo" style={{ animationDelay: '400ms' }}
             >
               <FileText className="w-3.5 h-3.5" strokeWidth={3} />
               Descargar Plan
@@ -821,7 +822,7 @@ const CurriculumViewer = ({
 
                   if (isReqOfHovered || unlocksHovered || isSelected) {
                     cardStyle = cardStyle.replace('shadow-[4px_4px_0px_0px', 'shadow-[8px_8px_0px_0px');
-                    cardStyle += " -translate-y-1 z-10";
+                    cardStyle += " -translate-y-1 -translate-x-1 z-10 animate-wiggle-neo";
                   }
 
                   return (
@@ -831,10 +832,10 @@ const CurriculumViewer = ({
                       onMouseEnter={() => setHoveredSubject(subject.id)}
                       onMouseLeave={() => setHoveredSubject(null)}
                       onClick={() => setSelectedSubject(subject)}
-                      style={{ animationDelay: `${index * 8}ms` }}
+                      style={{ animationDelay: `${index * 35}ms` }}
                       className={`
-                        relative p-5 transition-all duration-200 group min-h-[140px] flex flex-col overflow-hidden animate-fade-in-up
-                        hover:-translate-y-1 hover:shadow-[8px_8px_0px_0px_rgba(24,24,27,1)] active:translate-y-0 active:shadow-none
+                        relative p-5 transition-all duration-300 group min-h-[140px] flex flex-col overflow-hidden animate-pop-in-neo
+                        hover:-translate-y-1 hover:-translate-x-1 hover:shadow-[8px_8px_0px_0px_rgba(24,24,27,1)] active:translate-y-[4px] active:translate-x-[4px] active:shadow-none
                         ${cardStyle}
                         ${spanClass}
                       `}
@@ -867,7 +868,7 @@ const CurriculumViewer = ({
                             </span>
                           )}
                         </div>
-                        <div className="shrink-0">{getSubjectIcon(subject.name, `w-6 h-6 ${iconColor} group-hover:scale-125 group-hover:-rotate-12 transition-all duration-200`)}</div>
+                        <div className="shrink-0">{getSubjectIcon(subject.name, `w-6 h-6 ${iconColor} group-hover:scale-125 group-hover:-rotate-12 group-hover:animate-wiggle-neo transition-all duration-300 ease-out`)}</div>
                       </div>
 
                       <div className="relative z-10 flex flex-col gap-1">
