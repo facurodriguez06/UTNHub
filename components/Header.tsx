@@ -71,6 +71,19 @@ export function Header() {
       document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [userMenuOpen]);
+  
+  // Cerrar menús al hacer scroll (especialmente útil en móviles)
+  useEffect(() => {
+    if (!menuOpen && !userMenuOpen) return;
+
+    const handleScroll = () => {
+      if (menuOpen) setMenuOpen(false);
+      if (userMenuOpen) setUserMenuOpen(false);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, [menuOpen, userMenuOpen]);
 
   useEffect(() => {
     // Check initial scroll position immediately on mount

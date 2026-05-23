@@ -27,7 +27,8 @@ export async function POST(request: Request) {
 
     // Send email using Resend if enabled, else log it for local testing
     if (process.env.RESEND_API_KEY) {
-       await resend.emails.send({
+      try {
+        await resend.emails.send({
           from: 'UTNHub <noreply@utnhub.com>', // User's custom verified domain!
           to: email,
           subject: 'UTNHub - Código de verificación',
@@ -38,10 +39,25 @@ export async function POST(request: Request) {
               <div style="font-size: 32px; font-weight: bold; padding: 20px; background-color: #F4FBFA; border: 2px dashed #8BAA91; border-radius: 12px; margin: 20px auto; width: fit-content; letter-spacing: 5px;">
                 ${otp}
               </div>
-              <p style="color: #A0A0A0; font-size: 12px;">Este código expirará en 15 minutos. No lo compartas con nadie.</p>
+              <p style="color: #A0A0A0; font-size: 12px;">Este código expirará en 15 minutes. No lo compartas con nadie.</p>
             </div>
           `
-       });
+        });
+      } catch (sendError) {
+        console.error("Resend API failed to send email. Falling back to console log for development.");
+        console.error(sendError);
+        console.log(`\n======================================================`);
+        console.log(`[FALLBACK DEVELOPER OTP] To: ${email}`);
+        console.log(`[FALLBACK DEVELOPER OTP] CODE: ${otp}`);
+        console.log(`======================================================\n`);
+        
+        // We still return success: true so the developer can enter the OTP logged in their terminal
+        return NextResponse.json({ 
+          success: true, 
+          verificationPayload,
+          warning: "Resend failed, code printed to console"
+        });
+      }
     } else {
        console.log(`\n======================================================`);
        console.log(`[MOCK EMAIL SENT] To: ${email}`);

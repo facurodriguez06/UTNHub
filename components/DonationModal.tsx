@@ -98,7 +98,7 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
         <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-12 items-stretch min-h-[300px]">
           
           {/* LEFT COLUMN: Message & Branding */}
-          <div className="lg:col-span-1 xl:col-span-5 relative bg-gradient-to-br from-[#8BAA91] via-[#D5E8DB] to-[#F5EFE5] p-6 lg:p-10 flex flex-col justify-center items-center text-center overflow-hidden">
+          <div className="hidden lg:flex lg:col-span-1 xl:col-span-5 relative bg-gradient-to-br from-[#8BAA91] via-[#D5E8DB] to-[#F5EFE5] p-6 lg:p-10 flex-col justify-center items-center text-center overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-white/20 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />
             
             <div className="relative z-10">
@@ -133,7 +133,15 @@ export function DonationModal({ isOpen, onClose }: DonationModalProps) {
           </div>
 
           {/* RIGHT COLUMN: Donation Form */}
-          <div className="lg:col-span-1 xl:col-span-7 bg-white p-6 lg:p-10 flex flex-col justify-center">
+          <div className="lg:col-span-1 xl:col-span-7 bg-white p-5 sm:p-6 lg:p-10 flex flex-col justify-center">
+            {/* Mobile Header: Logo & Branding (Only visible on mobile/tablet) */}
+            <div className="flex lg:hidden items-center gap-3 mb-6 p-3.5 pr-12 rounded-2xl bg-gradient-to-r from-[#8BAA91]/10 via-[#D5E8DB]/5 to-[#F5EFE5]/10 border border-[#8BAA91]/15">
+              <Image src="/utn-logo-optimized.webp" alt="UTN Logo" width={32} height={32} className="w-8 h-8 object-contain" />
+              <div>
+                <h2 className="text-sm font-black text-[#3D3229] uppercase tracking-tight">UTN Hub</h2>
+                <p className="text-[10px] text-[#6B5A50] font-bold">Apoya el crecimiento de la plataforma</p>
+              </div>
+            </div>
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-[#F9F7F4] border border-[#EDE6DD] flex items-center justify-center">
                 <DollarSign className="w-5 h-5 text-[#8BAA91]" />

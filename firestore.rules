@@ -74,7 +74,7 @@ service cloud.firestore {
         || isOwner()
       );
 
-      allow delete: if isOwner();
+      allow delete: if request.auth != null && (request.auth.uid == userId || isOwner());
     }
 
     // 🛡️ CALIFICACIONES DE MATERIAS GLOBALES (Colección 'subject_aggregates')

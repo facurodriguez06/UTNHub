@@ -3,12 +3,12 @@
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
-import { doc, getDoc, updateDoc, deleteField } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteField, deleteDoc } from "firebase/firestore";
 import { ArrowLeft, Trash2, AlertTriangle, User, Shield, BookOpen, CheckCircle2, Mail, Lock, Save, Eye, EyeOff, Pencil, BadgeCheck, Clock3, Sparkles, Bell, GraduationCap, Building2, ExternalLink, Star } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
 import { useToast } from "@/context/ToastContext";
-import { updateEmail, updatePassword, updateProfile, reauthenticateWithCredential, EmailAuthProvider } from "firebase/auth";
+import { updateEmail, updatePassword, updateProfile, reauthenticateWithCredential, EmailAuthProvider, deleteUser } from "firebase/auth";
 import { careersData } from "@/lib/data";
 
 type FirebaseErrorLike = {
@@ -28,10 +28,11 @@ const getFirebaseErrorCode = (error: unknown) =>
   typeof error === "object" && error !== null ? (error as FirebaseErrorLike).code : undefined;
 
 export default function ConfiguracionPage() {
-  const { user, loading, resetPassword } = useAuth();
+  const { user, loading, resetPassword, logout } = useAuth();
   const router = useRouter();
   const { showToast } = useToast();
   const [isSendingReset, setIsSendingReset] = useState(false);
+  const [deleteAccountPassword, setDeleteAccountPassword] = useState("");
 
   const [progressStats, setProgressStats] = useState<{ aprobadas: number; regulares: number }>({ aprobadas: 0, regulares: 0 });
   const [profileData, setProfileData] = useState<UserProfileData>({});
@@ -336,6 +337,49 @@ export default function ConfiguracionPage() {
       showToast("Error al borrar las calificaciones.", "error");
     } finally {
       setIsProcessing(false);
+      setShowConfirmDialog(null);
+    }
+  };
+
+  const executeAccountDeletion = async (passwordForReauth?: string) => {
+    if (!user) return;
+    setIsProcessing(true);
+    try {
+      if (isEmailProvider) {
+        if (!passwordForReauth) {
+          setShowConfirmDialog("delete_account_password");
+          setIsProcessing(false);
+          return;
+        }
+        const credential = EmailAuthProvider.credential(user.email!, passwordForReauth);
+        await reauthenticateWithCredential(user, credential);
+      }
+      
+      // 1. Borrar documento del usuario en Firestore
+      const userRef = doc(db, "users", user.uid);
+      await deleteDoc(userRef);
+
+      // 2. Borrar usuario en Firebase Auth
+      await deleteUser(user);
+
+      // 3. Forzar deslogueo y limpieza de la sesión local
+      await logout();
+
+      showToast("Tu cuenta fue eliminada correctamente.", "success");
+      router.push("/");
+    } catch (error: unknown) {
+      console.error("Error al eliminar cuenta:", error);
+      const errorCode = getFirebaseErrorCode(error);
+      if (errorCode === "auth/wrong-password" || errorCode === "auth/invalid-credential") {
+        showToast("Contraseña incorrecta.", "error");
+      } else if (errorCode === "auth/requires-recent-login") {
+        showToast("Por seguridad, cerrá sesión, volvé a ingresar e intenta nuevamente.", "error");
+      } else {
+        showToast("No se pudo eliminar la cuenta. Intente nuevamente.", "error");
+      }
+    } finally {
+      setIsProcessing(false);
+      setDeleteAccountPassword("");
       setShowConfirmDialog(null);
     }
   };
@@ -800,6 +844,31 @@ export default function ConfiguracionPage() {
             </div>
           </div>
         </div>
+
+        {/* Sección: Zona de Peligro */}
+        <div className="bg-white border border-[#FCA5A5] rounded-2xl overflow-hidden shadow-sm">
+          <div className="px-6 py-4 bg-[#FEF2F2] border-b border-[#FCA5A5]">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-[#DC2626]" />
+              <h2 className="text-sm font-bold uppercase tracking-widest text-[#DC2626]">Zona de peligro</h2>
+            </div>
+          </div>
+          <div className="p-6 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[#FEF2F2] border border-[#FCA5A5]/30 transition-all hover:border-[#FCA5A5] group">
+              <div className="space-y-1">
+                <h4 className="text-[14px] font-bold text-[#DC2626]">Eliminar mi cuenta</h4>
+                <p className="text-[12px] text-[#7A6E62]">Borra permanentemente tu cuenta, progreso académico y todas tus calificaciones de materias.</p>
+              </div>
+              <button
+                onClick={() => setShowConfirmDialog("delete_account")}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white bg-[#DC2626] hover:bg-[#B91C1C] transition-all active:scale-95 shadow-sm whitespace-nowrap"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Eliminar cuenta
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Diálogo de confirmación */}
@@ -830,7 +899,26 @@ export default function ConfiguracionPage() {
               {showConfirmDialog === "ratings" && (
                 <>Vas a eliminar las <strong className="text-[#D4856A]">{ratingsCount} calificaciones</strong> que hiciste en las materias. Esta acción no se puede deshacer.</>
               )}
+              {showConfirmDialog === "delete_account" && (
+                <>Vas a <strong className="text-[#DC2626]">eliminar definitivamente tu cuenta de UTNHub</strong>. Se perderá todo tu progreso y configuración de usuario. Esta acción es irreversible.</>
+              )}
+              {showConfirmDialog === "delete_account_password" && (
+                <>Ingresá tu contraseña actual para confirmar la eliminación definitiva de tu cuenta.</>
+              )}
             </p>
+
+            {showConfirmDialog === "delete_account_password" && (
+              <div className="mb-4 animate-fade-in-up">
+                <input
+                  type="password"
+                  placeholder="Contraseña"
+                  className="w-full px-3.5 py-2.5 bg-[#FAFAFA] border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#E57A7A] focus:ring-1 focus:ring-[#E57A7A]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
+                  value={deleteAccountPassword}
+                  onChange={(e) => setDeleteAccountPassword(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            )}
 
             <div className="flex gap-3">
               <button
@@ -846,8 +934,10 @@ export default function ConfiguracionPage() {
                   else if (showConfirmDialog === "regulares") handleClearRegulares();
                   else if (showConfirmDialog === "todo") handleClearAllProgress();
                   else if (showConfirmDialog === "ratings") handleClearRatings();
+                  else if (showConfirmDialog === "delete_account") executeAccountDeletion();
+                  else if (showConfirmDialog === "delete_account_password") executeAccountDeletion(deleteAccountPassword);
                 }}
-                disabled={isProcessing}
+                disabled={isProcessing || (showConfirmDialog === "delete_account_password" && !deleteAccountPassword)}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-[#E57A7A] hover:bg-[#D46A6A] transition-all disabled:opacity-70 shadow-sm"
               >
                 {isProcessing ? (

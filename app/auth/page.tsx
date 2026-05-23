@@ -33,6 +33,15 @@ export default function AuthPage() {
   const [otpCode, setOtpCode] = useState("");
   const [verificationPayload, setVerificationPayload] = useState("");
   const otpInputRefs = useRef<(HTMLInputElement | null)[]>([]);
+  const [resendTimer, setResendTimer] = useState(0);
+
+  useEffect(() => {
+    if (resendTimer <= 0) return;
+    const interval = setInterval(() => {
+      setResendTimer((prev) => prev - 1);
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   useEffect(() => {
     if (user && !loading) {
@@ -103,6 +112,7 @@ export default function AuthPage() {
         // Entrar en fase de verificación
         setVerificationPayload(data.verificationPayload);
         setVerificationStep(true);
+        setResendTimer(60);
       }
     } catch (error: unknown) {
       const authError = getAuthError(error);
@@ -180,6 +190,34 @@ export default function AuthPage() {
       } else {
         setAuthError(authError.message || "Código incorrecto o expirado.");
       }
+    } finally {
+      setIsFormLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendTimer > 0 || isFormLoading) return;
+    
+    setAuthError("");
+    setIsFormLoading(true);
+    try {
+      const res = await fetch("/api/auth/send-otp", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email })
+      });
+      const data = await res.json();
+      
+      if (!res.ok) {
+        throw new Error(data.error || "Ocurrió un error al enviar el código");
+      }
+      
+      setVerificationPayload(data.verificationPayload);
+      setOtpCode("");
+      setResendTimer(60);
+    } catch (error: unknown) {
+      const authError = getAuthError(error);
+      setAuthError(authError.message || "Error al reenviar el código.");
     } finally {
       setIsFormLoading(false);
     }
@@ -284,6 +322,23 @@ export default function AuthPage() {
               >
                 {isFormLoading ? "Verificando..." : "Verificar y Crear Cuenta"}
               </button>
+
+              <div className="text-center mt-3">
+                {resendTimer > 0 ? (
+                  <p className="text-xs text-[#A89F95] font-semibold">
+                    ¿No recibiste el código? Reenviar en <span className="text-[#8BAA91] font-bold">{resendTimer}s</span>
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={isFormLoading}
+                    className="text-xs text-[#8BAA91] hover:text-[#6A8F70] font-extrabold hover:underline transition-all disabled:opacity-50"
+                  >
+                    Reenviar código de verificación
+                  </button>
+                )}
+              </div>
 
               <button 
                 type="button"
