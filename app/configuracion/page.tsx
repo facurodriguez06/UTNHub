@@ -375,7 +375,8 @@ export default function ConfiguracionPage() {
       } else if (errorCode === "auth/requires-recent-login") {
         showToast("Por seguridad, cerrá sesión, volvé a ingresar e intenta nuevamente.", "error");
       } else {
-        showToast("No se pudo eliminar la cuenta. Intente nuevamente.", "error");
+        const errorMsg = error instanceof Error ? error.message : "Intente nuevamente";
+        showToast(`Error: ${errorMsg}`, "error");
       }
     } finally {
       setIsProcessing(false);
