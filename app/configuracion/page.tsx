@@ -253,11 +253,23 @@ export default function ConfiguracionPage() {
     }
   };
 
+  const reauthenticateUser = async (password?: string) => {
+    if (!isEmailProvider) return;
+    if (!password) {
+      throw new Error("Contraseña requerida.");
+    }
+    const credential = EmailAuthProvider.credential(user!.email!, password);
+    await reauthenticateWithCredential(user!, credential);
+  };
+
   // Borrar solo las materias aprobadas
-  const handleClearAprobadas = async () => {
+  const handleClearAprobadas = async (password?: string) => {
     if (!user) return;
     setIsProcessing(true);
     try {
+      if (isEmailProvider) {
+        await reauthenticateUser(password);
+      }
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
       if (userDoc.exists()) {
@@ -268,20 +280,29 @@ export default function ConfiguracionPage() {
         setProgressStats(prev => ({ ...prev, aprobadas: 0 }));
         showToast("Materias aprobadas eliminadas correctamente.", "success");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error al borrar aprobadas:", error);
-      showToast("Error al borrar las materias aprobadas.", "error");
+      const errorCode = getFirebaseErrorCode(error);
+      if (errorCode === "auth/wrong-password" || errorCode === "auth/invalid-credential") {
+        showToast("Contraseña incorrecta.", "error");
+      } else {
+        showToast("Error al borrar las materias aprobadas.", "error");
+      }
     } finally {
       setIsProcessing(false);
       setShowConfirmDialog(null);
+      setDeleteAccountPassword("");
     }
   };
 
   // Borrar solo las materias regularizadas
-  const handleClearRegulares = async () => {
+  const handleClearRegulares = async (password?: string) => {
     if (!user) return;
     setIsProcessing(true);
     try {
+      if (isEmailProvider) {
+        await reauthenticateUser(password);
+      }
       const userRef = doc(db, "users", user.uid);
       const userDoc = await getDoc(userRef);
       if (userDoc.exists()) {
@@ -292,52 +313,76 @@ export default function ConfiguracionPage() {
         setProgressStats(prev => ({ ...prev, regulares: 0 }));
         showToast("Materias regularizadas eliminadas correctamente.", "success");
       }
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error al borrar regulares:", error);
-      showToast("Error al borrar las materias regularizadas.", "error");
+      const errorCode = getFirebaseErrorCode(error);
+      if (errorCode === "auth/wrong-password" || errorCode === "auth/invalid-credential") {
+        showToast("Contraseña incorrecta.", "error");
+      } else {
+        showToast("Error al borrar las materias regularizadas.", "error");
+      }
     } finally {
       setIsProcessing(false);
       setShowConfirmDialog(null);
+      setDeleteAccountPassword("");
     }
   };
 
   // Borrar todo el progreso (aprobadas + regulares)
-  const handleClearAllProgress = async () => {
+  const handleClearAllProgress = async (password?: string) => {
     if (!user) return;
     setIsProcessing(true);
     try {
+      if (isEmailProvider) {
+        await reauthenticateUser(password);
+      }
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         progress: { aprobadas: [], regulares: [] }
       });
       setProgressStats({ aprobadas: 0, regulares: 0 });
       showToast("Todo tu progreso fue reiniciado.", "success");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error al borrar progreso:", error);
-      showToast("Error al reiniciar el progreso.", "error");
+      const errorCode = getFirebaseErrorCode(error);
+      if (errorCode === "auth/wrong-password" || errorCode === "auth/invalid-credential") {
+        showToast("Contraseña incorrecta.", "error");
+      } else {
+        showToast("Error al reiniciar el progreso.", "error");
+      }
     } finally {
       setIsProcessing(false);
       setShowConfirmDialog(null);
+      setDeleteAccountPassword("");
     }
   };
 
   // Borrar todas las calificaciones de materias
-  const handleClearRatings = async () => {
+  const handleClearRatings = async (password?: string) => {
     if (!user) return;
     setIsProcessing(true);
     try {
+      if (isEmailProvider) {
+        await reauthenticateUser(password);
+      }
       const userRef = doc(db, "users", user.uid);
       await updateDoc(userRef, {
         subjectRatings: deleteField()
       });
       setRatingsCount(0);
       showToast("Tus calificaciones han sido eliminadas.", "success");
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Error al borrar calificaciones:", error);
-      showToast("Error al borrar las calificaciones.", "error");
+      const errorCode = getFirebaseErrorCode(error);
+      if (errorCode === "auth/wrong-password" || errorCode === "auth/invalid-credential") {
+        showToast("Contraseña incorrecta.", "error");
+      } else {
+        showToast("Error al borrar las calificaciones.", "error");
+      }
     } finally {
       setIsProcessing(false);
       setShowConfirmDialog(null);
+      setDeleteAccountPassword("");
     }
   };
 
@@ -907,16 +952,16 @@ export default function ConfiguracionPage() {
               {showConfirmDialog === "delete_account" && (
                 <>Vas a <strong className="text-[#DC2626]">eliminar definitivamente tu cuenta de UTNHub</strong>. Se perderá todo tu progreso y configuración de usuario. Esta acción es irreversible.</>
               )}
-              {showConfirmDialog === "delete_account_password" && (
-                <>Ingresá tu contraseña actual para confirmar la eliminación definitiva de tu cuenta.</>
-              )}
             </p>
 
-            {showConfirmDialog === "delete_account_password" && (
-              <div className="mb-4 animate-fade-in-up">
+            {isEmailProvider && (
+              <div className="mb-4 animate-fade-in-up text-left">
+                <label className="block text-[11px] font-bold text-[#A89F95] uppercase tracking-wider mb-2">
+                  Confirmar con tu contraseña
+                </label>
                 <input
                   type="password"
-                  placeholder="Contraseña"
+                  placeholder="Ingresá tu contraseña..."
                   className="w-full px-3.5 py-2.5 bg-[#FAFAFA] border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#E57A7A] focus:ring-1 focus:ring-[#E57A7A]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
                   value={deleteAccountPassword}
                   onChange={(e) => setDeleteAccountPassword(e.target.value)}
@@ -935,14 +980,13 @@ export default function ConfiguracionPage() {
               </button>
               <button
                 onClick={() => {
-                  if (showConfirmDialog === "aprobadas") handleClearAprobadas();
-                  else if (showConfirmDialog === "regulares") handleClearRegulares();
-                  else if (showConfirmDialog === "todo") handleClearAllProgress();
-                  else if (showConfirmDialog === "ratings") handleClearRatings();
-                  else if (showConfirmDialog === "delete_account") executeAccountDeletion();
-                  else if (showConfirmDialog === "delete_account_password") executeAccountDeletion(deleteAccountPassword);
+                  if (showConfirmDialog === "aprobadas") handleClearAprobadas(deleteAccountPassword);
+                  else if (showConfirmDialog === "regulares") handleClearRegulares(deleteAccountPassword);
+                  else if (showConfirmDialog === "todo") handleClearAllProgress(deleteAccountPassword);
+                  else if (showConfirmDialog === "ratings") handleClearRatings(deleteAccountPassword);
+                  else if (showConfirmDialog === "delete_account") executeAccountDeletion(deleteAccountPassword);
                 }}
-                disabled={isProcessing || (showConfirmDialog === "delete_account_password" && !deleteAccountPassword)}
+                disabled={isProcessing || (isEmailProvider && !deleteAccountPassword)}
                 className="flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-bold text-white bg-[#E57A7A] hover:bg-[#D46A6A] transition-all disabled:opacity-70 shadow-sm"
               >
                 {isProcessing ? (

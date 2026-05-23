@@ -44,6 +44,8 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
 } from "firebase/auth";
 import { auth, app as primaryApp, db } from "@/lib/firebase/config";
 import { initializeApp, getApps } from "firebase/app";
@@ -339,6 +341,17 @@ const compressImage = async (file: File, maxSizeMB: number = 4): Promise<File> =
 
 export default function AdminPage() {
   const { user, loading } = useAuth();
+  const isEmailProvider = user?.providerData[0]?.providerId === "password";
+
+  const reauthenticateAdmin = async (password?: string) => {
+    if (!isEmailProvider) return;
+    if (!password) {
+      throw new Error("Contraseña requerida.");
+    }
+    const credential = EmailAuthProvider.credential(user!.email!, password);
+    await reauthenticateWithCredential(user!, credential);
+  };
+
   const ownerRegistrationAttempted = useRef<string | null>(null);
 
   const [email, setEmail] = useState("");
@@ -389,6 +402,10 @@ export default function AdminPage() {
     isOpen: false,
     adminMail: "",
   });
+
+  const [confirmDeleteNoteId, setConfirmDeleteNoteId] = useState<string | null>(null);
+  const [confirmDeleteStyleKey, setConfirmDeleteStyleKey] = useState<string | null>(null);
+  const [adminConfirmPassword, setAdminConfirmPassword] = useState("");
 
   const [confirmReset, setConfirmReset] = useState(false);
   const [isResetting, setIsResetting] = useState(false);
@@ -912,24 +929,66 @@ export default function AdminPage() {
     } catch(err) { console.warn(err); showToast("Error al guardar.", "error"); }
   };
 
-  const handleDeleteAuthorStyle = async (key: string) => {
-    try {
-      const { deleteField } = await import("firebase/firestore");
-      await updateDoc(doc(db, "settings", "global"), {
-        [`authorStyles.${key}`]: deleteField()
-      });
-      showToast("Estilo eliminado.", "success");
-    } catch(err) { console.warn(err); showToast("Error.", "error"); }
+  const handleDeleteAuthorStyle = (key: string) => {
+    setConfirmDeleteStyleKey(key);
+    setAdminConfirmPassword("");
   };
 
-  const handleDelete = async (id: string) => {
-    setAdminError("");
+  const confirmDeleteAuthorStyleAction = async () => {
+    if (!confirmDeleteStyleKey) return;
+    setIsResetting(true);
     try {
-      await deleteDoc(doc(db, "notes", id));
+      if (isEmailProvider) {
+        await reauthenticateAdmin(adminConfirmPassword);
+      }
+      const { deleteField } = await import("firebase/firestore");
+      await updateDoc(doc(db, "settings", "global"), {
+        [`authorStyles.${confirmDeleteStyleKey}`]: deleteField()
+      });
+      showToast("Estilo eliminado.", "success");
+    } catch(err: any) {
+      const authError = toAuthError(err);
+      console.warn("No se pudo eliminar estilo:", err);
+      showToast(
+        authError.code === "auth/wrong-password" || authError.code === "auth/invalid-credential"
+          ? "Contraseña incorrecta."
+          : "Error al eliminar estilo.",
+        "error"
+      );
+    } finally {
+      setIsResetting(false);
+      setConfirmDeleteStyleKey(null);
+      setAdminConfirmPassword("");
+    }
+  };
+
+  const handleDelete = (id: string) => {
+    setConfirmDeleteNoteId(id);
+    setAdminConfirmPassword("");
+  };
+
+  const confirmDeleteNoteAction = async () => {
+    if (!confirmDeleteNoteId) return;
+    setIsResetting(true);
+    try {
+      if (isEmailProvider) {
+        await reauthenticateAdmin(adminConfirmPassword);
+      }
+      await deleteDoc(doc(db, "notes", confirmDeleteNoteId));
+      showToast("Apunte eliminado con éxito", "success");
     } catch (err: unknown) {
       const authError = toAuthError(err);
       console.warn("No se pudo eliminar:", err);
-      setAdminError(`Error al eliminar (${authError.code || "unknown"}). Verificá las reglas de Firebase.`);
+      showToast(
+        authError.code === "auth/wrong-password" || authError.code === "auth/invalid-credential"
+          ? "Contraseña incorrecta."
+          : `Error al eliminar (${authError.code || "unknown"})`,
+        "error"
+      );
+    } finally {
+      setIsResetting(false);
+      setConfirmDeleteNoteId(null);
+      setAdminConfirmPassword("");
     }
   };
 
@@ -1012,14 +1071,26 @@ export default function AdminPage() {
 
   const confirmDeleteAdminAction = async () => {
     const adminMail = confirmDeleteAdmin.adminMail;
+    setIsResetting(true);
     try {
+      if (isEmailProvider) {
+        await reauthenticateAdmin(adminConfirmPassword);
+      }
       await deleteDoc(doc(db, "admins", adminMail));
       showToast("Moderador eliminado correctamente", "success");
-    } catch (err) {
+    } catch (err: any) {
+      const authError = toAuthError(err);
       console.warn("Error deleting admin:", err);
-      showToast("Error al eliminar administrador", "error");
+      showToast(
+        authError.code === "auth/wrong-password" || authError.code === "auth/invalid-credential"
+          ? "Contraseña incorrecta."
+          : "Error al eliminar administrador",
+        "error"
+      );
     } finally {
+      setIsResetting(false);
       setConfirmDeleteAdmin({ isOpen: false, adminMail: "" });
+      setAdminConfirmPassword("");
     }
   };
 
@@ -2009,24 +2080,51 @@ export default function AdminPage() {
                   <ShieldAlert className="w-10 h-10 text-[#8E5A5A] mb-3 animate-pulse" />
                   <p className="font-bold text-[#3D3229] mb-1">¿Estás seguro de borrar todas las visitas?</p>
                   <p className="text-xs text-[#8E5A5A] mb-4">Esta acción no se puede deshacer y los contadores volverán a 0.</p>
+                  
+                  {isEmailProvider && (
+                    <div className="mb-4 w-full max-w-xs text-left">
+                      <label className="block text-[11px] font-bold text-[#A89F95] uppercase tracking-wider mb-2">
+                        Confirmar con tu contraseña
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Ingresá tu contraseña..."
+                        className="w-full px-3.5 py-2.5 bg-[#FAFAFA] border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#E57A7A] focus:ring-1 focus:ring-[#E57A7A]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
+                        value={adminConfirmPassword}
+                        onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
-                    <button onClick={() => setConfirmReset(false)} disabled={isResetting} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
+                    <button onClick={() => { setConfirmReset(false); setAdminConfirmPassword(""); }} disabled={isResetting} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
                     <button 
                       onClick={async () => {
                         setIsResetting(true);
                         try {
+                          if (isEmailProvider) {
+                            await reauthenticateAdmin(adminConfirmPassword);
+                          }
                           const qSnap = await getDocs(collection(db, "metrics"));
                           await Promise.all(qSnap.docs.map(d => deleteDoc(doc(db, "metrics", d.id))));
                           showToast("Métricas reiniciadas exitosamente a 0.", "success");
                         } catch (err: any) {
-                           showToast(`Error: ${err.message || 'vaciando las visitas'}`, "error");
+                           const authError = toAuthError(err);
+                           showToast(
+                             authError.code === "auth/wrong-password" || authError.code === "auth/invalid-credential"
+                               ? "Contraseña incorrecta."
+                               : `Error: ${err.message || 'vaciando las visitas'}`,
+                             "error"
+                           );
                            console.warn(err);
                         } finally {
                            setIsResetting(false);
                            setConfirmReset(false);
+                           setAdminConfirmPassword("");
                         }
                       }}
-                      disabled={isResetting}
+                      disabled={isResetting || (isEmailProvider && !adminConfirmPassword)}
                       className="px-4 py-2 font-bold text-xs bg-[#8E5A5A] text-white rounded-xl shadow-md hover:bg-[#734a4a] transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                       {isResetting ? <Loader2 className="w-3 h-3 animate-spin"/> : "Sí, borrar todo"}
@@ -2054,12 +2152,32 @@ export default function AdminPage() {
                   <ShieldAlert className="w-10 h-10 text-[#8E5A5A] mb-3 animate-pulse" />
                   <p className="font-bold text-[#3D3229] mb-1">¿Estás seguro de borrar las calificaciones de materias?</p>
                   <p className="text-xs text-[#8E5A5A] mb-4">Se eliminarán los puntajes globales y de todos los usuarios.</p>
+
+                  {isEmailProvider && (
+                    <div className="mb-4 w-full max-w-xs text-left">
+                      <label className="block text-[11px] font-bold text-[#A89F95] uppercase tracking-wider mb-2">
+                        Confirmar con tu contraseña
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Ingresá tu contraseña..."
+                        className="w-full px-3.5 py-2.5 bg-[#FAFAFA] border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#E57A7A] focus:ring-1 focus:ring-[#E57A7A]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
+                        value={adminConfirmPassword}
+                        onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
-                    <button onClick={() => setConfirmResetSubjects(false)} disabled={isResettingSubjects} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
+                    <button onClick={() => { setConfirmResetSubjects(false); setAdminConfirmPassword(""); }} disabled={isResettingSubjects} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
                     <button 
                       onClick={async () => {
                         setIsResettingSubjects(true);
                         try {
+                          if (isEmailProvider) {
+                            await reauthenticateAdmin(adminConfirmPassword);
+                          }
                           const qSnap = await getDocs(collection(db, "subject_aggregates"));
                           await Promise.all(qSnap.docs.map(d => deleteDoc(doc(db, "subject_aggregates", d.id))));
                           
@@ -2073,14 +2191,21 @@ export default function AdminPage() {
                           
                           showToast("Calificaciones de materias reiniciadas.", "success");
                         } catch (err: any) {
-                           showToast(`Error: ${err.message || 'vaciando calificaciones'}`, "error");
+                           const authError = toAuthError(err);
+                           showToast(
+                             authError.code === "auth/wrong-password" || authError.code === "auth/invalid-credential"
+                               ? "Contraseña incorrecta."
+                               : `Error: ${err.message || 'vaciando calificaciones'}`,
+                             "error"
+                           );
                            console.warn(err);
                         } finally {
                            setIsResettingSubjects(false);
                            setConfirmResetSubjects(false);
+                           setAdminConfirmPassword("");
                         }
                       }}
-                      disabled={isResettingSubjects}
+                      disabled={isResettingSubjects || (isEmailProvider && !adminConfirmPassword)}
                       className="px-4 py-2 font-bold text-xs bg-[#8E5A5A] text-white rounded-xl shadow-md hover:bg-[#734a4a] transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                       {isResettingSubjects ? <Loader2 className="w-3 h-3 animate-spin"/> : "Sí, borrar calificaciones"}
@@ -2108,12 +2233,32 @@ export default function AdminPage() {
                   <ShieldAlert className="w-10 h-10 text-[#8E5A5A] mb-3 animate-pulse" />
                   <p className="font-bold text-[#3D3229] mb-1">¿Estás seguro de borrar las estrellas de apuntes?</p>
                   <p className="text-xs text-[#8E5A5A] mb-4">Se eliminarán las estrellas de la comunidad en cada archivo.</p>
+
+                  {isEmailProvider && (
+                    <div className="mb-4 w-full max-w-xs text-left">
+                      <label className="block text-[11px] font-bold text-[#A89F95] uppercase tracking-wider mb-2">
+                        Confirmar con tu contraseña
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Ingresá tu contraseña..."
+                        className="w-full px-3.5 py-2.5 bg-[#FAFAFA] border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#E57A7A] focus:ring-1 focus:ring-[#E57A7A]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
+                        value={adminConfirmPassword}
+                        onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
-                    <button onClick={() => setConfirmResetNotes(false)} disabled={isResettingNotes} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
+                    <button onClick={() => { setConfirmResetNotes(false); setAdminConfirmPassword(""); }} disabled={isResettingNotes} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
                     <button 
                       onClick={async () => {
                         setIsResettingNotes(true);
                         try {
+                          if (isEmailProvider) {
+                            await reauthenticateAdmin(adminConfirmPassword);
+                          }
                           const notesSnap = await getDocs(collection(db, "notes"));
                           await Promise.all(notesSnap.docs.map(d => {
                             if (d.data().ratings && d.data().ratings.length > 0) {
@@ -2124,14 +2269,21 @@ export default function AdminPage() {
                           
                           showToast("Calificaciones de apuntes reiniciadas.", "success");
                         } catch (err: any) {
-                           showToast(`Error: ${err.message || 'vaciando estrellas'}`, "error");
+                           const authError = toAuthError(err);
+                           showToast(
+                             authError.code === "auth/wrong-password" || authError.code === "auth/invalid-credential"
+                               ? "Contraseña incorrecta."
+                               : `Error: ${err.message || 'vaciando estrellas'}`,
+                             "error"
+                           );
                            console.warn(err);
                         } finally {
                            setIsResettingNotes(false);
                            setConfirmResetNotes(false);
+                           setAdminConfirmPassword("");
                         }
                       }}
-                      disabled={isResettingNotes}
+                      disabled={isResettingNotes || (isEmailProvider && !adminConfirmPassword)}
                       className="px-4 py-2 font-bold text-xs bg-[#8E5A5A] text-white rounded-xl shadow-md hover:bg-[#734a4a] transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                       {isResettingNotes ? <Loader2 className="w-3 h-3 animate-spin"/> : "Sí, borrar estrellas"}
@@ -2159,12 +2311,32 @@ export default function AdminPage() {
                   <ShieldAlert className="w-10 h-10 text-[#8E5A5A] mb-3 animate-pulse" />
                   <p className="font-bold text-[#3D3229] mb-1">¿Estás seguro de borrar las estadísticas de descargas?</p>
                   <p className="text-xs text-[#8E5A5A] mb-4">Se reseteará a 0 el contador de descargas de todos los apuntes.</p>
+
+                  {isEmailProvider && (
+                    <div className="mb-4 w-full max-w-xs text-left">
+                      <label className="block text-[11px] font-bold text-[#A89F95] uppercase tracking-wider mb-2">
+                        Confirmar con tu contraseña
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Ingresá tu contraseña..."
+                        className="w-full px-3.5 py-2.5 bg-[#FAFAFA] border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#E57A7A] focus:ring-1 focus:ring-[#E57A7A]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
+                        value={adminConfirmPassword}
+                        onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
                   <div className="flex gap-3">
-                    <button onClick={() => setConfirmResetDownloads(false)} disabled={isResettingDownloads} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
+                    <button onClick={() => { setConfirmResetDownloads(false); setAdminConfirmPassword(""); }} disabled={isResettingDownloads} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
                     <button 
                       onClick={async () => {
                         setIsResettingDownloads(true);
                         try {
+                          if (isEmailProvider) {
+                            await reauthenticateAdmin(adminConfirmPassword);
+                          }
                           const notesSnap = await getDocs(collection(db, "notes"));
                           await Promise.all(notesSnap.docs.map(d => {
                             if (d.data().downloadCount) {
@@ -2174,15 +2346,22 @@ export default function AdminPage() {
                           }));
                           
                           showToast("Contador de descargas reiniciado exitosamente.", "success");
-                        } catch (err) {
-                           showToast("Hubo un error reseteando las descargas.", "error");
+                        } catch (err: any) {
+                           const authError = toAuthError(err);
+                           showToast(
+                             authError.code === "auth/wrong-password" || authError.code === "auth/invalid-credential"
+                               ? "Contraseña incorrecta."
+                               : "Hubo un error reseteando las descargas.",
+                             "error"
+                           );
                            console.warn(err);
                         } finally {
                            setIsResettingDownloads(false);
                            setConfirmResetDownloads(false);
+                           setAdminConfirmPassword("");
                         }
                       }}
-                      disabled={isResettingDownloads}
+                      disabled={isResettingDownloads || (isEmailProvider && !adminConfirmPassword)}
                       className="px-4 py-2 font-bold text-xs bg-[#8E5A5A] text-white rounded-xl shadow-md hover:bg-[#734a4a] transition-all flex items-center gap-2 disabled:opacity-50"
                     >
                       {isResettingDownloads ? <Loader2 className="w-3 h-3 animate-spin"/> : "Sí, borrar descargas"}
@@ -2256,9 +2435,110 @@ export default function AdminPage() {
             </div>
             <h3 className="text-xl font-black text-[#2C2825] text-center mb-3">¿Confirmar eliminación?</h3>
             <p className="text-[#7A6E62] text-center text-sm mb-8">Vas a quitar los permisos de moderación a <strong>{confirmDeleteAdmin.adminMail}</strong>.</p>
+            
+            {isEmailProvider && (
+              <div className="mb-6 text-left">
+                <label className="block text-[11px] font-bold text-[#A89F95] uppercase tracking-wider mb-2">
+                  Confirmar con tu contraseña
+                </label>
+                <input
+                  type="password"
+                  placeholder="Ingresá tu contraseña..."
+                  className="w-full px-3.5 py-2.5 bg-[#FAFAFA] border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#E57A7A] focus:ring-1 focus:ring-[#E57A7A]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
+                  value={adminConfirmPassword}
+                  onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            )}
+
             <div className="flex flex-col gap-3">
-              <button onClick={confirmDeleteAdminAction} className="w-full py-3.5 bg-red-500 hover:bg-red-600 text-white font-black rounded-2xl transition-all shadow-md">Eliminar Moderador</button>
-              <button onClick={() => setConfirmDeleteAdmin({ isOpen: false, adminMail: "" })} className="w-full py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all">Cancelar</button>
+              <button 
+                onClick={confirmDeleteAdminAction} 
+                disabled={isResetting || (isEmailProvider && !adminConfirmPassword)}
+                className="w-full py-3.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-black rounded-2xl transition-all shadow-md flex items-center justify-center gap-2"
+              >
+                {isResetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Eliminar Moderador"}
+              </button>
+              <button onClick={() => { setConfirmDeleteAdmin({ isOpen: false, adminMail: "" }); setAdminConfirmPassword(""); }} className="w-full py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteNoteId && (
+        <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4 bg-black/50 animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-fade-in-up">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <ShieldAlert className="w-8 h-8 animate-pulse" />
+            </div>
+            <h3 className="text-xl font-black text-[#2C2825] text-center mb-3">¿Eliminar apunte?</h3>
+            <p className="text-[#7A6E62] text-center text-sm mb-6">Esta acción borrará permanentemente el archivo y no se podrá deshacer.</p>
+            
+            {isEmailProvider && (
+              <div className="mb-6 text-left">
+                <label className="block text-[11px] font-bold text-[#A89F95] uppercase tracking-wider mb-2">
+                  Confirmar con tu contraseña
+                </label>
+                <input
+                  type="password"
+                  placeholder="Ingresá tu contraseña..."
+                  className="w-full px-3.5 py-2.5 bg-[#FAFAFA] border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#E57A7A] focus:ring-1 focus:ring-[#E57A7A]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
+                  value={adminConfirmPassword}
+                  onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={confirmDeleteNoteAction} 
+                disabled={isResetting || (isEmailProvider && !adminConfirmPassword)}
+                className="w-full py-3.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-black rounded-2xl transition-all shadow-md flex items-center justify-center gap-2"
+              >
+                {isResetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Eliminar Apunte"}
+              </button>
+              <button onClick={() => { setConfirmDeleteNoteId(null); setAdminConfirmPassword(""); }} className="w-full py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all">Cancelar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {confirmDeleteStyleKey && (
+        <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4 bg-black/50 animate-fade-in">
+          <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-fade-in-up">
+            <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
+              <ShieldAlert className="w-8 h-8 animate-pulse" />
+            </div>
+            <h3 className="text-xl font-black text-[#2C2825] text-center mb-3">¿Eliminar estilo de autor?</h3>
+            <p className="text-[#7A6E62] text-center text-sm mb-6">Esta acción borrará el estilo asignado a <strong>{confirmDeleteStyleKey}</strong>.</p>
+            
+            {isEmailProvider && (
+              <div className="mb-6 text-left">
+                <label className="block text-[11px] font-bold text-[#A89F95] uppercase tracking-wider mb-2">
+                  Confirmar con tu contraseña
+                </label>
+                <input
+                  type="password"
+                  placeholder="Ingresá tu contraseña..."
+                  className="w-full px-3.5 py-2.5 bg-[#FAFAFA] border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#E57A7A] focus:ring-1 focus:ring-[#E57A7A]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
+                  value={adminConfirmPassword}
+                  onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                  autoFocus
+                />
+              </div>
+            )}
+
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={confirmDeleteAuthorStyleAction} 
+                disabled={isResetting || (isEmailProvider && !adminConfirmPassword)}
+                className="w-full py-3.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-black rounded-2xl transition-all shadow-md flex items-center justify-center gap-2"
+              >
+                {isResetting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Eliminar Estilo"}
+              </button>
+              <button onClick={() => { setConfirmDeleteStyleKey(null); setAdminConfirmPassword(""); }} className="w-full py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all">Cancelar</button>
             </div>
           </div>
         </div>
