@@ -344,11 +344,13 @@ export default function ConfiguracionPage() {
   const executeAccountDeletion = async (passwordForReauth?: string) => {
     if (!user) return;
     setIsProcessing(true);
+    let shouldCloseDialog = true;
     try {
       if (isEmailProvider) {
         if (!passwordForReauth) {
           setShowConfirmDialog("delete_account_password");
           setIsProcessing(false);
+          shouldCloseDialog = false;
           return;
         }
         const credential = EmailAuthProvider.credential(user.email!, passwordForReauth);
@@ -381,7 +383,9 @@ export default function ConfiguracionPage() {
     } finally {
       setIsProcessing(false);
       setDeleteAccountPassword("");
-      setShowConfirmDialog(null);
+      if (shouldCloseDialog) {
+        setShowConfirmDialog(null);
+      }
     }
   };
 
