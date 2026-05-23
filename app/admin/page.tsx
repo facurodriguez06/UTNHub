@@ -2427,8 +2427,8 @@ export default function AdminPage() {
         </div>
       )}
 
-      {confirmDeleteAdmin.isOpen && (
-        <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4 bg-black/50 animate-fade-in">
+      {confirmDeleteAdmin.isOpen && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-fade-in-up">
             <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
               <ShieldAlert className="w-8 h-8" />
@@ -2463,11 +2463,12 @@ export default function AdminPage() {
               <button onClick={() => { setConfirmDeleteAdmin({ isOpen: false, adminMail: "" }); setAdminConfirmPassword(""); }} className="w-full py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all">Cancelar</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {confirmDeleteNoteId && (
-        <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4 bg-black/50 animate-fade-in">
+      {confirmDeleteNoteId && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-fade-in-up">
             <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
               <ShieldAlert className="w-8 h-8 animate-pulse" />
@@ -2502,11 +2503,12 @@ export default function AdminPage() {
               <button onClick={() => { setConfirmDeleteNoteId(null); setAdminConfirmPassword(""); }} className="w-full py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all">Cancelar</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
-      {confirmDeleteStyleKey && (
-        <div className="fixed inset-0 z-[10002] flex items-center justify-center p-4 bg-black/50 animate-fade-in">
+      {confirmDeleteStyleKey && typeof document !== 'undefined' && createPortal(
+        <div className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-fade-in-up">
             <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6">
               <ShieldAlert className="w-8 h-8 animate-pulse" />
@@ -2541,7 +2543,8 @@ export default function AdminPage() {
               <button onClick={() => { setConfirmDeleteStyleKey(null); setAdminConfirmPassword(""); }} className="w-full py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all">Cancelar</button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
     </div>

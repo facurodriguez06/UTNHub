@@ -3,6 +3,7 @@
 import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { doc, getDoc, updateDoc, deleteField, deleteDoc } from "firebase/firestore";
 import { ArrowLeft, Trash2, AlertTriangle, User, Shield, BookOpen, CheckCircle2, Mail, Lock, Save, Eye, EyeOff, Pencil, BadgeCheck, Clock3, Sparkles, Bell, GraduationCap, Building2, ExternalLink, Star } from "lucide-react";
 import Link from "next/link";
@@ -922,10 +923,10 @@ export default function ConfiguracionPage() {
       </div>
 
       {/* Diálogo de confirmación */}
-      {showConfirmDialog && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+      {showConfirmDialog && typeof document !== "undefined" && createPortal(
+        <div className="fixed inset-0 z-[10005] flex items-center justify-center p-4">
           <div
-            className="fixed inset-0 bg-black/30 transition-opacity"
+            className="fixed inset-0 bg-black/40 backdrop-blur-sm transition-opacity"
             onClick={() => !isProcessing && setShowConfirmDialog(null)}
           />
           <div className="relative bg-white rounded-2xl border border-[#EDE6DD] shadow-2xl max-w-sm w-full p-6 animate-fade-in-up z-10">
@@ -1000,7 +1001,8 @@ export default function ConfiguracionPage() {
               </button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );
