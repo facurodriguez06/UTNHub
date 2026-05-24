@@ -116,7 +116,7 @@ export default function AuthPage() {
       }
     } catch (error: unknown) {
       const authError = getAuthError(error);
-      if (authError.code === "auth/invalid-credential" || authError.code === "auth/user-not-found" || authError.code === "auth/wrong-password") {
+      if (authError.code === "auth/invalid-credential" || authError.code === "auth/user-not-found" || authError.code === "auth/wrong-password" || authError.code === "auth/account-deleted") {
         setAuthError("Correo o contraseña incorrectos.");
       } else if (authError.code === "auth/admin-account-not-allowed") {
         setAuthError("Ese correo está reservado para administración. Ingresá desde el panel de admin.");
@@ -124,8 +124,6 @@ export default function AuthPage() {
         setAuthError("Este correo ya está registrado.");
       } else if (authError.code === "auth/account-deactivated") {
         setAuthError("Esta cuenta ha sido dada de baja por el administrador.");
-      } else if (authError.code === "auth/account-deleted") {
-        setAuthError("Esta cuenta ha sido eliminada permanentemente por el administrador.");
       } else {
         setAuthError(authError.message || "Ocurrió un error inesperado.");
       }

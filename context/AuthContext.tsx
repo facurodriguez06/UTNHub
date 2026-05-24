@@ -131,14 +131,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-
       try {
         if (currentUser) {
           await syncUserProfile(currentUser);
+          setUser(currentUser);
+        } else {
+          setUser(null);
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error creating or updating user profile in db", error);
+        if (error?.code === "auth/account-deactivated" || error?.code === "auth/account-deleted") {
+          setUser(null);
+        } else {
+          setUser(currentUser);
+        }
       } finally {
         setLoading(false);
       }
