@@ -77,6 +77,12 @@ service cloud.firestore {
       allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
 
+    // 🛡️ USUARIOS ELIMINADOS (Colección 'deleted_users')
+    match /deleted_users/{userId} {
+      allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
+      allow write: if isAdmin();
+    }
+
     // 🛡️ CALIFICACIONES DE MATERIAS GLOBALES (Colección 'subject_aggregates')
     // Cualquier usuario visitante puede ver los promedios calculados, pero solo los registrados pueden sumar votos
     match /subject_aggregates/{subjectId} {

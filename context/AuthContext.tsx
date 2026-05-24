@@ -74,6 +74,15 @@ const syncUserProfile = async (currentUser: User) => {
     return;
   }
 
+  // Check if deleted
+  const deletedDoc = await getDoc(doc(db, "deleted_users", currentUser.uid));
+  if (deletedDoc.exists()) {
+    await signOut(auth);
+    const error = new Error("Esta cuenta ha sido eliminada permanentemente por el administrador.");
+    (error as any).code = "auth/account-deleted";
+    throw error;
+  }
+
   const userDocRef = doc(db, "users", currentUser.uid);
   const userDoc = await getDoc(userDocRef);
 
@@ -147,6 +156,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw createAdminLoginError();
     }
 
+    // Check if deleted
+    const deletedDoc = await getDoc(doc(db, "deleted_users", result.user.uid));
+    if (deletedDoc.exists()) {
+      await signOut(auth);
+      const error = new Error("Esta cuenta ha sido eliminada permanentemente por el administrador.");
+      (error as any).code = "auth/account-deleted";
+      throw error;
+    }
+
     // Check if deactivated
     const userDocRef = doc(db, "users", result.user.uid);
     const userDoc = await getDoc(userDocRef);
@@ -171,6 +189,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     if (await isAdminEmail(normalizedEmail)) {
       await signOut(auth);
       throw createAdminLoginError();
+    }
+
+    // Check if deleted
+    const deletedDoc = await getDoc(doc(db, "deleted_users", credential.user.uid));
+    if (deletedDoc.exists()) {
+      await signOut(auth);
+      const error = new Error("Esta cuenta ha sido eliminada permanentemente por el administrador.");
+      (error as any).code = "auth/account-deleted";
+      throw error;
     }
 
     // Check if deactivated

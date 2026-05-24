@@ -915,8 +915,12 @@ export default function AdminPage() {
 
       if (!response.ok) {
         if (resData.code === "admin-sdk-missing") {
+          await setDoc(doc(db, "deleted_users", confirmDeleteUser.id), {
+            deletedAt: new Date().toISOString(),
+            email: confirmDeleteUser.email || "",
+          });
           await deleteDoc(doc(db, "users", confirmDeleteUser.id));
-          showToast("Usuario eliminado de la base de datos.", "info");
+          showToast("Usuario eliminado. Se bloqueó su acceso futuro.", "success");
         } else {
           throw new Error(resData.error || "Error al eliminar usuario");
         }

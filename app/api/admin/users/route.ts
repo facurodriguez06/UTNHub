@@ -153,6 +153,11 @@ export async function DELETE(req: Request) {
     // Delete from Firebase Auth
     await admin.auth().deleteUser(uid);
 
+    // Save to deleted_users list so active client sessions get closed immediately via syncUserProfile
+    await db.collection("deleted_users").doc(uid).set({
+      deletedAt: new Date().toISOString(),
+    });
+
     // Delete from Firestore
     await db.collection("users").doc(uid).delete();
 

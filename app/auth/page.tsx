@@ -124,6 +124,8 @@ export default function AuthPage() {
         setAuthError("Este correo ya está registrado.");
       } else if (authError.code === "auth/account-deactivated") {
         setAuthError("Esta cuenta ha sido dada de baja por el administrador.");
+      } else if (authError.code === "auth/account-deleted") {
+        setAuthError("Esta cuenta ha sido eliminada permanentemente por el administrador.");
       } else {
         setAuthError(authError.message || "Ocurrió un error inesperado.");
       }
