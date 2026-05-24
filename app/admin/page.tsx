@@ -920,7 +920,7 @@ export default function AdminPage() {
             email: confirmDeleteUser.email || "",
           });
           await deleteDoc(doc(db, "users", confirmDeleteUser.id));
-          showToast("Usuario eliminado. Se bloqueó su acceso futuro.", "success");
+          showToast("Usuario bloqueado de la DB. Para liberar su correo, configure el Firebase Admin SDK.", "info");
         } else {
           throw new Error(resData.error || "Error al eliminar usuario");
         }
