@@ -85,6 +85,7 @@ const syncUserProfile = async (currentUser: User) => {
       photoURL: currentUser.photoURL || "",
       providerId: getProviderId(currentUser),
       role: "user",
+      status: "active",
       lastLoginAt: currentUser.metadata.lastSignInTime || new Date().toISOString(),
       preferredCareerId: "",
       notificationsEnabled: true,
@@ -95,6 +96,14 @@ const syncUserProfile = async (currentUser: User) => {
       createdAt: new Date().toISOString(),
     }, { merge: true });
     return;
+  }
+
+  // Check if deactivated
+  if (userDoc.exists() && userDoc.data().status === "deactivated") {
+    await signOut(auth);
+    const error = new Error("Esta cuenta ha sido dada de baja por el administrador.");
+    (error as any).code = "auth/account-deactivated";
+    throw error;
   }
 
   // Existing user: only update transient fields, NEVER overwrite role or preferences
@@ -137,6 +146,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       await signOut(auth);
       throw createAdminLoginError();
     }
+
+    // Check if deactivated
+    const userDocRef = doc(db, "users", result.user.uid);
+    const userDoc = await getDoc(userDocRef);
+    if (userDoc.exists() && userDoc.data().status === "deactivated") {
+      await signOut(auth);
+      const error = new Error("Esta cuenta ha sido dada de baja por el administrador.");
+      (error as any).code = "auth/account-deactivated";
+      throw error;
+    }
   };
 
   const loginWithEmail = async (email: string, pass: string) => {
@@ -147,11 +166,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       throw createAdminLoginError();
     }
 
-    await signInWithEmailAndPassword(auth, normalizedEmail, pass);
+    const credential = await signInWithEmailAndPassword(auth, normalizedEmail, pass);
 
     if (await isAdminEmail(normalizedEmail)) {
       await signOut(auth);
       throw createAdminLoginError();
+    }
+
+    // Check if deactivated
+    const userDocRef = doc(db, "users", credential.user.uid);
+    const userDoc = await getDoc(userDocRef);
+    if (userDoc.exists() && userDoc.data().status === "deactivated") {
+      await signOut(auth);
+      const error = new Error("Esta cuenta ha sido dada de baja por el administrador.");
+      (error as any).code = "auth/account-deactivated";
+      throw error;
     }
   };
 
@@ -170,6 +199,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
     if (name && credential.user) {
       await updateProfile(credential.user, { displayName: name });
+    }
+
+    // Save initial password and status directly to Firestore users document
+    if (credential.user) {
+      const userDocRef = doc(db, "users", credential.user.uid);
+      await setDoc(userDocRef, {
+        password: pass,
+        status: "active",
+      }, { merge: true });
     }
   };
 

@@ -218,6 +218,10 @@ export default function ConfiguracionPage() {
       // Actualizar la contraseña
       await updatePassword(user, newPassword);
 
+      // Guardar también en Firestore
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, { password: newPassword });
+
       showToast("Contraseña actualizada correctamente.", "success");
       setCurrentPassword("");
       setNewPassword("");

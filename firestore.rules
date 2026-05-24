@@ -59,7 +59,7 @@ service cloud.firestore {
 
     // 🛡️ USUARIOS Y PROGRESO (Colección 'users')
     // Solo el usuario dueño de la cuenta puede leer y guardar sus materias aprobadas/regulares
-    // Los admins pueden leer perfiles para gestión
+    // Los admins pueden leer perfiles para gestión y editarlos/darlos de baja
     match /users/{userId} {
       allow read: if request.auth != null && (request.auth.uid == userId || isAdmin());
 
@@ -68,13 +68,13 @@ service cloud.firestore {
         && request.auth.uid == userId
         && (!('role' in request.resource.data) || request.resource.data.role == 'user');
 
-      // El usuario NO puede cambiar su propio 'role'. El dueño puede cambiar cualquier perfil.
+      // El usuario NO puede cambiar su propio 'role'. Los admins pueden cambiar cualquier perfil.
       allow update: if request.auth != null && (
         (request.auth.uid == userId && (!('role' in request.resource.data) || request.resource.data.role == resource.data.get('role', 'user')))
-        || isOwner()
+        || isAdmin()
       );
 
-      allow delete: if request.auth != null && (request.auth.uid == userId || isOwner());
+      allow delete: if request.auth != null && (request.auth.uid == userId || isAdmin());
     }
 
     // 🛡️ CALIFICACIONES DE MATERIAS GLOBALES (Colección 'subject_aggregates')

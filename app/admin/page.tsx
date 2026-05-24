@@ -28,6 +28,10 @@ import {
   Download,
   BookOpen,
   Building2,
+  Search,
+  Eye,
+  EyeOff,
+  GraduationCap,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { resolveStorageUrl } from "@/lib/storage";
@@ -37,6 +41,7 @@ import { useAuth } from "@/context/AuthContext";
 import { EditNoteModal } from "@/components/EditNoteModal";
 import { Edit, Megaphone, ChevronDown } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
+import { useScrollLock } from "@/hooks/useScrollLock";
 import {
   signInWithEmailAndPassword,
   signOut,
@@ -422,6 +427,34 @@ export default function AdminPage() {
   const [showReportModal, setShowReportModal] = useState(false);
   const [monthlyReport, setMonthlyReport] = useState<any>(null);
 
+  // Users Management States
+  const [usersList, setUsersList] = useState<any[]>([]);
+  const [searchUser, setSearchUser] = useState("");
+  const [editingUser, setEditingUser] = useState<any | null>(null);
+  
+  // Sensitive data reveal states
+  const [revealedUserId, setRevealedUserId] = useState<string | null>(null);
+  const [confirmRevealUser, setConfirmRevealUser] = useState<any | null>(null);
+  const [adminPasswordForReveal, setAdminPasswordForReveal] = useState("");
+  const [isRevealing, setIsRevealing] = useState(false);
+  const [revealError, setRevealError] = useState("");
+
+  // Edit user form states
+  const [editUserName, setEditUserName] = useState("");
+  const [editUserEmail, setEditUserEmail] = useState("");
+  const [editUserPassword, setEditUserPassword] = useState("");
+  const [editUserCareer, setEditUserCareer] = useState("");
+  const [editUserStatus, setEditUserStatus] = useState("active");
+  const [isSavingUser, setIsSavingUser] = useState(false);
+
+  // Deactivate confirmation state
+  const [confirmDeactivateUser, setConfirmDeactivateUser] = useState<any | null>(null);
+  const [isDeactivatingUser, setIsDeactivatingUser] = useState(false);
+
+  // Delete user confirmation state
+  const [confirmDeleteUser, setConfirmDeleteUser] = useState<any | null>(null);
+  const [isDeletingUser, setIsDeletingUser] = useState(false);
+
   useEffect(() => {
     const currentEmail = normalizeAdminEmail(user?.email);
 
@@ -481,16 +514,16 @@ export default function AdminPage() {
     return () => unsubscribeAdminAccess();
   }, [user]);
 
-  useEffect(() => {
-    if (showReportModal) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "unset";
-    }
-    return () => {
-      document.body.style.overflow = "unset";
-    };
-  }, [showReportModal]);
+  // Lock body scroll when any modal/portal is open
+  useScrollLock(
+    !!editingUser ||
+    !!confirmDeleteUser ||
+    !!confirmRevealUser ||
+    confirmDeleteAdmin.isOpen ||
+    !!confirmDeleteNoteId ||
+    !!confirmDeleteStyleKey ||
+    showReportModal
+  );
 
   useEffect(() => {
     if (!user || !hasAdminAccess) {
@@ -583,12 +616,24 @@ export default function AdminPage() {
       (error) => console.warn("Error fetching metrics:", error)
     );
 
+    // Listen for users list
+    const unsubscribeUsers = onSnapshot(collection(db, "users"),
+      (snapshot) => {
+        setUsersList(snapshot.docs.map((d) => ({
+          id: d.id,
+          ...d.data()
+        })));
+      },
+      (error) => console.warn("Error fetching users:", error)
+    );
+
     return () => {
       unsubscribePending();
       unsubscribeApproved();
       unsubscribeSettings();
       unsubscribeAdmins();
       unsubscribeMetrics();
+      unsubscribeUsers();
     };
   }, [user, hasAdminAccess, noteSortingOrder]);
 
@@ -709,6 +754,183 @@ export default function AdminPage() {
       }
     } finally {
       setIsCreatingAdmin(false);
+    }
+  };
+
+  const handleRevealUserAction = async (e: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!confirmRevealUser) return;
+    setIsRevealing(true);
+    setRevealError("");
+    try {
+      if (isEmailProvider) {
+        await reauthenticateAdmin(adminPasswordForReveal);
+      }
+      setRevealedUserId(confirmRevealUser.id);
+      setConfirmRevealUser(null);
+      setAdminPasswordForReveal("");
+      showToast("Datos revelados correctamente", "success");
+    } catch (err: any) {
+      console.error(err);
+      const authError = toAuthError(err);
+      setRevealError(
+        authError.code === "auth/wrong-password" || authError.code === "auth/invalid-credential"
+          ? "Contraseña de administrador incorrecta."
+          : "Error al reautenticar."
+      );
+    } finally {
+      setIsRevealing(false);
+    }
+  };
+
+  const handleOpenEditUser = (usr: any) => {
+    setEditingUser(usr);
+    setEditUserName(usr.displayName || "");
+    setEditUserEmail(usr.email || "");
+    setEditUserPassword(usr.password || "");
+    setEditUserCareer(usr.preferredCareerId || "");
+    setEditUserStatus(usr.status || "active");
+  };
+
+  const handleSaveUserAction = async (e: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!editingUser) return;
+    setIsSavingUser(true);
+    setAdminError("");
+
+    try {
+      let idToken = "";
+      if (user) {
+        idToken = await user.getIdToken();
+      }
+
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          uid: editingUser.id,
+          displayName: editUserName,
+          email: editUserEmail,
+          password: editUserPassword || undefined,
+          status: editUserStatus,
+        }),
+      });
+
+      const resData = await response.json();
+
+      if (!response.ok) {
+        if (resData.code === "admin-sdk-missing") {
+          const firestoreData: any = {
+            displayName: editUserName,
+            email: editUserEmail,
+            preferredCareerId: editUserCareer,
+            status: editUserStatus,
+          };
+          if (editUserPassword) {
+            firestoreData.password = editUserPassword;
+          }
+
+          await updateDoc(doc(db, "users", editingUser.id), firestoreData);
+          showToast("Usuario guardado en base de datos. Para sincronizar logins configure Admin SDK.", "info");
+        } else {
+          throw new Error(resData.error || "Fallo al guardar cambios.");
+        }
+      } else {
+        await updateDoc(doc(db, "users", editingUser.id), {
+          preferredCareerId: editUserCareer,
+        });
+        showToast("Usuario editado con éxito.", "success");
+      }
+
+      setEditingUser(null);
+    } catch (err: any) {
+      console.error("Error saving user:", err);
+      setAdminError(`Error al guardar cambios de usuario: ${err.message}`);
+      showToast("Error al guardar cambios.", "error");
+    } finally {
+      setIsSavingUser(false);
+    }
+  };
+
+  const handleToggleUserStatus = async (usr: any) => {
+    const newStatus = usr.status === "deactivated" ? "active" : "deactivated";
+    setAdminError("");
+    try {
+      let idToken = "";
+      if (user) {
+        idToken = await user.getIdToken();
+      }
+
+      const response = await fetch("/api/admin/users", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${idToken}`
+        },
+        body: JSON.stringify({
+          uid: usr.id,
+          status: newStatus,
+        }),
+      });
+
+      const resData = await response.json();
+
+      if (!response.ok) {
+        if (resData.code === "admin-sdk-missing") {
+          await updateDoc(doc(db, "users", usr.id), { status: newStatus });
+          showToast(`Usuario ${newStatus === "active" ? "dado de alta" : "dado de baja"} en base de datos.`, "info");
+        } else {
+          throw new Error(resData.error || "Error al actualizar estado");
+        }
+      } else {
+        showToast(`Usuario ${newStatus === "active" ? "dado de alta" : "dado de baja"} con éxito.`, "success");
+      }
+    } catch (err: any) {
+      console.error("Error toggling status:", err);
+      showToast("Error al cambiar estado.", "error");
+    }
+  };
+
+  const handleDeleteUserAction = async () => {
+    if (!confirmDeleteUser) return;
+    setIsDeletingUser(true);
+    setAdminError("");
+    try {
+      let idToken = "";
+      if (user) {
+        idToken = await user.getIdToken();
+      }
+
+      const response = await fetch(`/api/admin/users?uid=${confirmDeleteUser.id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${idToken}`
+        }
+      });
+
+      const resData = await response.json();
+
+      if (!response.ok) {
+        if (resData.code === "admin-sdk-missing") {
+          await deleteDoc(doc(db, "users", confirmDeleteUser.id));
+          showToast("Usuario eliminado de la base de datos.", "info");
+        } else {
+          throw new Error(resData.error || "Error al eliminar usuario");
+        }
+      } else {
+        showToast("Usuario eliminado con éxito.", "success");
+      }
+
+      setConfirmDeleteUser(null);
+      setEditingUser(null);
+    } catch (err: any) {
+      console.error("Error deleting user:", err);
+      showToast("Error al eliminar el usuario.", "error");
+    } finally {
+      setIsDeletingUser(false);
     }
   };
 
@@ -1506,6 +1728,7 @@ export default function AdminPage() {
           { id: 'autores', label: 'Autores' },
           { id: 'avisos', label: 'Avisos' },
           { id: 'sistema', label: 'Sistema' },
+          { id: 'usuarios', label: 'Usuarios' },
         ].map((tab) => (
           <button
             key={tab.id}
@@ -2427,6 +2650,179 @@ export default function AdminPage() {
         </div>
       )}
 
+      {activeTab === 'usuarios' && (
+        <div className="animate-fade-in space-y-8">
+          {/* Métricas de usuarios */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-white border border-[#EDE6DD] rounded-[2.5rem] p-6 shadow-sm">
+            <div className="bg-[#FAFAF8] p-5 rounded-3xl border border-[#EDE6DD] flex flex-col items-center text-center">
+              <span className="text-[#7A6E62] text-xs font-black uppercase tracking-widest mb-2">Total Registrados</span>
+              <span className="text-4xl font-black text-[#3D3229]">{usersList.length}</span>
+              <p className="text-[10px] text-[#A89F95] mt-1">Usuarios creados en Notes Hub</p>
+            </div>
+            <div className="bg-[#E8F0EA] p-5 rounded-3xl border border-[#C5DBC9] flex flex-col items-center text-center">
+              <span className="text-[#4A7A52] text-xs font-black uppercase tracking-widest mb-2">Usuarios Activos</span>
+              <span className="text-4xl font-black text-[#4A7A52]">{usersList.filter(u => u.status !== 'deactivated').length}</span>
+              <p className="text-[10px] text-[#4A7A52] mt-1">Con acceso habilitado al sistema</p>
+            </div>
+            <div className="bg-[#FFF0F0] p-5 rounded-3xl border border-[#FFDCDC] flex flex-col items-center text-center">
+              <span className="text-[#D84545] text-xs font-black uppercase tracking-widest mb-2">Dados de Baja</span>
+              <span className="text-4xl font-black text-[#D84545]">{usersList.filter(u => u.status === 'deactivated').length}</span>
+              <p className="text-[10px] text-[#D84545]/80 mt-1">Cuentas con acceso suspendido</p>
+            </div>
+          </div>
+
+          {/* Buscador de usuarios */}
+          <div className="relative group">
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+              <Search className="w-5 h-5 text-[#A89F95] group-focus-within:text-[#C4A87D] transition-colors" />
+            </div>
+            <input
+              type="text"
+              placeholder="Buscar usuario por nombre o correo..."
+              value={searchUser}
+              onChange={(e) => setSearchUser(e.target.value)}
+              className="w-full pl-12 pr-4 py-4 bg-white border border-[#EDE6DD] focus:border-[#C4A87D] focus:ring-4 focus:ring-[#C4A87D]/5 text-[#3D3229] rounded-[2rem] outline-none transition-all shadow-sm font-medium"
+            />
+          </div>
+
+          {/* Listado de usuarios */}
+          <div className="bg-white rounded-[2.5rem] p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#EDE6DD] min-h-[300px]">
+            {usersList.filter(u => 
+              (u.displayName || "").toLowerCase().includes(searchUser.toLowerCase()) ||
+              (u.email || "").toLowerCase().includes(searchUser.toLowerCase())
+            ).length === 0 ? (
+              <EmptySection
+                title="Sin usuarios encontrados"
+                description={searchUser ? "No hay usuarios que coincidan con la búsqueda." : "No hay usuarios registrados en el sistema."}
+                icon={<Mail className="w-10 h-10 text-[#A8B8A0]" />}
+              />
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {usersList
+                  .filter(u => 
+                    (u.displayName || "").toLowerCase().includes(searchUser.toLowerCase()) ||
+                    (u.email || "").toLowerCase().includes(searchUser.toLowerCase())
+                  )
+                  .map((usr) => {
+                    const initials = (usr.displayName || usr.email || "U").substring(0, 2).toUpperCase();
+                    const isDeactivated = usr.status === "deactivated";
+                    const isRevealed = revealedUserId === usr.id;
+                    const preferredCareer = careersData.find(c => c.id === usr.preferredCareerId);
+                    
+                    return (
+                      <div key={usr.id} className={cn(
+                        "bg-white p-5 rounded-2xl border flex flex-col gap-4 group transition-all duration-300 hover:shadow-md",
+                        isDeactivated ? "border-red-200 bg-red-50/10 hover:border-red-300" : "border-[#EDE6DD] hover:border-[#C4A87D]"
+                      )}>
+                        <div className="flex items-start gap-4">
+                          {/* Avatar */}
+                          <div className={cn(
+                            "w-12 h-12 rounded-xl flex items-center justify-center shrink-0 border text-white font-extrabold text-sm shadow-sm uppercase",
+                            isDeactivated 
+                              ? "bg-gradient-to-br from-red-400 to-red-600 border-red-300" 
+                              : "bg-gradient-to-br from-[#8BAA91] to-[#6A8F70] border-[#8BAA91]"
+                          )}>
+                            {usr.photoURL ? (
+                              <img src={usr.photoURL} alt={usr.displayName} className="w-full h-full object-cover rounded-xl" />
+                            ) : initials}
+                          </div>
+
+                          {/* Info */}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <h3 className="font-bold text-[#2C2825] truncate max-w-[150px] sm:max-w-xs">{usr.displayName || "Sin nombre"}</h3>
+                              <span className={cn(
+                                "text-[10px] font-bold px-2 py-0.5 rounded-full uppercase tracking-wider",
+                                isDeactivated ? "bg-[#FFF0F0] text-[#D84545]" : "bg-[#E8F0EA] text-[#4A7A52]"
+                              )}>
+                                {isDeactivated ? "De baja" : "Activo"}
+                              </span>
+                              <span className="text-[10px] font-medium bg-[#FAFAF8] border border-[#EDE6DD] text-[#7A6E62] px-2 py-0.5 rounded-full capitalize">
+                                {usr.providerId === 'google.com' ? 'Google' : usr.providerId === 'password' ? 'Email' : 'Desconocido'}
+                              </span>
+                            </div>
+
+                            {/* Email and Password revealing */}
+                            <div className="mt-2 space-y-1 text-xs text-[#7A6E62]">
+                              <div className="flex items-center gap-1.5 min-w-0">
+                                <Mail className="w-3.5 h-3.5 text-[#A89F95] shrink-0" />
+                                <span className="truncate">
+                                  {isRevealed ? usr.email : (usr.email ? usr.email.replace(/(.{3})(.*)(@.*)/, "$1***$3") : "Sin correo")}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-1.5">
+                                <Lock className="w-3.5 h-3.5 text-[#A89F95] shrink-0" />
+                                <span className="font-mono">
+                                  {isRevealed ? (usr.password || "No disponible (Google o anterior)") : "••••••••"}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Carrera */}
+                            <div className="mt-3 flex items-center gap-1.5 text-xs text-[#8B7355] font-semibold">
+                              <GraduationCap className="w-4 h-4 text-[#A89F95] shrink-0" />
+                              <span className="bg-[#F5EFE5] px-2 py-0.5 rounded-lg text-[10px] font-black truncate max-w-[180px]">
+                                {preferredCareer?.shortName || usr.preferredCareerId || "Carrera sin definir"}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Fechas */}
+                        <div className="border-t border-[#EDE6DD] pt-3 flex justify-between items-center text-[10px] text-[#A89F95]">
+                          <span>Creado: {usr.createdAt ? new Date(usr.createdAt).toLocaleDateString() : "Sin fecha"}</span>
+                          <span>Último acceso: {usr.lastLoginAt ? new Date(usr.lastLoginAt).toLocaleDateString() : "Sin fecha"}</span>
+                        </div>
+
+                        {/* Botones de Acción */}
+                        <div className="flex gap-2 border-t border-[#EDE6DD] pt-3 mt-auto">
+                          <button
+                            onClick={() => {
+                              if (isRevealed) {
+                                setRevealedUserId(null);
+                              } else {
+                                setConfirmRevealUser(usr);
+                                setRevealError("");
+                                setAdminPasswordForReveal("");
+                              }
+                            }}
+                            className="flex-1 py-2 px-3 border border-[#EDE6DD] hover:bg-[#F9F7F4] text-[#7A6E62] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
+                            title={isRevealed ? "Ocultar credenciales" : "Revelar credenciales"}
+                          >
+                            {isRevealed ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                            <span>{isRevealed ? "Ocultar" : "Revelar"}</span>
+                          </button>
+                          
+                          <button
+                            onClick={() => handleOpenEditUser(usr)}
+                            className="flex-1 py-2 px-3 bg-white border border-[#EDE6DD] hover:bg-[#F9F7F4] text-[#8B7355] rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                            <span>Editar</span>
+                          </button>
+                          
+                          <button
+                            onClick={() => handleToggleUserStatus(usr)}
+                            className={cn(
+                              "flex-1 py-2 px-3 border rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1",
+                              isDeactivated 
+                                ? "bg-[#E8F0EA] border-[#D5E8DB] text-[#2E7D32] hover:bg-[#E6F0E9]" 
+                                : "bg-[#FFF0F0] border-[#FFDCDC] text-[#D84545] hover:bg-[#FFE5E5]"
+                            )}
+                          >
+                            <UserCheck className="w-3.5 h-3.5" />
+                            <span>{isDeactivated ? "Dar Alta" : "Dar Baja"}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {confirmDeleteAdmin.isOpen && typeof document !== 'undefined' && createPortal(
         <div className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
           <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-fade-in-up">
@@ -2649,6 +3045,205 @@ export default function AdminPage() {
               className="flex-1 min-w-[140px] py-3.5 bg-[#2C2825] hover:bg-black text-white font-bold rounded-2xl transition-all shadow-md active:scale-95"
             >
               Cerrar
+            </button>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {confirmRevealUser && typeof document !== 'undefined' && createPortal(
+      <div className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+        <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-fade-in-up">
+          <div className="w-16 h-16 bg-[#F5EFE5] text-[#8B7355] rounded-full flex items-center justify-center mx-auto mb-6 border border-[#E2D6C2]">
+            <Lock className="w-8 h-8" />
+          </div>
+          <h3 className="text-xl font-black text-[#2C2825] text-center mb-3">¿Revelar datos críticos?</h3>
+          <p className="text-[#7A6E62] text-center text-sm mb-6">
+            Por seguridad, ingresá tu contraseña de administrador para ver el correo y la contraseña de <strong>{confirmRevealUser.displayName || confirmRevealUser.email || "este usuario"}</strong>.
+          </p>
+
+          <form onSubmit={handleRevealUserAction} className="space-y-4">
+            <div className="text-left">
+              <label className="block text-[11px] font-bold text-[#A89F95] uppercase tracking-wider mb-2">
+                Contraseña de Administrador
+              </label>
+              <input
+                type="password"
+                placeholder="Ingresá tu contraseña..."
+                className="w-full px-4 py-3 bg-[#FAFAFA] border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#C4A87D] focus:ring-4 focus:ring-[#C4A87D]/10 text-[#3D3229] font-medium"
+                value={adminPasswordForReveal}
+                onChange={(e) => setAdminPasswordForReveal(e.target.value)}
+                required
+                autoFocus
+              />
+              {revealError && <p className="text-red-500 text-xs mt-2 text-center font-semibold animate-pulse">{revealError}</p>}
+            </div>
+
+            <div className="flex flex-col gap-3 pt-2">
+              <button
+                type="submit"
+                disabled={isRevealing || !adminPasswordForReveal}
+                className="w-full py-3.5 bg-[#4A7A52] hover:bg-[#3d6644] disabled:opacity-50 text-white font-black rounded-2xl transition-all shadow-md flex items-center justify-center gap-2"
+              >
+                {isRevealing ? <Loader2 className="w-5 h-5 animate-spin" /> : "Confirmar y Revelar"}
+              </button>
+              <button
+                type="button"
+                onClick={() => { setConfirmRevealUser(null); setAdminPasswordForReveal(""); setRevealError(""); }}
+                className="w-full py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+              >
+                Cancelar
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {editingUser && typeof document !== 'undefined' && createPortal(
+      <div className="fixed inset-0 z-[10005] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-fade-in">
+        <div className="bg-white w-full max-w-md rounded-[2.5rem] shadow-2xl animate-fade-in-up flex flex-col max-h-[90vh] overflow-hidden">
+          {/* Header */}
+          <div className="flex justify-between items-center p-8 pb-4 border-b border-[#EDE6DD]">
+            <h3 className="text-xl font-black text-[#2C2825]">Editar Ficha de Usuario</h3>
+            <button
+              onClick={() => setEditingUser(null)}
+              className="p-1 text-[#A89F95] hover:text-[#2C2825] rounded-full transition-colors"
+            >
+              <X className="w-6 h-6" />
+            </button>
+          </div>
+
+          {/* Scrollable Content */}
+          <div className="flex-1 flex flex-col min-h-0 overflow-hidden pr-2">
+            <div className="flex-1 overflow-y-auto pl-8 pr-6 pt-4 pb-8 space-y-6">
+              <form onSubmit={handleSaveUserAction} className="space-y-4">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#4A433C]">Nombre Completo</label>
+                  <input
+                    type="text"
+                    value={editUserName}
+                    onChange={(e) => setEditUserName(e.target.value)}
+                    placeholder="Nombre del usuario"
+                    required
+                    className="w-full px-4 py-3 bg-[#FCFAF8] border border-[#E5DCD3] focus:border-[#C4A87D] rounded-xl outline-none text-[#3D3229] text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#4A433C]">Correo Electrónico</label>
+                  <input
+                    type="email"
+                    value={editUserEmail}
+                    onChange={(e) => setEditUserEmail(e.target.value)}
+                    placeholder="correo@ejemplo.com"
+                    required
+                    className="w-full px-4 py-3 bg-[#FCFAF8] border border-[#E5DCD3] focus:border-[#C4A87D] rounded-xl outline-none text-[#3D3229] text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#4A433C]">Contraseña (Dejar en blanco para no modificar)</label>
+                  <input
+                    type="password"
+                    value={editUserPassword}
+                    onChange={(e) => setEditUserPassword(e.target.value)}
+                    placeholder="Nueva contraseña (mín. 6 caracteres)"
+                    className="w-full px-4 py-3 bg-[#FCFAF8] border border-[#E5DCD3] focus:border-[#C4A87D] rounded-xl outline-none text-[#3D3229] text-sm"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#4A433C]">Carrera UTN</label>
+                  <select
+                    value={editUserCareer}
+                    onChange={(e) => setEditUserCareer(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#FCFAF8] border border-[#E5DCD3] focus:border-[#C4A87D] rounded-xl outline-none text-[#3D3229] text-sm font-medium cursor-pointer"
+                  >
+                    <option value="">Ninguna carrera seleccionada</option>
+                    {careersData.filter(c => c.id !== "basicas").map((c) => (
+                      <option key={c.id} value={c.id}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="text-xs font-bold text-[#4A433C]">Estado del Usuario</label>
+                  <select
+                    value={editUserStatus}
+                    onChange={(e) => setEditUserStatus(e.target.value)}
+                    className="w-full px-4 py-3 bg-[#FCFAF8] border border-[#E5DCD3] focus:border-[#C4A87D] rounded-xl outline-none text-[#3D3229] text-sm font-medium cursor-pointer"
+                  >
+                    <option value="active">Activo (Acceso Habilitado)</option>
+                    <option value="deactivated">De baja (Acceso Suspendido)</option>
+                  </select>
+                </div>
+
+                <div className="flex gap-3 pt-4 border-t border-[#EDE6DD]">
+                  <button
+                    type="submit"
+                    disabled={isSavingUser}
+                    className="flex-1 py-3.5 bg-[#4A7A52] hover:bg-[#3d6644] disabled:opacity-50 text-white font-black rounded-2xl transition-all shadow-md flex items-center justify-center gap-2 text-sm"
+                  >
+                    {isSavingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : "Guardar Cambios"}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingUser(null)}
+                    className="flex-1 py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all text-sm"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </form>
+
+              {/* Zona Peligrosa - Eliminar Usuario */}
+              <div className="mt-2 pt-4 border-t border-red-100 flex flex-col gap-2">
+                <h4 className="text-xs font-black text-red-500 uppercase tracking-widest">Zona Peligrosa</h4>
+                <p className="text-[11px] text-[#A89F95]">
+                  Eliminar este usuario de forma permanente de la base de datos de Notes Hub y Firebase Auth. Esta acción no se puede deshacer.
+                </p>
+                <button
+                  onClick={() => setConfirmDeleteUser(editingUser)}
+                  className="w-full mt-1 py-2.5 bg-[#FFF0F0] border border-[#FFDCDC] hover:bg-[#FFE5E5] text-[#D84545] rounded-xl font-bold text-xs transition-colors flex items-center justify-center gap-1"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  <span>Eliminar Usuario Permanentemente</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>,
+      document.body
+    )}
+
+    {confirmDeleteUser && typeof document !== 'undefined' && createPortal(
+      <div className="fixed inset-0 z-[10010] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
+        <div className="bg-white w-full max-w-sm rounded-[2rem] p-8 shadow-2xl animate-fade-in-up">
+          <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100">
+            <ShieldAlert className="w-8 h-8" />
+          </div>
+          <h3 className="text-xl font-black text-[#2C2825] text-center mb-3">¿Eliminar definitivamente?</h3>
+          <p className="text-[#7A6E62] text-center text-sm mb-8">
+            Vas a eliminar por completo la cuenta de <strong>{confirmDeleteUser.displayName || confirmDeleteUser.email}</strong> del sistema.
+          </p>
+
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={handleDeleteUserAction}
+              disabled={isDeletingUser}
+              className="w-full py-3.5 bg-red-500 hover:bg-red-600 disabled:opacity-50 text-white font-black rounded-2xl transition-all shadow-md flex items-center justify-center gap-2"
+            >
+              {isDeletingUser ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sí, Eliminar Cuenta"}
+            </button>
+            <button
+              onClick={() => setConfirmDeleteUser(null)}
+              className="w-full py-3.5 bg-gray-100 text-gray-600 font-bold rounded-2xl hover:bg-gray-200 transition-all"
+            >
+              Cancelar
             </button>
           </div>
         </div>

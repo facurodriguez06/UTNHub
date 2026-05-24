@@ -122,6 +122,8 @@ export default function AuthPage() {
         setAuthError("Ese correo está reservado para administración. Ingresá desde el panel de admin.");
       } else if (authError.code === "auth/email-already-in-use") {
         setAuthError("Este correo ya está registrado.");
+      } else if (authError.code === "auth/account-deactivated") {
+        setAuthError("Esta cuenta ha sido dada de baja por el administrador.");
       } else {
         setAuthError(authError.message || "Ocurrió un error inesperado.");
       }
