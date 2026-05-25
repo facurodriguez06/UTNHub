@@ -7,6 +7,7 @@ import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
 import { DonationModal } from "@/components/DonationModal";
 import { useAuth } from "@/context/AuthContext";
+import { useScrollLock } from "@/hooks/useScrollLock";
 
 export function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -17,6 +18,8 @@ export function Header() {
   const userMenuRef = useRef<HTMLDivElement>(null);
   
   const { user, logout } = useAuth();
+
+  useScrollLock(menuOpen);
 
   const handleExploreClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
     if (window.location.pathname === "/") {
@@ -243,60 +246,114 @@ export function Header() {
           </button>
         </div>
 
-        {/* Mobile Dropdown */}
+        {/* Mobile Lateral Menu (Drawer) */}
         {menuOpen && (
-          <div className="sm:hidden absolute top-full left-0 w-full px-4 pt-2 pb-4 mt-2 bg-white/95 shadow-sm border-b border-[#EDE6DD] shadow-xl shadow-black/5 animate-fade-in-up">
-            <div className="flex flex-col gap-2 bg-[#FFFBF7] p-2 rounded-2xl border border-[#EDE6DD]">
-              <Link 
-                href="/#carreras" 
-                className="flex items-center justify-between text-sm font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-3 rounded-xl hover:bg-white transition-all"
-                onClick={handleExploreClick}
-              >
-                Explorar materias <ChevronRight className="w-4 h-4 opacity-50" />
-              </Link>
-              <Link 
-                href="/planes" 
-                className="flex items-center justify-between text-sm font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-3 rounded-xl hover:bg-white transition-all"
-                onClick={() => setMenuOpen(false)}
-              >
-                Planes de Estudio <ChevronRight className="w-4 h-4 opacity-50" />
-              </Link>
-              <Link 
-                href="/upload" 
-                className="flex items-center justify-between text-sm font-bold text-[#4A7A52] bg-[#E8F0EA] px-4 py-3 rounded-xl transition-all"
-                onClick={() => setMenuOpen(false)}
-              >
-                <div className="flex items-center gap-2">
-                  <Upload className="w-4 h-4" /> Subir nuevo apunte
+          <>
+            {/* Backdrop overlay */}
+            <div 
+              className="fixed inset-0 bg-black/40 backdrop-blur-sm z-[99] sm:hidden animate-fade-in" 
+              onClick={() => setMenuOpen(false)}
+            />
+            
+            {/* Slide-out Drawer */}
+            <div className="fixed top-0 right-0 h-full w-[280px] sm:w-[320px] bg-white border-l border-[#EDE6DD] z-[100] sm:hidden shadow-2xl p-6 flex flex-col justify-between animate-slide-in-right overflow-y-auto">
+              <div className="flex flex-col gap-6">
+                {/* Drawer Header */}
+                <div className="flex items-center justify-between pb-4 border-b border-[#EDE6DD]">
+                  <div className="flex items-center gap-2">
+                    <span className="font-extrabold text-[19px] tracking-tight text-[#3D3229]">
+                      UTN<span className="text-[#8BAA91]">Hub</span>
+                    </span>
+                  </div>
+                  <button 
+                    onClick={() => setMenuOpen(false)}
+                    className="p-1.5 rounded-xl border border-[#EDE6DD] hover:bg-[#F5F0EA] text-[#7A6E62] transition-colors"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
-                <ChevronRight className="w-4 h-4 opacity-50" />
-              </Link>
-              <button 
-                onClick={() => {
-                  setMenuOpen(false);
-                  setShowDonationModal(true);
-                }}
-                className="flex w-full items-center justify-between text-sm font-bold text-[#8B7355] bg-[#F5EFE5]/50 px-4 py-3 rounded-xl transition-all"
-              >
-                <div className="flex items-center gap-2">
-                  <Heart className="w-4 h-4" /> Apoyar proyecto
-                </div>
-                <ChevronRight className="w-4 h-4 opacity-30" />
-              </button>
 
-              {/* Sección de usuario en mobile */}
-              {user ? (
-                <>
-                  <div className="h-[1px] bg-[#EDE6DD] mx-2 my-1" />
-                  <div className={`flex items-center gap-3 px-4 py-2 rounded-xl ${isAdmin ? 'bg-[#FCF9F0] border border-[#F2E5C2] mx-2 my-1' : ''}`}>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black uppercase shadow-sm ${isAdmin ? 'bg-gradient-to-br from-[#D4AF37] to-[#AA8C2C]' : 'bg-gradient-to-br from-[#8BAA91] to-[#6A8F70]'}`}>
+                {/* User card profile */}
+                {user ? (
+                  <div className={cn(
+                    "flex items-center gap-3 p-3.5 rounded-2xl border bg-white",
+                    isAdmin ? "border-[#F2E5C2] bg-[#FCF9F0]" : "border-[#EDE6DD]"
+                  )}>
+                    <div className={cn(
+                      "w-10 h-10 rounded-xl flex items-center justify-center text-white text-xs font-black uppercase shadow-sm shrink-0",
+                      isAdmin ? "bg-gradient-to-br from-[#D4AF37] to-[#AA8C2C]" : "bg-gradient-to-br from-[#8BAA91] to-[#6A8F70]"
+                    )}>
                       {displayName.charAt(0)}
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-[#3D3229] truncate">{displayName}</p>
-                      {user.email && <p className={`text-[11px] truncate ${isAdmin ? 'text-[#D4AF37] font-bold' : 'text-[#A89F95]'}`}>{user.email}</p>}
+                      {user.email && (
+                        <p className={cn(
+                          "text-[10px] truncate font-medium",
+                          isAdmin ? "text-[#D4AF37]" : "text-[#A89F95]"
+                        )}>
+                          {user.email}
+                        </p>
+                      )}
                     </div>
                   </div>
+                ) : (
+                  <Link
+                    href="/auth"
+                    className="flex items-center justify-between text-sm font-bold text-[#3D3229] bg-[#FAFAF8] px-4 py-3 rounded-2xl border border-[#EDE6DD] hover:bg-[#F5F0EA] transition-all"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <User className="w-4 h-4 text-[#8BAA91]" /> Ingresar
+                    </div>
+                    <ChevronRight className="w-4 h-4 opacity-50" />
+                  </Link>
+                )}
+
+                {/* Navigation Links */}
+                <nav className="flex flex-col gap-2">
+                  <Link 
+                    href="/#carreras" 
+                    className="flex items-center justify-between text-sm font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-3 rounded-xl hover:bg-[#F5F0EA]/50 transition-all"
+                    onClick={handleExploreClick}
+                  >
+                    Explorar materias <ChevronRight className="w-4 h-4 opacity-50" />
+                  </Link>
+                  <Link 
+                    href="/planes" 
+                    className="flex items-center justify-between text-sm font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-3 rounded-xl hover:bg-[#F5F0EA]/50 transition-all"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    Planes de Estudio <ChevronRight className="w-4 h-4 opacity-50" />
+                  </Link>
+                  <Link 
+                    href="/upload" 
+                    className="flex items-center justify-between text-sm font-bold text-[#4A7A52] bg-[#E8F0EA] hover:bg-[#D5E8DB] px-4 py-3 rounded-xl transition-all border border-[#D5E8DB]"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Upload className="w-4 h-4" /> Subir nuevo apunte
+                    </div>
+                    <ChevronRight className="w-4 h-4 opacity-50" />
+                  </Link>
+                  <button 
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setShowDonationModal(true);
+                    }}
+                    className="flex w-full items-center justify-between text-sm font-bold text-[#8B7355] bg-[#F5EFE5] hover:bg-[#E2D6C2]/30 px-4 py-3 rounded-xl transition-all border border-[#E2D6C2]"
+                  >
+                    <div className="flex items-center gap-2">
+                      <Heart className="w-4 h-4" /> Apoyar proyecto
+                    </div>
+                    <ChevronRight className="w-4 h-4 opacity-30" />
+                  </button>
+                </nav>
+              </div>
+
+              {/* Drawer footer options for user session settings */}
+              {user && (
+                <div className="flex flex-col gap-2 pt-4 border-t border-[#EDE6DD] mt-auto">
                   {isAdmin && (
                     <Link
                       href="/admin"
@@ -311,7 +368,7 @@ export function Header() {
                   )}
                   <Link
                     href="/configuracion"
-                    className="flex items-center justify-between text-sm font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-3 rounded-xl hover:bg-white transition-all"
+                    className="flex items-center justify-between text-sm font-bold text-[#7A6E62] hover:text-[#3D3229] px-4 py-3 rounded-xl hover:bg-[#F5F0EA]/50 transition-all"
                     onClick={() => setMenuOpen(false)}
                   >
                     <div className="flex items-center gap-2">
@@ -324,30 +381,16 @@ export function Header() {
                       setMenuOpen(false);
                       logout();
                     }}
-                    className="flex w-full items-center justify-between text-sm font-bold text-[#E57A7A] bg-[#FEF5F5] px-4 py-3 rounded-xl transition-all"
+                    className="flex w-full items-center justify-between text-sm font-bold text-[#E57A7A] bg-[#FEF5F5] hover:bg-[#FEEDED] px-4 py-3 rounded-xl transition-all border border-[#FCDCDC]"
                   >
                     <div className="flex items-center gap-2">
                       <LogOut className="w-4 h-4" /> Cerrar sesión
                     </div>
                   </button>
-                </>
-              ) : (
-                <>
-                  <div className="h-[1px] bg-[#EDE6DD] mx-2 my-1" />
-                  <Link
-                    href="/auth"
-                    className="flex items-center justify-between text-sm font-bold text-[#3D3229] bg-white px-4 py-3 rounded-xl border border-[#EDE6DD] transition-all"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    <div className="flex items-center gap-2">
-                      <User className="w-4 h-4 text-[#8BAA91]" /> Ingresar
-                    </div>
-                    <ChevronRight className="w-4 h-4 opacity-50" />
-                  </Link>
-                </>
+                </div>
               )}
             </div>
-          </div>
+          </>
         )}
       </div>
       

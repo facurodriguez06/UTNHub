@@ -4,6 +4,7 @@ export interface NoteRating {
   uid: string;
   userName: string;
   value: number;
+  createdAt?: string;
 }
 
 export interface Note {

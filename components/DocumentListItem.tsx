@@ -71,7 +71,8 @@ export function DocumentListItem({ note, customStyles = {}, index = 0 }: { note:
         const newRating: NoteRating = {
           uid: user.uid,
           userName: user.displayName || user.email?.split("@")[0] || "Usuario",
-          value
+          value,
+          createdAt: new Date().toISOString()
         };
 
         const updatedRatings = [...otherRatings, newRating];

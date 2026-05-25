@@ -119,7 +119,7 @@ export default function SubjectRatingModal({ isOpen, onClose, subject, careerId,
       const userDoc = await getDoc(userRef);
       const currentRatings = userDoc.exists() ? (userDoc.data().subjectRatings || {}) : {};
       
-      currentRatings[ratingId] = { difficulty, utility };
+      currentRatings[ratingId] = { difficulty, utility, ratedAt: new Date().toISOString() };
       await setDoc(userRef, { subjectRatings: currentRatings }, { merge: true });
 
       showToast("¡Gracias por calificar la materia!", "success");

@@ -39,7 +39,7 @@ import type { Note } from "@/lib/data";
 import { careersData, subjectsData, yearConfig } from "@/lib/data";
 import { useAuth } from "@/context/AuthContext";
 import { EditNoteModal } from "@/components/EditNoteModal";
-import { Edit, Megaphone, ChevronDown } from "lucide-react";
+import { Edit, Megaphone, ChevronDown, Star } from "lucide-react";
 import { useToast } from "@/context/ToastContext";
 import { useScrollLock } from "@/hooks/useScrollLock";
 import {
@@ -431,6 +431,7 @@ export default function AdminPage() {
   const [usersList, setUsersList] = useState<any[]>([]);
   const [searchUser, setSearchUser] = useState("");
   const [editingUser, setEditingUser] = useState<any | null>(null);
+  const [expandedUserRatingsId, setExpandedUserRatingsId] = useState<string | null>(null);
   
   // Sensitive data reveal states
   const [revealedUserId, setRevealedUserId] = useState<string | null>(null);
@@ -2712,6 +2713,11 @@ export default function AdminPage() {
                     const isDeactivated = usr.status === "deactivated";
                     const isRevealed = revealedUserId === usr.id;
                     const preferredCareer = careersData.find(c => c.id === usr.preferredCareerId);
+                    const subjectRatingsCount = Object.keys(usr.subjectRatings || {}).length;
+                    const userRatedNotes = [...approvedNotes, ...pendingNotes].filter(note =>
+                      note.ratings?.some(rating => rating.uid === usr.id)
+                    );
+                    const noteRatingsCount = userRatedNotes.length;
                     
                     return (
                       <div key={usr.id} className={cn(
@@ -2776,6 +2782,104 @@ export default function AdminPage() {
                         <div className="border-t border-[#EDE6DD] pt-3 flex justify-between items-center text-[10px] text-[#A89F95]">
                           <span>Creado: {usr.createdAt ? new Date(usr.createdAt).toLocaleDateString() : "Sin fecha"}</span>
                           <span>Último acceso: {usr.lastLoginAt ? new Date(usr.lastLoginAt).toLocaleDateString() : "Sin fecha"}</span>
+                        </div>
+
+                        {/* Historial de Valoraciones (Acordeón) */}
+                        <div className="border-t border-[#EDE6DD] pt-3 flex flex-col gap-2">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedUserRatingsId(expandedUserRatingsId === usr.id ? null : usr.id)}
+                            className="w-full flex items-center justify-between py-2 px-3 bg-[#FAFAF8] hover:bg-[#F5EFE5] border border-[#EDE6DD] text-[#7A6E62] rounded-xl text-xs font-bold transition-all"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Star className="w-3.5 h-3.5 text-[#C4A87D] fill-[#C4A87D]" />
+                              Historial de Valoraciones ({subjectRatingsCount + noteRatingsCount})
+                            </span>
+                            <span className={cn(
+                              "transform transition-transform duration-300 text-[#8B7355]",
+                              expandedUserRatingsId === usr.id ? "rotate-180" : "rotate-0"
+                            )}>
+                              <ChevronDown className="w-4 h-4" />
+                            </span>
+                          </button>
+
+                          {expandedUserRatingsId === usr.id && (
+                            <div className="flex flex-col gap-4 bg-[#FCFAF8] p-4 rounded-xl border border-[#EDE6DD] text-xs max-h-60 overflow-y-auto animate-fade-in custom-scrollbar">
+                              {/* Valoraciones de Materias */}
+                              <div>
+                                <h4 className="font-extrabold text-[#4A433C] mb-2 flex items-center gap-1">
+                                  <BookOpen className="w-3.5 h-3.5 text-[#8BAA91]" />
+                                  Materias Calificadas ({subjectRatingsCount})
+                                </h4>
+                                {subjectRatingsCount === 0 ? (
+                                  <p className="text-[#A89F95] italic pl-5">Sin materias calificadas</p>
+                                ) : (
+                                  <div className="space-y-2 pl-5 border-l border-[#EDE6DD]">
+                                    {Object.entries(usr.subjectRatings || {}).map(([key, ratingVal]: [string, any]) => {
+                                      const [careerId, subjectId] = key.split("_");
+                                      const subjectObj = subjectsData.find(s => s.id === subjectId);
+                                      const careerObj = careersData.find(c => c.id === careerId);
+                                      return (
+                                        <div key={key} className="flex flex-col gap-0.5 pb-1.5 border-b border-[#EDE6DD]/50 last:border-0 last:pb-0">
+                                          <span className="font-bold text-[#3D3229]">
+                                            {subjectObj?.name || subjectId}
+                                          </span>
+                                          <div className="flex items-center gap-x-2 text-[10px] text-[#7A6E62] flex-wrap">
+                                            <span className="font-bold text-[#8B7355] bg-[#F5EFE5] px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider">
+                                              {careerObj?.shortName || careerId}
+                                            </span>
+                                            <span className="flex items-center gap-0.5 font-medium">
+                                              Dif: <strong className="text-[#D84545]">{ratingVal.difficulty}</strong>/5
+                                            </span>
+                                            <span className="flex items-center gap-0.5 font-medium">
+                                              Util: <strong className="text-[#4A7A52]">{ratingVal.utility}</strong>/5
+                                            </span>
+                                            <span className="text-[#A89F95]">{formatAdminDate(ratingVal.ratedAt)}</span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Valoraciones de Apuntes */}
+                              <div className="border-t border-[#EDE6DD]/60 pt-3">
+                                <h4 className="font-extrabold text-[#4A433C] mb-2 flex items-center gap-1">
+                                  <FileText className="w-3.5 h-3.5 text-[#7BA7C2]" />
+                                  Apuntes Valorados ({noteRatingsCount})
+                                </h4>
+                                {noteRatingsCount === 0 ? (
+                                  <p className="text-[#A89F95] italic pl-5">Sin apuntes valorados</p>
+                                ) : (
+                                  <div className="space-y-2 pl-5 border-l border-[#EDE6DD]">
+                                    {userRatedNotes.map((note: any) => {
+                                      const rating = note.ratings?.find((r: any) => r.uid === usr.id);
+                                      const subjectObj = subjectsData.find(s => s.id === note.subjectId);
+                                      const careerObj = careersData.find(c => c.id === note.careerId);
+                                      return (
+                                        <div key={note.id} className="flex flex-col gap-0.5 pb-1.5 border-b border-[#EDE6DD]/50 last:border-0 last:pb-0">
+                                          <span className="font-bold text-[#3D3229]">
+                                            {note.title}
+                                          </span>
+                                          <div className="flex items-center gap-x-2 text-[10px] text-[#7A6E62] flex-wrap">
+                                            <span className="font-bold text-[#8B7355] bg-[#F5EFE5] px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider">
+                                              {careerObj?.shortName || note.careerId}
+                                            </span>
+                                            <span className="text-[#8B7355]">{subjectObj?.name || note.subjectId}</span>
+                                            <span className="text-[#D4AF37] font-bold flex items-center gap-0.5">
+                                              ★ {rating?.value}/5
+                                            </span>
+                                            <span className="text-[#A89F95]">{formatAdminDate(rating?.createdAt)}</span>
+                                          </div>
+                                        </div>
+                                      );
+                                    })}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
 
                         {/* Botones de Acción */}
