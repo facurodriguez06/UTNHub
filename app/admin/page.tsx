@@ -424,6 +424,9 @@ export default function AdminPage() {
   const [confirmResetDownloads, setConfirmResetDownloads] = useState(false);
   const [isResettingDownloads, setIsResettingDownloads] = useState(false);
 
+  const [confirmResetViews, setConfirmResetViews] = useState(false);
+  const [isResettingViews, setIsResettingViews] = useState(false);
+
   const [showReportModal, setShowReportModal] = useState(false);
   const [monthlyReport, setMonthlyReport] = useState<any>(null);
 
@@ -1964,12 +1967,12 @@ export default function AdminPage() {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Top Apuntes */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-8">
+                {/* Top Apuntes Descargados */}
                 <div className="flex flex-col gap-4">
                   <h3 className="text-lg font-bold text-[#4A433C] flex items-center gap-2 px-2">
-                    <FileText className="w-5 h-5 text-[#D4856A]" />
-                    Top 10 Apuntes
+                    <Download className="w-5 h-5 text-[#D4856A]" />
+                    Top 10 Descargados
                   </h3>
                   <div className="bg-[#F9F7F4] rounded-3xl border border-[#EDE6DD] overflow-hidden">
                     {[...approvedNotes]
@@ -1994,7 +1997,41 @@ export default function AdminPage() {
                         </div>
                       ))}
                     {[...approvedNotes].filter(n => (n.downloadCount || 0) > 0).length === 0 && (
-                      <div className="p-10 text-center text-[#A89F95] text-sm">No hay datos aún</div>
+                      <div className="p-10 text-center text-[#A89F95] text-sm">No hay descargas aún</div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Top Apuntes Vistos */}
+                <div className="flex flex-col gap-4">
+                  <h3 className="text-lg font-bold text-[#4A433C] flex items-center gap-2 px-2">
+                    <Eye className="w-5 h-5 text-[#8BAA91]" />
+                    Top 10 Más Vistos
+                  </h3>
+                  <div className="bg-[#F9F7F4] rounded-3xl border border-[#EDE6DD] overflow-hidden">
+                    {[...approvedNotes]
+                      .filter(n => (n.viewCount || 0) > 0)
+                      .sort((a, b) => (b.viewCount || 0) - (a.viewCount || 0))
+                      .slice(0, 10)
+                      .map((note, idx) => (
+                        <div key={note.id} className="flex items-center justify-between p-4 border-b border-[#EDE6DD] last:border-0 hover:bg-white transition-colors">
+                          <div className="flex items-center gap-3 min-w-0">
+                            <span className="text-xs font-black text-[#A89F95] w-4">{idx + 1}</span>
+                            <div className="min-w-0">
+                              <p className="text-sm font-bold text-[#3D3229] truncate">{note.title}</p>
+                              <p className="text-[10px] text-[#7A6E62] truncate">
+                                {subjectsData.find(s => s.id === note.subjectId)?.name || note.subjectId}
+                              </p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-lg border border-[#EDE6DD] shadow-sm shrink-0">
+                            <Eye className="w-3.5 h-3.5 text-[#8BAA91]" />
+                            <span className="text-xs font-black text-[#3D3229]">{note.viewCount || 0}</span>
+                          </div>
+                        </div>
+                      ))}
+                    {[...approvedNotes].filter(n => (n.viewCount || 0) > 0).length === 0 && (
+                      <div className="p-10 text-center text-[#A89F95] text-sm">No hay vistas aún</div>
                     )}
                   </div>
                 </div>
@@ -2606,6 +2643,84 @@ export default function AdminPage() {
                   <p className="text-[#8E5A5A]/80 text-sm leading-relaxed">Reseteá a cero el contador de descargas (`downloadCount`) de todos los apuntes del sistema.</p>
                 </div>
                 <button onClick={() => setConfirmResetDownloads(true)} className="px-6 py-2.5 font-bold text-sm bg-[#8E5A5A] text-white rounded-xl hover:-translate-y-0.5 transition-all shadow-md">Borrar Descargas</button>
+              </div>
+            </div>
+          </section>
+
+          <section className="animate-fade-in-up">
+            <div className="bg-white rounded-[2.5rem] border border-[#f5c6c6] p-6 md:p-8 shadow-[0_4px_20px_-10px_rgba(0,0,0,0.05)] relative overflow-hidden">
+              {confirmResetViews && (
+                <div className="absolute inset-0 z-20 bg-white/95 flex flex-col items-center justify-center p-6 text-center animate-fade-in">
+                  <ShieldAlert className="w-10 h-10 text-[#8E5A5A] mb-3 animate-pulse" />
+                  <p className="font-bold text-[#3D3229] mb-1">¿Estás seguro de borrar las estadísticas de vistas?</p>
+                  <p className="text-xs text-[#8E5A5A] mb-4">Se reseteará a 0 el contador de vistas de todos los apuntes.</p>
+
+                  {isEmailProvider && (
+                    <div className="mb-4 w-full max-w-xs text-left">
+                      <label className="block text-[11px] font-bold text-[#A89F95] uppercase tracking-wider mb-2">
+                        Confirmar con tu contraseña
+                      </label>
+                      <input
+                        type="password"
+                        placeholder="Ingresá tu contraseña..."
+                        className="w-full px-3.5 py-2.5 bg-[#FAFAFA] border border-[#EDE6DD] rounded-xl text-sm outline-none transition-all focus:border-[#E57A7A] focus:ring-1 focus:ring-[#E57A7A]/30 placeholder:text-[#A89F95] text-[#3D3229] font-medium"
+                        value={adminConfirmPassword}
+                        onChange={(e) => setAdminConfirmPassword(e.target.value)}
+                        autoFocus
+                      />
+                    </div>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button onClick={() => { setConfirmResetViews(false); setAdminConfirmPassword(""); }} disabled={isResettingViews} className="px-4 py-2 font-bold text-xs bg-[#F5F0EA] text-[#7A6E62] rounded-xl hover:bg-[#EDE6DD] transition-colors disabled:opacity-50">Cancelar</button>
+                    <button 
+                      onClick={async () => {
+                        setIsResettingViews(true);
+                        try {
+                          if (isEmailProvider) {
+                            await reauthenticateAdmin(adminConfirmPassword);
+                          }
+                          const notesSnap = await getDocs(collection(db, "notes"));
+                          await Promise.all(notesSnap.docs.map(d => {
+                            if (d.data().viewCount) {
+                              return updateDoc(doc(db, "notes", d.id), { viewCount: deleteField() });
+                            }
+                            return Promise.resolve();
+                          }));
+                          
+                          showToast("Contador de vistas de apuntes reiniciado.", "success");
+                        } catch (err: any) {
+                           const authError = toAuthError(err);
+                           showToast(
+                             authError.code === "auth/wrong-password" || authError.code === "auth/invalid-credential"
+                               ? "Contraseña incorrecta."
+                               : "Hubo un error reseteando las vistas.",
+                             "error"
+                           );
+                           console.warn(err);
+                        } finally {
+                           setIsResettingViews(false);
+                           setConfirmResetViews(false);
+                           setAdminConfirmPassword("");
+                        }
+                      }}
+                      disabled={isResettingViews || (isEmailProvider && !adminConfirmPassword)}
+                      className="px-4 py-2 font-bold text-xs bg-[#8E5A5A] text-white rounded-xl shadow-md hover:bg-[#734a4a] transition-all flex items-center gap-2 disabled:opacity-50"
+                    >
+                      {isResettingViews ? <Loader2 className="w-3 h-3 animate-spin"/> : "Sí, borrar vistas"}
+                    </button>
+                  </div>
+                </div>
+              )}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+                <div className="max-w-xl">
+                  <h2 className="text-xl font-black text-[#8E5A5A] mb-2 flex items-center gap-2">
+                    <Trash2 className="w-5 h-5" />
+                    Reiniciar Estadísticas de Vistas
+                  </h2>
+                  <p className="text-[#8E5A5A]/80 text-sm leading-relaxed">Reseteá a cero el contador de vistas (`viewCount`) de todos los apuntes del sistema.</p>
+                </div>
+                <button onClick={() => setConfirmResetViews(true)} className="px-6 py-2.5 font-bold text-sm bg-[#8E5A5A] text-white rounded-xl hover:-translate-y-0.5 transition-all shadow-md">Borrar Vistas</button>
               </div>
             </div>
           </section>

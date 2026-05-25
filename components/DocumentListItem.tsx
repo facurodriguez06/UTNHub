@@ -91,8 +91,18 @@ export function DocumentListItem({ note, customStyles = {}, index = 0 }: { note:
     ? localRatings.reduce((acc, r) => acc + r.value, 0) / localRatings.length 
     : 0;
 
-  const handleVisualizar = () => {
+  const handleVisualizar = async () => {
     if (note.fileUrl) {
+      // Incrementar contador de vistas en Firebase
+      try {
+        const noteRef = doc(db, "notes", note.id);
+        await updateDoc(noteRef, {
+          viewCount: increment(1)
+        });
+      } catch (error) {
+        console.error("Error al incrementar vistas:", error);
+      }
+
       window.open(resolveStorageUrl(note.fileUrl), "_blank");
     } else {
       showToast("Este apunte no tiene una URL válida.", "info");
