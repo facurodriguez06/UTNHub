@@ -44,6 +44,20 @@ const createAdminLoginError = () => {
   return Object.assign(error, { code: "auth/admin-account-not-allowed" });
 };
 
+const getDocWithRetry = async (docRef: any, maxRetries = 3, delayMs = 150): Promise<any> => {
+  for (let i = 0; i < maxRetries; i++) {
+    try {
+      return await getDoc(docRef);
+    } catch (error: any) {
+      if (error?.code === "permission-denied" && i < maxRetries - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        continue;
+      }
+      throw error;
+    }
+  }
+};
+
 const isAdminEmail = async (email?: string | null) => {
   const normalizedEmail = normalizeEmail(email);
   if (!normalizedEmail) return false;
@@ -57,7 +71,7 @@ const isAdminEmail = async (email?: string | null) => {
   }
 
   try {
-    const adminDoc = await getDoc(doc(db, "admins", normalizedEmail));
+    const adminDoc = await getDocWithRetry(doc(db, "admins", normalizedEmail));
     return adminDoc.exists();
   } catch (error) {
     console.error("Error checking admin access:", error);
@@ -75,7 +89,7 @@ const syncUserProfile = async (currentUser: User) => {
   }
 
   // Check if deleted
-  const deletedDoc = await getDoc(doc(db, "deleted_users", currentUser.uid));
+  const deletedDoc = await getDocWithRetry(doc(db, "deleted_users", currentUser.uid));
   if (deletedDoc.exists()) {
     await signOut(auth);
     const error = new Error("Esta cuenta ha sido eliminada permanentemente por el administrador.");
@@ -84,7 +98,7 @@ const syncUserProfile = async (currentUser: User) => {
   }
 
   const userDocRef = doc(db, "users", currentUser.uid);
-  const userDoc = await getDoc(userDocRef);
+  const userDoc = await getDocWithRetry(userDocRef);
 
   if (!userDoc.exists()) {
     // First time user: create profile with defaults
@@ -163,7 +177,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     // Check if deleted
-    const deletedDoc = await getDoc(doc(db, "deleted_users", result.user.uid));
+    const deletedDoc = await getDocWithRetry(doc(db, "deleted_users", result.user.uid));
     if (deletedDoc.exists()) {
       await signOut(auth);
       const error = new Error("Esta cuenta ha sido eliminada permanentemente por el administrador.");
@@ -173,7 +187,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Check if deactivated
     const userDocRef = doc(db, "users", result.user.uid);
-    const userDoc = await getDoc(userDocRef);
+    const userDoc = await getDocWithRetry(userDocRef);
     if (userDoc.exists() && userDoc.data().status === "deactivated") {
       await signOut(auth);
       const error = new Error("Esta cuenta ha sido dada de baja por el administrador.");
@@ -198,7 +212,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
 
     // Check if deleted
-    const deletedDoc = await getDoc(doc(db, "deleted_users", credential.user.uid));
+    const deletedDoc = await getDocWithRetry(doc(db, "deleted_users", credential.user.uid));
     if (deletedDoc.exists()) {
       await signOut(auth);
       const error = new Error("Esta cuenta ha sido eliminada permanentemente por el administrador.");
@@ -208,7 +222,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     // Check if deactivated
     const userDocRef = doc(db, "users", credential.user.uid);
-    const userDoc = await getDoc(userDocRef);
+    const userDoc = await getDocWithRetry(userDocRef);
     if (userDoc.exists() && userDoc.data().status === "deactivated") {
       await signOut(auth);
       const error = new Error("Esta cuenta ha sido dada de baja por el administrador.");
