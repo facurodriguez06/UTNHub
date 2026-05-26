@@ -432,6 +432,8 @@ export default function AdminPage() {
 
   // Users Management States
   const [usersList, setUsersList] = useState<any[]>([]);
+  const [authUsers, setAuthUsers] = useState<any[]>([]);
+  const [authUsersLoaded, setAuthUsersLoaded] = useState(false);
   const [searchUser, setSearchUser] = useState("");
   const [editingUser, setEditingUser] = useState<any | null>(null);
   const [expandedUserRatingsId, setExpandedUserRatingsId] = useState<string | null>(null);
@@ -631,6 +633,10 @@ export default function AdminPage() {
       (error) => console.warn("Error fetching users:", error)
     );
 
+    if (user && hasAdminAccess) {
+      fetchAuthUsers();
+    }
+
     return () => {
       unsubscribePending();
       unsubscribeApproved();
@@ -640,6 +646,29 @@ export default function AdminPage() {
       unsubscribeUsers();
     };
   }, [user, hasAdminAccess, noteSortingOrder]);
+
+  const fetchAuthUsers = async () => {
+    try {
+      let idToken = "";
+      if (user) {
+        idToken = await user.getIdToken();
+      }
+      const response = await fetch("/api/admin/users", {
+        headers: {
+          "Authorization": `Bearer ${idToken}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setAuthUsers(data.users || []);
+        setAuthUsersLoaded(true);
+      } else {
+        console.warn("Failed to fetch Auth users from API. Falling back to Firestore-only.");
+      }
+    } catch (err) {
+      console.error("Error fetching Auth users:", err);
+    }
+  };
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -849,6 +878,7 @@ export default function AdminPage() {
         showToast("Usuario editado con éxito.", "success");
       }
 
+      await fetchAuthUsers();
       setEditingUser(null);
     } catch (err: any) {
       console.error("Error saving user:", err);
@@ -892,6 +922,7 @@ export default function AdminPage() {
       } else {
         showToast(`Usuario ${newStatus === "active" ? "dado de alta" : "dado de baja"} con éxito.`, "success");
       }
+      await fetchAuthUsers();
     } catch (err: any) {
       console.error("Error toggling status:", err);
       showToast("Error al cambiar estado.", "error");
@@ -932,6 +963,7 @@ export default function AdminPage() {
         showToast("Usuario eliminado con éxito.", "success");
       }
 
+      await fetchAuthUsers();
       setConfirmDeleteUser(null);
       setEditingUser(null);
     } catch (err: any) {
@@ -1585,6 +1617,26 @@ export default function AdminPage() {
       </div>
     );
   }
+
+  const mergedUsersList = authUsersLoaded
+    ? [
+        ...authUsers.map((authUser) => {
+          const firestoreUser = usersList.find((u) => u.id === authUser.uid) || {};
+          return {
+            ...firestoreUser,
+            id: authUser.uid,
+            email: authUser.email || firestoreUser.email || "",
+            displayName: authUser.displayName || firestoreUser.displayName || "",
+            photoURL: authUser.photoURL || firestoreUser.photoURL || "",
+            status: authUser.disabled ? "deactivated" : (firestoreUser.status || "active"),
+            providerId: authUser.providerId || firestoreUser.providerId || "unknown",
+            createdAt: authUser.createdAt || firestoreUser.createdAt,
+            lastLoginAt: authUser.lastLoginAt || firestoreUser.lastLoginAt,
+          };
+        }),
+        ...usersList.filter((fu) => !authUsers.some((au) => au.uid === fu.id))
+      ]
+    : usersList;
 
   return (
     <>
@@ -2776,17 +2828,17 @@ export default function AdminPage() {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 bg-white border border-[#EDE6DD] rounded-[2.5rem] p-6 shadow-sm">
             <div className="bg-[#FAFAF8] p-5 rounded-3xl border border-[#EDE6DD] flex flex-col items-center text-center">
               <span className="text-[#7A6E62] text-xs font-black uppercase tracking-widest mb-2">Total Registrados</span>
-              <span className="text-4xl font-black text-[#3D3229]">{usersList.length}</span>
+              <span className="text-4xl font-black text-[#3D3229]">{mergedUsersList.length}</span>
               <p className="text-[10px] text-[#A89F95] mt-1">Usuarios creados en Notes Hub</p>
             </div>
             <div className="bg-[#E8F0EA] p-5 rounded-3xl border border-[#C5DBC9] flex flex-col items-center text-center">
               <span className="text-[#4A7A52] text-xs font-black uppercase tracking-widest mb-2">Usuarios Activos</span>
-              <span className="text-4xl font-black text-[#4A7A52]">{usersList.filter(u => u.status !== 'deactivated').length}</span>
+              <span className="text-4xl font-black text-[#4A7A52]">{mergedUsersList.filter(u => u.status !== 'deactivated').length}</span>
               <p className="text-[10px] text-[#4A7A52] mt-1">Con acceso habilitado al sistema</p>
             </div>
             <div className="bg-[#FFF0F0] p-5 rounded-3xl border border-[#FFDCDC] flex flex-col items-center text-center">
               <span className="text-[#D84545] text-xs font-black uppercase tracking-widest mb-2">Dados de Baja</span>
-              <span className="text-4xl font-black text-[#D84545]">{usersList.filter(u => u.status === 'deactivated').length}</span>
+              <span className="text-4xl font-black text-[#D84545]">{mergedUsersList.filter(u => u.status === 'deactivated').length}</span>
               <p className="text-[10px] text-[#D84545]/80 mt-1">Cuentas con acceso suspendido</p>
             </div>
           </div>
@@ -2807,7 +2859,7 @@ export default function AdminPage() {
 
           {/* Listado de usuarios */}
           <div className="bg-white rounded-[2.5rem] p-6 md:p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] border border-[#EDE6DD] min-h-[300px]">
-            {usersList.filter(u => 
+            {mergedUsersList.filter(u => 
               (u.displayName || "").toLowerCase().includes(searchUser.toLowerCase()) ||
               (u.email || "").toLowerCase().includes(searchUser.toLowerCase())
             ).length === 0 ? (
@@ -2818,7 +2870,7 @@ export default function AdminPage() {
               />
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {usersList
+                {mergedUsersList
                   .filter(u => 
                     (u.displayName || "").toLowerCase().includes(searchUser.toLowerCase()) ||
                     (u.email || "").toLowerCase().includes(searchUser.toLowerCase())

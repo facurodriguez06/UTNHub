@@ -167,3 +167,62 @@ export async function DELETE(req: Request) {
     return NextResponse.json({ error: error.message || "Error al eliminar el usuario." }, { status: 500 });
   }
 }
+
+export async function GET(req: Request) {
+  try {
+    const isSdkReady = initAdmin();
+
+    const authHeader = req.headers.get("authorization");
+    const token = authHeader?.split("Bearer ")[1];
+
+    if (!token) {
+      return NextResponse.json({ error: "No autorizado." }, { status: 401 });
+    }
+
+    if (!isSdkReady) {
+      return NextResponse.json({
+        error: "Firebase Admin SDK no está configurado.",
+        code: "admin-sdk-missing"
+      }, { status: 501 });
+    }
+
+    let decodedToken;
+    try {
+      decodedToken = await admin.auth().verifyIdToken(token);
+    } catch (e) {
+      return NextResponse.json({ error: "Token inválido o expirado." }, { status: 401 });
+    }
+
+    const adminEmail = decodedToken.email;
+    if (!adminEmail) {
+      return NextResponse.json({ error: "El token no contiene un correo electrónico." }, { status: 401 });
+    }
+
+    const db = admin.firestore();
+    const adminDoc = await db.collection("admins").doc(adminEmail.toLowerCase()).get();
+    const isOwner = adminEmail.toLowerCase() === "facundorodriguezsp@gmail.com";
+
+    if (!adminDoc.exists && !isOwner) {
+      return NextResponse.json({ error: "No tienes permisos de administrador." }, { status: 403 });
+    }
+
+    // List all users from Firebase Auth (up to 1000)
+    const listUsersResult = await admin.auth().listUsers(1000);
+    const authUsers = listUsersResult.users.map(u => ({
+      uid: u.uid,
+      email: u.email,
+      displayName: u.displayName,
+      photoURL: u.photoURL,
+      disabled: u.disabled,
+      createdAt: u.metadata.creationTime,
+      lastLoginAt: u.metadata.lastSignInTime,
+      providerId: u.providerData[0]?.providerId || "unknown"
+    }));
+
+    return NextResponse.json({ users: authUsers });
+  } catch (error: any) {
+    console.error("Error listing users in Firebase Admin:", error);
+    return NextResponse.json({ error: error.message || "Error al listar usuarios." }, { status: 500 });
+  }
+}
+
