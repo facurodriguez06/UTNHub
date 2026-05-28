@@ -37,6 +37,7 @@ import { cn } from "@/lib/utils";
 import { resolveStorageUrl } from "@/lib/storage";
 import type { Note } from "@/lib/data";
 import { careersData, subjectsData, yearConfig } from "@/lib/data";
+import { planesData } from "@/app/planes/data";
 import { useAuth } from "@/context/AuthContext";
 import { EditNoteModal } from "@/components/EditNoteModal";
 import { Edit, Megaphone, ChevronDown, Star } from "lucide-react";
@@ -2983,17 +2984,47 @@ export default function AdminPage() {
                                 ) : (
                                   <div className="space-y-2 pl-5 border-l border-[#EDE6DD]">
                                     {Object.entries(usr.subjectRatings || {}).map(([key, ratingVal]: [string, any]) => {
-                                      const [careerId, subjectId] = key.split("_");
-                                      const subjectObj = subjectsData.find(s => s.id === subjectId);
-                                      const careerObj = careersData.find(c => c.id === careerId);
+                                      const idx = key.indexOf("_");
+                                      const careerId = idx !== -1 ? key.substring(0, idx) : key;
+                                      const subjectId = idx !== -1 ? key.substring(idx + 1) : "";
+                                      
+                                      let subjectName = "";
+                                      let careerName = "";
+                                      
+                                      const planesCareer = planesData[careerId as keyof typeof planesData];
+                                      if (planesCareer) {
+                                        careerName = planesCareer.shortName || planesCareer.name;
+                                        const curriculumSubject = planesCareer.curriculum?.find(s => s.id === subjectId);
+                                        if (curriculumSubject) {
+                                          subjectName = curriculumSubject.name;
+                                        }
+                                      }
+                                      
+                                      if (!subjectName) {
+                                        const subjectObj = subjectsData.find(s => s.id === subjectId);
+                                        if (subjectObj) {
+                                          subjectName = subjectObj.name;
+                                        }
+                                      }
+                                      
+                                      if (!careerName) {
+                                        const careerObj = careersData.find(c => c.id === careerId);
+                                        if (careerObj) {
+                                          careerName = careerObj.shortName || careerObj.name;
+                                        }
+                                      }
+                                      
+                                      const resolvedSubjectName = subjectName || subjectId || key;
+                                      const resolvedCareerName = careerName || careerId;
+
                                       return (
                                         <div key={key} className="flex flex-col gap-0.5 pb-1.5 border-b border-[#EDE6DD]/50 last:border-0 last:pb-0">
                                           <span className="font-bold text-[#3D3229]">
-                                            {subjectObj?.name || subjectId}
+                                            {resolvedSubjectName}
                                           </span>
                                           <div className="flex items-center gap-x-2 text-[10px] text-[#7A6E62] flex-wrap">
                                             <span className="font-bold text-[#8B7355] bg-[#F5EFE5] px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider">
-                                              {careerObj?.shortName || careerId}
+                                              {resolvedCareerName}
                                             </span>
                                             <span className="flex items-center gap-0.5 font-medium">
                                               Dif: <strong className="text-[#D84545]">{ratingVal.difficulty}</strong>/5
@@ -3022,8 +3053,40 @@ export default function AdminPage() {
                                   <div className="space-y-2 pl-5 border-l border-[#EDE6DD]">
                                     {userRatedNotes.map((note: any) => {
                                       const rating = note.ratings?.find((r: any) => r.uid === usr.id);
-                                      const subjectObj = subjectsData.find(s => s.id === note.subjectId);
-                                      const careerObj = careersData.find(c => c.id === note.careerId);
+                                      
+                                      let subjectName = "";
+                                      let careerName = "";
+                                      
+                                      if (note.subjectId) {
+                                        const subjectObj = subjectsData.find(s => s.id === note.subjectId);
+                                        if (subjectObj) {
+                                          subjectName = subjectObj.name;
+                                        } else if (note.careerId) {
+                                          const planesCareer = planesData[note.careerId as keyof typeof planesData];
+                                          if (planesCareer) {
+                                            const curriculumSubject = planesCareer.curriculum?.find(s => s.id === note.subjectId);
+                                            if (curriculumSubject) {
+                                              subjectName = curriculumSubject.name;
+                                            }
+                                          }
+                                        }
+                                      }
+                                      
+                                      if (note.careerId) {
+                                        const careerObj = careersData.find(c => c.id === note.careerId);
+                                        if (careerObj) {
+                                          careerName = careerObj.shortName || careerObj.name;
+                                        } else {
+                                          const planesCareer = planesData[note.careerId as keyof typeof planesData];
+                                          if (planesCareer) {
+                                            careerName = planesCareer.shortName || planesCareer.name;
+                                          }
+                                        }
+                                      }
+                                      
+                                      const resolvedSubjectName = subjectName || note.subjectId || "Materia desconocida";
+                                      const resolvedCareerName = careerName || note.careerId || "Carrera desconocida";
+
                                       return (
                                         <div key={note.id} className="flex flex-col gap-0.5 pb-1.5 border-b border-[#EDE6DD]/50 last:border-0 last:pb-0">
                                           <span className="font-bold text-[#3D3229]">
@@ -3031,9 +3094,9 @@ export default function AdminPage() {
                                           </span>
                                           <div className="flex items-center gap-x-2 text-[10px] text-[#7A6E62] flex-wrap">
                                             <span className="font-bold text-[#8B7355] bg-[#F5EFE5] px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider">
-                                              {careerObj?.shortName || note.careerId}
+                                              {resolvedCareerName}
                                             </span>
-                                            <span className="text-[#8B7355]">{subjectObj?.name || note.subjectId}</span>
+                                            <span className="text-[#8B7355]">{resolvedSubjectName}</span>
                                             <span className="text-[#D4AF37] font-bold flex items-center gap-0.5">
                                               ★ {rating?.value}/5
                                             </span>

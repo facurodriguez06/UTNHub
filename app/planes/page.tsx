@@ -762,13 +762,14 @@ const CurriculumViewer = ({
                     <div 
                       key={subject.id}
                       role="button"
+                      title="Hacé clic para ver correlativas, programa y registrar tu progreso"
                       onMouseEnter={() => setHoveredSubject(subject.id)}
                       onMouseLeave={() => setHoveredSubject(null)}
                       onClick={() => setSelectedSubject(subject)}
                       style={{ animationDelay: `${index * 8}ms`, animationDuration: '250ms' }}
                       className={`
                         relative p-4 rounded-2xl border transition-all duration-100 ease-out group min-h-[120px] flex flex-col overflow-hidden [container-type:inline-size]
-                        z-0 hover:z-20 animate-fade-in-up
+                        z-0 hover:z-20 animate-fade-in-up cursor-pointer
                         ${cardStyle}
                         ${spanClass}
                       `}
@@ -808,7 +809,7 @@ const CurriculumViewer = ({
                       </div>
 
                       <div className="relative z-10 mt-auto flex flex-col gap-1.5">
-                        <h4 className="font-semibold text-sm leading-tight text-[#3D3229] transition-colors">
+                        <h4 className="font-semibold text-sm leading-tight text-[#3D3229] group-hover:text-[#8BAA91] transition-colors">
                           {subject.name}
                         </h4>
                         {subject.note && (
@@ -829,10 +830,11 @@ const CurriculumViewer = ({
                               openRatingModal(subject);
                             }
                           }}
+                          title={globalRatings[subject.id] ? "Hacé clic para volver a calificar o ver desglose" : "Hacé clic para calificar la materia"}
                           className={`
-                            flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-150 z-20 border
+                            flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-[11px] font-bold transition-all duration-150 z-20 border active:scale-95 hover:scale-[1.02]
                             ${globalRatings[subject.id] 
-                              ? 'bg-[#FAFAF8] text-[#3D3229] border-[#EDE6DD] hover:bg-[#F5F0EA] hover:border-[#8BAA91]/50' 
+                              ? 'bg-[#FAFAF8] text-[#3D3229] border-[#EDE6DD] hover:bg-[#F5F0EA] hover:border-[#8BAA91]/50 shadow-sm' 
                               : 'bg-transparent text-[#A0A0A0] border-transparent hover:bg-[#FAFAF8] hover:text-[#8BAA91] hover:border-[#EDE6DD]'}
                           `}
                         >
@@ -842,26 +844,31 @@ const CurriculumViewer = ({
                               <span className="hidden @[160px]:inline">Calificar</span>
                             </>
                           ) : (
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-1.5">
                               <span className="flex items-center gap-1 text-[#D4856A]">
-                                <ShieldAlert className="w-3.5 h-3.5" />
+                                <ShieldAlert className="w-3 h-3" />
                                 {globalRatings[subject.id].diffAvg.toFixed(1)}
                               </span>
-                              <span className="w-1 h-1 rounded-full bg-[#E8F0EA]" />
+                              <span className="w-1 h-1 rounded-full bg-[#E8F0EA]/60" />
                               <span className="flex items-center gap-1 text-[#8BAA91]">
-                                <Sparkles className="w-3.5 h-3.5" />
+                                <Sparkles className="w-3 h-3" />
                                 {globalRatings[subject.id].utilAvg.toFixed(1)}
                               </span>
-                              <span className="w-1 h-1 rounded-full bg-[#E8F0EA]" />
-                              <span className="text-[9px] font-bold text-[#A0A0A0] uppercase tracking-tighter">
+                              <span className="hidden @[190px]:inline w-1 h-1 rounded-full bg-[#E8F0EA]/60" />
+                              <span className="hidden @[190px]:inline text-[9px] font-bold text-[#A0A0A0] uppercase tracking-tighter">
                                 {globalRatings[subject.id].count} {globalRatings[subject.id].count === 1 ? 'voto' : 'votos'}
                               </span>
+                              <span className="w-1 h-1 rounded-full bg-[#E8F0EA]/60" />
+                              <Star className="w-3 h-3 text-[#C4A87D] fill-[#C4A87D] shrink-0" />
                             </div>
                           )}
                         </button>
 
-                        <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-[#8BAA91] opacity-0 group-hover:opacity-100 transition-all duration-150 translate-y-2 group-hover:translate-y-0 text-shadow-sm pointer-events-none whitespace-nowrap overflow-hidden">
-                          <Info className="w-3 h-3 flex-shrink-0" /> <span className="hidden @[220px]:inline">Ver correlativas</span>
+                        <div className="flex items-center gap-1 text-[10px] uppercase tracking-wider font-bold text-[#8BAA91] opacity-70 group-hover:opacity-100 transition-all duration-150 pointer-events-none whitespace-nowrap overflow-hidden shrink-0">
+                          <Info className="w-3 h-3 flex-shrink-0" /> 
+                          <span className={`hidden ${globalRatings[subject.id] ? '@[280px]:inline' : '@[220px]:inline'}`}>
+                            Ver correlativas
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -967,6 +974,10 @@ const CurriculumViewer = ({
                           <Sparkles className="w-3.5 h-3.5" />
                           <span className="text-sm font-bold">{globalRatings[selectedSubject.id].utilAvg.toFixed(1)}/5</span>
                         </div>
+                      </div>
+                      <div className="ml-auto flex flex-col items-end">
+                        <span className="text-[10px] font-bold text-[#A0A0A0] uppercase tracking-tighter mb-1">Muestra</span>
+                        <span className="text-xs font-bold text-[#7A6E62]">{globalRatings[selectedSubject.id].count} {globalRatings[selectedSubject.id].count === 1 ? 'estudiante' : 'estudiantes'}</span>
                       </div>
                     </div>
                   </div>
