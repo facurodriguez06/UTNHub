@@ -21,6 +21,7 @@ export function useScrollLock(isLocked: boolean) {
     
     // Bloqueo estándar que funciona bien en Android/Desktop
     document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
 
     return () => {
       if (isIOS) {
@@ -30,6 +31,7 @@ export function useScrollLock(isLocked: boolean) {
       }
 
       document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
 
       if (isIOS) {
         window.scrollTo(0, scrollY);
