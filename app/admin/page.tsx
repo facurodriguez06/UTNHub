@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, useMemo, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import type { FirebaseError } from "firebase/app";
 import jsPDF from "jspdf";
@@ -17,6 +17,7 @@ import {
   Loader2,
   Trash2,
   FolderOpen,
+  Folder,
   DollarSign,
   Mail,
   UserCheck,
@@ -206,6 +207,105 @@ function EmptySection({
       </div>
       <h3 className="text-xl font-bold text-[#2C2825] mb-2">{title}</h3>
       <p className="text-[#7A6E62]">{description}</p>
+    </div>
+  );
+}
+
+function CareerFolder({
+  careerName,
+  careerColor,
+  totalNotes,
+  children,
+}: {
+  careerName: string;
+  careerColor: string;
+  totalNotes: number;
+  children: React.ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="bg-white/40 rounded-2xl border border-[#EDE6DD] overflow-hidden transition-all shadow-[0_2px_8px_rgba(0,0,0,0.01)] hover:shadow-md hover:border-[#8BAA91]/25 duration-300">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-4 bg-[#F9F7F4]/90 hover:bg-[#F5EFE5] transition-colors text-left"
+      >
+        <div className="flex items-center gap-3.5">
+          <div 
+            className="p-3 rounded-2xl text-white flex items-center justify-center shrink-0 shadow-sm"
+            style={{ backgroundColor: careerColor }}
+          >
+            <FolderOpen className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-[#3D3229] leading-tight">{careerName}</h3>
+            <p className="text-xs font-semibold text-[#8B7355] mt-1">
+              {totalNotes} {totalNotes === 1 ? 'apunte aprobado' : 'apuntes aprobados'}
+            </p>
+          </div>
+        </div>
+        <span
+          className={cn(
+            "transform transition-transform duration-300 w-8 h-8 flex items-center justify-center bg-white rounded-full border border-[#EDE6DD] text-[#8B7355] shadow-sm",
+            isOpen ? "rotate-180" : "rotate-0"
+          )}
+        >
+          <ChevronDown className="w-4 h-4" />
+        </span>
+      </button>
+      
+      {isOpen && (
+        <div className="p-4 bg-white/70 border-t border-[#EDE6DD] flex flex-col gap-4 animate-fade-in-up">
+          {children}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function YearFolder({
+  yearLabel,
+  totalNotes,
+  children,
+}: {
+  yearLabel: string;
+  totalNotes: number;
+  children: React.ReactNode;
+}) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="bg-[#FCFAF7]/60 rounded-xl border border-[#F0EAE1] overflow-hidden transition-all hover:border-[#8BAA91]/20">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between p-3.5 bg-[#FAF8F5]/80 hover:bg-[#F5EFE5]/50 transition-colors text-left"
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-[#EAE3D8] text-[#7A6E62] flex items-center justify-center shrink-0">
+            <Folder className="w-4 h-4" />
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-[#4A433C] leading-none">{yearLabel}</h4>
+            <p className="text-[11px] font-semibold text-[#A89F95] mt-1.5">
+              {totalNotes} {totalNotes === 1 ? 'apunte' : 'apuntes'}
+            </p>
+          </div>
+        </div>
+        <span
+          className={cn(
+            "transform transition-transform duration-300 w-7 h-7 flex items-center justify-center bg-white rounded-full border border-[#F0EAE1] text-[#8B7355] shadow-xs",
+            isOpen ? "rotate-180" : "rotate-0"
+          )}
+        >
+          <ChevronDown className="w-3.5 h-3.5" />
+        </span>
+      </button>
+      
+      {isOpen && (
+        <div className="p-4 bg-white/80 border-t border-[#F0EAE1] flex flex-col gap-4 animate-fade-in-up">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -1047,6 +1147,71 @@ export default function AdminPage() {
 
   const filteredPendingNotes = pendingNotes.filter(n => n.author?.toLowerCase().includes(searchAuthor.toLowerCase()));
   const filteredApprovedNotes = approvedNotes.filter(n => n.author?.toLowerCase().includes(searchAuthor.toLowerCase()));
+
+  const groupedNotes = useMemo(() => {
+    const groups: Record<string, {
+      careerName: string;
+      careerColor: string;
+      years: Record<number, {
+        yearLabel: string;
+        subjects: Record<string, {
+          subjectName: string;
+          notes: Note[];
+        }>;
+      }>;
+    }> = {};
+
+    filteredApprovedNotes.forEach((note) => {
+      const subject = subjectsData.find((s) => s.id === note.subjectId);
+      const careerId = subject ? subject.careerId : 'other';
+      const year = subject ? subject.year : 0;
+      
+      const careerObj = careersData.find((c) => c.id === careerId);
+      const careerName = careerObj ? careerObj.name : (careerId === 'other' ? 'Sin Clasificar' : careerId);
+      
+      let careerColor = '#7A6E62';
+      if (careerObj) {
+        if (careerId === 'basicas') careerColor = '#C4A87D';
+        else if (careerId === 'sistemas') careerColor = '#8BAA91';
+        else if (careerId === 'electronica') careerColor = '#E8A87C';
+        else if (careerId === 'civil') careerColor = '#D4856A';
+        else if (careerId === 'electromecanica') careerColor = '#9B8BBF';
+        else if (careerId === 'quimica') careerColor = '#C28B8B';
+        else if (careerId === 'telecomunicaciones') careerColor = '#7BA7C2';
+      }
+
+      const yearLabel = yearConfig[year]?.label || (year === 0 ? 'General / Otros' : `${year}º Año`);
+
+      if (!groups[careerId]) {
+        groups[careerId] = {
+          careerName,
+          careerColor,
+          years: {}
+        };
+      }
+
+      if (!groups[careerId].years[year]) {
+        groups[careerId].years[year] = {
+          yearLabel,
+          subjects: {}
+        };
+      }
+
+      const subjectId = note.subjectId || 'general';
+      const subjectName = subject ? subject.name : (note.subjectId || 'General');
+
+      if (!groups[careerId].years[year].subjects[subjectId]) {
+        groups[careerId].years[year].subjects[subjectId] = {
+          subjectName,
+          notes: []
+        };
+      }
+
+      groups[careerId].years[year].subjects[subjectId].notes.push(note);
+    });
+
+    return groups;
+  }, [filteredApprovedNotes]);
 
   const handleBulkApprove = async () => {
     const toApprove = pendingNotes.filter(n => selectedPendingNotes.includes(n.id));
@@ -1979,17 +2144,72 @@ export default function AdminPage() {
                   icon={<FileText className="w-10 h-10 text-[#A8B8A0]" />}
                 />
               ) : (
-                <div className="flex flex-col gap-8">
-                  {Object.entries(
-                    filteredApprovedNotes.reduce((acc, note) => {
-                      const subjectName = subjectsData.find(s => s.id === note.subjectId)?.name || note.subjectId || "General";
-                      if (!acc[subjectName]) acc[subjectName] = [];
-                      acc[subjectName].push(note);
-                      return acc;
-                    }, {} as Record<string, Note[]>)
-                  ).sort((a, b) => a[0].localeCompare(b[0])).map(([subject, notes]) => (
-                    <SubjectGroup key={subject} subject={subject} notes={notes} onOpenFile={handleOpenFile} onEditNote={setEditingNote} onDeleteNote={handleDelete} />
-                  ))}
+                <div className="flex flex-col gap-6">
+                  {Object.entries(groupedNotes)
+                    .sort((a, b) => {
+                      const idxA = careersData.findIndex(c => c.id === a[0]);
+                      const idxB = careersData.findIndex(c => c.id === b[0]);
+                      if (idxA === -1) return 1;
+                      if (idxB === -1) return -1;
+                      return idxA - idxB;
+                    })
+                    .map(([careerId, careerData]) => {
+                      let careerTotal = 0;
+                      Object.values(careerData.years).forEach(y => {
+                        Object.values(y.subjects).forEach(s => {
+                          careerTotal += s.notes.length;
+                        });
+                      });
+
+                      return (
+                        <CareerFolder
+                          key={careerId}
+                          careerName={careerData.careerName}
+                          careerColor={careerData.careerColor}
+                          totalNotes={careerTotal}
+                        >
+                          <div className="flex flex-col gap-4">
+                            {Object.entries(careerData.years)
+                              .sort((a, b) => {
+                                const numA = Number(a[0]);
+                                const numB = Number(b[0]);
+                                if (numA === 99) return 1;
+                                if (numB === 99) return -1;
+                                return numA - numB;
+                              })
+                              .map(([yearNum, yearData]) => {
+                                let yearTotal = 0;
+                                Object.values(yearData.subjects).forEach(s => {
+                                  yearTotal += s.notes.length;
+                                });
+
+                                return (
+                                  <YearFolder
+                                    key={yearNum}
+                                    yearLabel={yearData.yearLabel}
+                                    totalNotes={yearTotal}
+                                  >
+                                    <div className="flex flex-col gap-4">
+                                      {Object.entries(yearData.subjects)
+                                        .sort((a, b) => a[1].subjectName.localeCompare(b[1].subjectName))
+                                        .map(([subjectId, subjData]) => (
+                                          <SubjectGroup
+                                            key={subjectId}
+                                            subject={subjData.subjectName}
+                                            notes={subjData.notes}
+                                            onOpenFile={handleOpenFile}
+                                            onEditNote={setEditingNote}
+                                            onDeleteNote={handleDelete}
+                                          />
+                                        ))}
+                                    </div>
+                                  </YearFolder>
+                                );
+                              })}
+                          </div>
+                        </CareerFolder>
+                      );
+                    })}
                 </div>
               )}
             </div>
