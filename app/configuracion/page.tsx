@@ -4,7 +4,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useRouter } from "next/navigation";
 import React, { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { doc, getDoc, updateDoc, deleteField, deleteDoc } from "firebase/firestore";
+import { doc, getDoc, updateDoc, deleteField, deleteDoc, collection, getDocs } from "firebase/firestore";
 import { ArrowLeft, Trash2, AlertTriangle, User, Shield, BookOpen, CheckCircle2, Mail, Lock, Save, Eye, EyeOff, Pencil, BadgeCheck, Clock3, Sparkles, Bell, GraduationCap, Building2, ExternalLink, Star } from "lucide-react";
 import Link from "next/link";
 import { db } from "@/lib/firebase/config";
@@ -41,6 +41,7 @@ export default function ConfiguracionPage() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [isUpdatingPreferences, setIsUpdatingPreferences] = useState(false);
   const [ratingsCount, setRatingsCount] = useState(0);
+  const [noteRatingsCount, setNoteRatingsCount] = useState(0);
 
   // Estado para cambio de email
   const [newEmail, setNewEmail] = useState("");
@@ -104,6 +105,17 @@ export default function ConfiguracionPage() {
           });
           setRatingsCount(Object.keys(data.subjectRatings || {}).length);
         }
+
+        // Count note ratings
+        const notesSnap = await getDocs(collection(db, "notes"));
+        let count = 0;
+        notesSnap.forEach(d => {
+          const ratings = d.data().ratings || [];
+          if (ratings.some((r: any) => r.uid === user.uid)) {
+            count++;
+          }
+        });
+        setNoteRatingsCount(count);
       } catch (error) {
         console.error("Error al cargar la configuración del usuario:", error);
       }
@@ -383,6 +395,41 @@ export default function ConfiguracionPage() {
         showToast("Contraseña incorrecta.", "error");
       } else {
         showToast("Error al borrar las calificaciones.", "error");
+      }
+    } finally {
+      setIsProcessing(false);
+      setShowConfirmDialog(null);
+      setDeleteAccountPassword("");
+    }
+  };
+
+  // Borrar todas las calificaciones de apuntes
+  const handleClearNoteRatings = async (password?: string) => {
+    if (!user) return;
+    setIsProcessing(true);
+    try {
+      if (isEmailProvider) {
+        await reauthenticateUser(password);
+      }
+      const notesSnap = await getDocs(collection(db, "notes"));
+      const batchPromises: Promise<void>[] = [];
+      notesSnap.forEach(d => {
+        const ratings = d.data().ratings || [];
+        if (ratings.some((r: any) => r.uid === user.uid)) {
+          const updated = ratings.filter((r: any) => r.uid !== user.uid);
+          batchPromises.push(updateDoc(doc(db, "notes", d.id), { ratings: updated }));
+        }
+      });
+      await Promise.all(batchPromises);
+      setNoteRatingsCount(0);
+      showToast("Tus valoraciones de apuntes han sido eliminadas.", "success");
+    } catch (error: unknown) {
+      console.error("Error al borrar valoraciones de apuntes:", error);
+      const errorCode = getFirebaseErrorCode(error);
+      if (errorCode === "auth/wrong-password" || errorCode === "auth/invalid-credential") {
+        showToast("Contraseña incorrecta.", "error");
+      } else {
+        showToast("Error al borrar las valoraciones de apuntes.", "error");
       }
     } finally {
       setIsProcessing(false);
@@ -879,12 +926,12 @@ export default function ConfiguracionPage() {
               </button>
             </div>
 
-            {/* Borrar Calificaciones */}
+            {/* Borrar Calificaciones de Materias */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[#FFF8F5] border border-[#FFEBE5] transition-all hover:border-[#FFD5CC] group">
               <div className="space-y-1">
                 <div className="flex items-center gap-2">
                   <Star className="w-4 h-4 text-[#D4856A]" />
-                  <h4 className="text-[14px] font-bold text-[#3D3229]">Borrar calificaciones</h4>
+                  <h4 className="text-[14px] font-bold text-[#3D3229]">Borrar calificaciones de materias</h4>
                 </div>
                 <p className="text-[12px] text-[#D4856A]">Elimina las {ratingsCount} materias que calificaste. Los promedios globales no se verán afectados.</p>
               </div>
@@ -895,6 +942,25 @@ export default function ConfiguracionPage() {
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 Borrar {ratingsCount} {ratingsCount === 1 ? 'calificación' : 'calificaciones'}
+              </button>
+            </div>
+
+            {/* Borrar Valoraciones de Apuntes */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-[#FFF8F5] border border-[#FFEBE5] transition-all hover:border-[#FFD5CC] group">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <Star className="w-4 h-4 text-[#D4856A]" />
+                  <h4 className="text-[14px] font-bold text-[#3D3229]">Borrar valoraciones de apuntes</h4>
+                </div>
+                <p className="text-[12px] text-[#D4856A]">Elimina las {noteRatingsCount} valoraciones de apuntes que realizaste. Los promedios comunitarios se recalcularán.</p>
+              </div>
+              <button
+                onClick={() => setShowConfirmDialog("noteRatings")}
+                disabled={noteRatingsCount === 0}
+                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-[13px] font-bold text-white bg-[#E57A7A] hover:bg-[#D46A6A] border border-[#C55A5A] transition-all active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Borrar {noteRatingsCount} {noteRatingsCount === 1 ? 'valoración' : 'valoraciones'}
               </button>
             </div>
           </div>
@@ -954,6 +1020,9 @@ export default function ConfiguracionPage() {
               {showConfirmDialog === "ratings" && (
                 <>Vas a eliminar las <strong className="text-[#D4856A]">{ratingsCount} calificaciones</strong> que hiciste en las materias. Esta acción no se puede deshacer.</>
               )}
+              {showConfirmDialog === "noteRatings" && (
+                <>Vas a eliminar las <strong className="text-[#D4856A]">{noteRatingsCount} valoraciones</strong> que hiciste en los apuntes. Esta acción no se puede deshacer y recalculará los promedios globales de los apuntes.</>
+              )}
               {showConfirmDialog === "delete_account" && (
                 <>Vas a <strong className="text-[#DC2626]">eliminar definitivamente tu cuenta de UTNHub</strong>. Se perderá todo tu progreso y configuración de usuario. Esta acción es irreversible.</>
               )}
@@ -989,6 +1058,7 @@ export default function ConfiguracionPage() {
                   else if (showConfirmDialog === "regulares") handleClearRegulares(deleteAccountPassword);
                   else if (showConfirmDialog === "todo") handleClearAllProgress(deleteAccountPassword);
                   else if (showConfirmDialog === "ratings") handleClearRatings(deleteAccountPassword);
+                  else if (showConfirmDialog === "noteRatings") handleClearNoteRatings(deleteAccountPassword);
                   else if (showConfirmDialog === "delete_account") executeAccountDeletion(deleteAccountPassword);
                 }}
                 disabled={isProcessing || (isEmailProvider && !deleteAccountPassword)}

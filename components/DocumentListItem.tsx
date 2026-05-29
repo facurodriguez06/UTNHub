@@ -87,6 +87,25 @@ export function DocumentListItem({ note, customStyles = {}, index = 0 }: { note:
     }
   };
 
+  const handleDeleteRate = async () => {
+    if (!user) return;
+    try {
+      const noteRef = doc(db, "notes", note.id);
+      const noteDoc = await getDoc(noteRef);
+      if (noteDoc.exists()) {
+        const currentRatings = (noteDoc.data().ratings || []) as NoteRating[];
+        const updatedRatings = currentRatings.filter((r) => r.uid !== user.uid);
+        await updateDoc(noteRef, { ratings: updatedRatings });
+        
+        setLocalRatings(updatedRatings);
+        showToast("Valoración eliminada correctamente.", "success");
+      }
+    } catch (e) {
+      console.error(e);
+      showToast("Error al eliminar la valoración", "error");
+    }
+  };
+
   const averageRating = localRatings.length > 0 
     ? localRatings.reduce((acc, r) => acc + r.value, 0) / localRatings.length 
     : 0;
@@ -267,6 +286,7 @@ export function DocumentListItem({ note, customStyles = {}, index = 0 }: { note:
         onClose={() => setIsRatingModalOpen(false)}
         ratings={localRatings}
         onRate={handleRate}
+        onDeleteRate={handleDeleteRate}
         noteTitle={note.title}
       />
     </div>

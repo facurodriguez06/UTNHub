@@ -1,7 +1,7 @@
 "use client";
 
 import { NoteRating } from "@/lib/data";
-import { X, Star, User } from "lucide-react";
+import { X, Star, User, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/context/AuthContext";
@@ -12,12 +12,14 @@ export function RatingModal({
   onClose,
   ratings,
   onRate,
+  onDeleteRate,
   noteTitle
 }: {
   isOpen: boolean;
   onClose: () => void;
   ratings: NoteRating[];
   onRate: (value: number) => Promise<void>;
+  onDeleteRate?: () => Promise<void>;
   noteTitle: string;
 }) {
   const { user } = useAuth();
@@ -32,7 +34,14 @@ export function RatingModal({
     setIsSubmitting(false);
   };
 
-  const myRating = user ? ratings.find(r => r.uid === user.uid)?.value : 0;
+  const handleDeleteRate = async () => {
+    if (!onDeleteRate) return;
+    setIsSubmitting(true);
+    await onDeleteRate();
+    setIsSubmitting(false);
+  };
+
+  const myRating = (user ? ratings.find(r => r.uid === user.uid)?.value : 0) ?? 0;
   const average = ratings.length > 0 ? ratings.reduce((acc, r) => acc + r.value, 0) / ratings.length : 0;
 
   return createPortal(
@@ -50,9 +59,21 @@ export function RatingModal({
 
         {/* User Rating Section */}
         <div className="bg-[#F9F7F4] rounded-2xl p-4 mb-4 border border-[#EDE6DD]">
-          <h4 className="text-sm font-bold text-[#4A433C] mb-2 text-center">
-            {user ? "Tu valoración" : "Iniciá sesión para valorar"}
-          </h4>
+          <div className="flex justify-between items-center mb-2">
+            <h4 className="text-sm font-bold text-[#4A433C]">
+              {user ? "Tu valoración" : "Iniciá sesión para valorar"}
+            </h4>
+            {user && myRating > 0 && onDeleteRate && (
+              <button
+                onClick={handleDeleteRate}
+                disabled={isSubmitting}
+                className="text-[11px] font-bold text-[#E57A7A] hover:text-[#D46A6A] transition-colors flex items-center gap-1 hover:underline"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                Eliminar
+              </button>
+            )}
+          </div>
           <div className="flex justify-center gap-2">
             {[1, 2, 3, 4, 5].map((star) => (
               <button

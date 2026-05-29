@@ -2,8 +2,8 @@
 
 import React, { useCallback, useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Star, ShieldAlert, Sparkles } from 'lucide-react';
-import { doc, getDoc, updateDoc, setDoc, increment } from 'firebase/firestore';
+import { X, Star, ShieldAlert, Sparkles, Trash2 } from 'lucide-react';
+import { doc, getDoc, updateDoc, setDoc, increment, deleteDoc, deleteField } from 'firebase/firestore';
 import { db } from '@/lib/firebase/config';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/context/ToastContext';
@@ -133,6 +133,51 @@ export default function SubjectRatingModal({ isOpen, onClose, subject, careerId,
     }
   };
 
+  const handleDeleteRating = async () => {
+    if (!user || !subject || !previousRating) return;
+
+    setIsSubmitting(true);
+    try {
+      const ratingId = `${careerId}_${subject.id}`;
+      
+      // Update global rating aggregates
+      const globalRef = doc(db, 'subject_aggregates', ratingId);
+      const globalDoc = await getDoc(globalRef);
+      
+      if (globalDoc.exists()) {
+        const currentData = globalDoc.data();
+        const currentCount = currentData.count || 0;
+        
+        if (currentCount <= 1) {
+          // If this was the only rating, delete the aggregates document
+          await deleteDoc(globalRef);
+        } else {
+          // Otherwise, decrement aggregate totals
+          await updateDoc(globalRef, {
+            totalDifficulty: increment(-previousRating.difficulty),
+            totalUtility: increment(-previousRating.utility),
+            count: increment(-1)
+          });
+        }
+      }
+
+      // Update user document
+      const userRef = doc(db, 'users', user.uid);
+      await updateDoc(userRef, {
+        [`subjectRatings.${ratingId}`]: deleteField()
+      });
+
+      showToast("Calificación eliminada correctamente.", "success");
+      onRatingUpdated();
+      onClose();
+    } catch (error: unknown) {
+      console.error("Error deleting rating:", error);
+      showToast(`Error: ${error instanceof Error ? error.message : 'al eliminar la calificación'}`, "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   if (!isOpen || !subject || !mounted) return null;
 
   return createPortal(
@@ -236,6 +281,18 @@ export default function SubjectRatingModal({ isOpen, onClose, subject, careerId,
                   previousRating ? "Actualizar calificación" : "Enviar calificación"
                 )}
               </button>
+
+              {previousRating && (
+                <button
+                  type="button"
+                  onClick={handleDeleteRating}
+                  disabled={isSubmitting}
+                  className="w-full mt-2 bg-[#FEF5F5] hover:bg-[#FCECEC] border border-[#F5E5E5] text-[#E57A7A] hover:text-[#D46A6A] font-bold text-sm px-4 py-3.5 rounded-xl transition-all active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-sm"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Eliminar calificación
+                </button>
+              )}
             </div>
           )}
         </div>
